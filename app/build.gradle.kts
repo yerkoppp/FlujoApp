@@ -50,6 +50,7 @@ dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.bundles.compose)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.material.icons.extended)
 
     // Arquitectura (Lifecycle, Room)
     implementation(libs.bundles.lifecycle)
@@ -64,6 +65,9 @@ dependencies {
     // Core & Seguridad
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.security.crypto)
+
+    //Imágenes
+    implementation(libs.coil.compose)
 
     // Testing
     testImplementation(libs.junit)

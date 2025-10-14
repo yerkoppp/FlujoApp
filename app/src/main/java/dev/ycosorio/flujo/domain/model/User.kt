@@ -10,6 +10,8 @@ data class User(
     val uid: String,
     val name: String,
     val email: String,
+    val phoneNumber: String? = null,
+    val photoUrl: String? = null,
     val role: Role,
     val position: String, // Cargo del trabajador, ej: "Técnico de Campo"
     val area: String, // Área a la que pertenece, ej: "Instalaciones"

@@ -132,6 +132,8 @@ private fun DocumentSnapshot.toUser(): User? {
     return try {
         val name = getString("name")!!
         val email = getString("email")!!
+        val phoneNumber = getString("phoneNumber")!!
+        val photoUrl = getString("photo_url")!!
         val position = getString("position")!!
         val area = getString("area")!!
         // Convertimos el String del rol al enum Role
@@ -146,6 +148,8 @@ private fun DocumentSnapshot.toUser(): User? {
             uid = id, // El ID del documento es el UID
             name = name,
             email = email,
+            phoneNumber = phoneNumber,
+            photoUrl = photoUrl,
             role = role,
             position = position,
             area = area,
@@ -172,6 +176,8 @@ private fun User.toFirestoreMap(): Map<String, Any?> {
         "uid" to uid,
         "name" to name,
         "email" to email,
+        "phoneNumber" to phoneNumber,
+        "photoUrl" to photoUrl,
         "role" to role.name, // Guardamos el enum como un String
         "position" to position,
         "area" to area,
@@ -183,3 +189,4 @@ private fun User.toFirestoreMap(): Map<String, Any?> {
         "assigned_pc_id" to assignedPcId
     )
 }
+
