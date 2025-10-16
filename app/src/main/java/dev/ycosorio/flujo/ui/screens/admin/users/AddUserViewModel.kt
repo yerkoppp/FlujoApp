@@ -10,8 +10,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.Date
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
-class AddUserViewModel(
+@HiltViewModel
+class AddUserViewModel @Inject constructor(
     private val userRepository: UserRepository
 ) : ViewModel() {
 

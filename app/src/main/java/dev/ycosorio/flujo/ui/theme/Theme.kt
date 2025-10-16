@@ -80,7 +80,6 @@ private val DarkColorScheme = darkColorScheme(
     outline = FlujoDarkTextDisabled, // Bordes o divisores con un tono más suave
 )
 
-
 @Composable
 fun FlujoAppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),

@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
 /**
  * ViewModel para la pantalla de gestión de usuarios del administrador.
@@ -15,7 +17,8 @@ import kotlinx.coroutines.launch
  *
  * @property userRepository El repositorio para acceder a los datos de los usuarios.
  */
-class UserManagementViewModel(
+@HiltViewModel
+class UserManagementViewModel @Inject constructor(
     private val userRepository: UserRepository
 ) : ViewModel() {
 

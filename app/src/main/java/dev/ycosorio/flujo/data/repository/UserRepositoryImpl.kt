@@ -9,6 +9,8 @@ import dev.ycosorio.flujo.utils.Resource
 import dev.ycosorio.flujo.domain.repository.UserRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.callbackFlow
 
 /**
  * Implementación del UserRepository que se comunica con Firebase Firestore.
@@ -30,8 +32,29 @@ class UserRepositoryImpl(
      * Obtiene todos los usuarios con el rol de TRABAJADOR en tiempo real.
      * @return Un Flow que emite la lista de trabajadores cada vez que hay un cambio en Firestore.
      */
-    override fun getAllWorkers(): Flow<List<User>> {
-        TODO("Implementar la lógica para obtener todos los trabajadores en tiempo real")
+    override fun getAllWorkers(): Flow<List<User>> = callbackFlow {
+        // Creamos una consulta a Firestore para obtener solo los usuarios con el rol de TRABAJADOR
+        val query = usersCollection.whereEqualTo("role", Role.TRABAJADOR.name)
+
+        // addSnapshotListener es el listener de Firestore que se dispara cada vez que hay un cambio.
+        val subscription = query.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                // Si hay un error, lo cerramos y notificamos al flow.
+                close(error)
+                return@addSnapshotListener
+            }
+
+            if (snapshot != null) {
+                // Convertimos todos los documentos recibidos a una lista de Users.
+                val userList = snapshot.documents.mapNotNull { it.toUser() }
+                // Emitimos la nueva lista al flow.
+                trySend(userList)
+            }
+        }
+
+        // Este bloque se ejecuta cuando el flow ya no es necesario (ej: el usuario sale de la pantalla).
+        // Es crucial para detener el listener y evitar fugas de memoria.
+        awaitClose { subscription.remove() }
     }
 
     /**
@@ -39,8 +62,28 @@ class UserRepositoryImpl(
      * @param position El cargo a filtrar, ej: "Técnico de Campo".
      * @return Un Flow que emite la lista de trabajadores filtrada y se actualiza con los cambios.
      */
-    override fun getUsersByPosition(position: String): Flow<List<User>> {
-        TODO("Implementar la lógica para filtrar trabajadores por cargo")
+    override fun getUsersByPosition(position: String): Flow<List<User>> = callbackFlow {
+        // La consulta tiene DOS condiciones:
+        // 1. El rol debe ser TRABAJADOR.
+        // 2. El campo "position" debe ser igual al parámetro recibido.
+        val query = usersCollection
+            .whereEqualTo("role", Role.TRABAJADOR.name)
+            .whereEqualTo("position", position)
+
+        val subscription = query.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                close(error)
+                return@addSnapshotListener
+            }
+
+            if (snapshot != null) {
+                val userList = snapshot.documents.mapNotNull { it.toUser() }
+                trySend(userList)
+            }
+        }
+
+        // Se cancela la suscripción cuando el Flow ya no se usa.
+        awaitClose { subscription.remove() }
     }
 
     /**

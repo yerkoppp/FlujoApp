@@ -39,7 +39,11 @@ junitVersion = "1.3.0"
 espressoCore = "3.7.0"
 
 # ========== Manejo de imágenes ===========
-coil = "2.6.0"
+coil = "2.7.0"
+
+# ========== Inyección de dependencias ===========
+hilt = "2.57.2"
+hiltNavigationCompose = "1.3.0"
 
 # ========== PLUGINS ==========
 [plugins]
@@ -48,6 +52,7 @@ kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 google-services = { id = "com.google.gms.google-services", version.ref = "googleServicesPlugin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 
 # ========== LIBRERÍAS ==========
 [libraries]
@@ -82,6 +87,7 @@ firebase-auth = { group = "com.google.firebase", name = "firebase-auth-ktx", ver
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore-ktx", version.ref = "firebaseFirestore" }
 firebase-storage = { group = "com.google.firebase", name = "firebase-storage-ktx", version.ref = "firebaseStorage" }
 google-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "googleAuth" }
+firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics" }
 
 # ---------- Seguridad ----------
 androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
@@ -95,6 +101,11 @@ androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-co
 
 # ---------- Manejo de imágenes ------------
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+
+# ========== Inyección de dependencias ===========
+hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
+hilt-compiler = { group = "com.google.dagger", name = "hilt-compiler", version.ref = "hilt" }
+hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
 
 # ========== BUNDLES (OPCIONAL) ==========
 # Agrupa dependencias comunes para facilitar su inclusión
@@ -115,7 +126,8 @@ room = [
 firebase = [
     "firebase-auth",
     "firebase-firestore",
-    "firebase-storage"
+    "firebase-storage",
+    "firebase-analytics"
 ]
 
 lifecycle = [

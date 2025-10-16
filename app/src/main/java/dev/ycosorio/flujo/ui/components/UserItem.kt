@@ -1,4 +1,4 @@
-package com.tuempresa.flujo.ui.components
+package dev.ycosorio.flujo.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*

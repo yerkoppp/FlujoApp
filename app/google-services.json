@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "148579629079",
+    "project_id": "flujo-app2025",
+    "storage_bucket": "flujo-app2025.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:148579629079:android:567d498ba7c81f98774452",
+        "android_client_info": {
+          "package_name": "dev.ycosorio.flujo"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "148579629079-1r8qtqbsgnb3e4hed581ed9r2ircgr23.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "dev.ycosorio.flujo",
+            "certificate_hash": "e04bfbbc896b36d97f1b29dea344008b43c14ffd"
+          }
+        },
+        {
+          "client_id": "148579629079-cjrh3aup46n1ej6eoqdourmq7lfh5v61.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAzHjqSa1Og0ITMWtR3QqktC5qc07YX0VY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "148579629079-cjrh3aup46n1ej6eoqdourmq7lfh5v61.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.services)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.hilt)
 }
 
 android {
@@ -68,6 +69,11 @@ dependencies {
 
     //Imágenes
     implementation(libs.coil.compose)
+
+    //Inyección de dependencias
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler) // Usa ksp en lugar de kapt
+    implementation(libs.hilt.navigation.compose) // Para inyectar en Navigation Compose
 
     // Testing
     testImplementation(libs.junit)
