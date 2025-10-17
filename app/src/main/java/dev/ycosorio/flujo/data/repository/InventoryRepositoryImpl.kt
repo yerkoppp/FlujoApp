@@ -86,6 +86,27 @@ class InventoryRepositoryImpl @Inject constructor(
             Resource.Error("Ocurrió un error inesperado al actualizar la solicitud.")
         }
     }
+
+    override fun getRequestsForWorker(workerId: String): Flow<Resource<List<MaterialRequest>>> = callbackFlow {
+        val query = requestsCollection
+            .whereEqualTo("workerId", workerId)
+            .orderBy("requestDate", Query.Direction.DESCENDING)
+
+        val subscription = query.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                trySend(Resource.Error(error.localizedMessage ?: "Error al obtener tus solicitudes."))
+                close(error)
+                return@addSnapshotListener
+            }
+
+            if (snapshot != null) {
+                val requests = snapshot.documents.mapNotNull { it.toMaterialRequest() }
+                trySend(Resource.Success(requests))
+            }
+        }
+
+        awaitClose { subscription.remove() }
+    }
 }
 
 /**

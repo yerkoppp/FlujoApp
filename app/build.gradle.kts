@@ -56,6 +56,7 @@ dependencies {
     // Arquitectura (Lifecycle, Room)
     implementation(libs.bundles.lifecycle)
     implementation(libs.bundles.room)
+    implementation(libs.androidx.foundation)
     ksp(libs.androidx.room.compiler)
 
     // Firebase

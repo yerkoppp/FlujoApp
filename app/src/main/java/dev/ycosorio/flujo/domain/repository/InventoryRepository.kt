@@ -34,4 +34,10 @@ interface InventoryRepository {
      * Usado por el administrador para aprobar o rechazar.
      */
     suspend fun updateRequestStatus(requestId: String, newStatus: RequestStatus): Resource<Unit>
+
+    /**
+     * Obtiene las solicitudes de materiales para un trabajador específico en tiempo real.
+     * @param workerId El ID del trabajador del que se quieren obtener las solicitudes.
+     */
+    fun getRequestsForWorker(workerId: String): Flow<Resource<List<MaterialRequest>>>
 }

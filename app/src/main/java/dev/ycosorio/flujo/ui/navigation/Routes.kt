@@ -7,4 +7,6 @@ sealed class Routes(val route: String) {
     object UserManagement : Routes("admin/users")
     object AddUser : Routes("admin/users/add")
     object MaterialRequests : Routes("admin/inventory/requests")
+    object WorkerRequests : Routes("worker/requests")
+    object CreateRequest : Routes("worker/requests/new")
 }
