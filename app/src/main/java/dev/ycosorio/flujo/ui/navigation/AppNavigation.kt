@@ -2,7 +2,8 @@ package dev.ycosorio.flujo.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
-import androidx.hilt.navigation.compose.hiltViewModel
+import dev.ycosorio.flujo.ui.screens.admin.inventory.MaterialRequestScreen
+import dev.ycosorio.flujo.ui.screens.admin.inventory.MaterialRequestViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -39,6 +40,12 @@ fun AppNavigation() {
                     navController.popBackStack() // Regresa a la pantalla anterior
                 }
             )
+        }
+
+        // Pantalla para Solicitudes de Materiales
+        composable(Routes.MaterialRequests.route) {
+            val viewModel: MaterialRequestViewModel = viewModel()
+            MaterialRequestScreen(viewModel = viewModel)
         }
     }
 }
