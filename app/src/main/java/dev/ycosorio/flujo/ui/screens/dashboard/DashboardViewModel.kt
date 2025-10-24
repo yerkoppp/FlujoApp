@@ -20,7 +20,7 @@ class DashboardViewModel @Inject constructor(
     val userState = _userState.asStateFlow()
 
     // A futuro, este ID vendrá del servicio de autenticación de Firebase.
-    private val currentUserId = "id_del_usuario_actual"
+    private val currentUserId = "admin_001"
 
     init {
         loadCurrentUser()

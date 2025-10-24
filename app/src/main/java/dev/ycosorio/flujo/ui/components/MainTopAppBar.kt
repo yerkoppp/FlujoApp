@@ -39,7 +39,7 @@ fun MainTopAppBar(
                         },
                         leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) }
                     )
-                    Divider()
+                    HorizontalDivider()
                     DropdownMenuItem(
                         text = { Text("Cerrar Sesión") },
                         onClick = {

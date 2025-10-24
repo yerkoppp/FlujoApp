@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.callbackFlow
+import javax.inject.Inject
 
 /**
  * Implementación del UserRepository que se comunica con Firebase Firestore.
@@ -19,7 +20,7 @@ import kotlinx.coroutines.flow.callbackFlow
  *
  * @property firestore Instancia de FirebaseFirestore inyectada para la comunicación con la base de datos.
  */
-class UserRepositoryImpl(
+class UserRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore // Inyectaremos la instancia de Firestore aquí
 ) : UserRepository {
 
@@ -173,22 +174,24 @@ class UserRepositoryImpl(
  */
 private fun DocumentSnapshot.toUser(): User? {
     return try {
-        val name = getString("name")!!
-        val email = getString("email")!!
-        val phoneNumber = getString("phoneNumber")!!
-        val photoUrl = getString("photo_url")!!
-        val position = getString("position")!!
-        val area = getString("area")!!
+        val uid = getString("uid") ?: throw IllegalStateException("uid es obligatorio")
+        val name = getString("name") ?: throw IllegalStateException("name es obligatorio")
+        val email = getString("email") ?: throw IllegalStateException("email es obligatorio")
+        val roleString = getString("role") ?: throw IllegalStateException("role es obligatorio")
+        val role = Role.valueOf(roleString)
+        val position = getString("position") ?: throw IllegalStateException("position es obligatorio")
+        val area = getString("area") ?: throw IllegalStateException("area es obligatorio")
         // Convertimos el String del rol al enum Role
-        val role = Role.valueOf(getString("role")!!)
-        val contractStartDate = getDate("contract_start_date")!!
-        val contractEndDate = getDate("contract_end_date") // Puede ser nulo
-        val assignedVehicleId = getString("assigned_vehicle_id")
-        val assignedPhoneId = getString("assigned_phone_id")
-        val assignedPcId = getString("assigned_pc_id")
+        val contractStartDate = getDate("contractStartDate") ?: throw IllegalStateException("contractStartDate es obligatorio")
+        val contractEndDate = getDate("contractEndDate")
+        val phoneNumber = getString("phoneNumber")
+        val photoUrl = getString("photoUrl")
+        val assignedVehicleId = getString("assignedVehicleId")
+        val assignedPhoneId = getString("assignedPhoneId")
+        val assignedPcId = getString("assignedPcId")
 
         User(
-            uid = id, // El ID del documento es el UID
+            uid = uid,
             name = name,
             email = email,
             phoneNumber = phoneNumber,
@@ -224,12 +227,12 @@ private fun User.toFirestoreMap(): Map<String, Any?> {
         "role" to role.name, // Guardamos el enum como un String
         "position" to position,
         "area" to area,
-        "contract_start_date" to contractStartDate,
+        "contractStartDate" to contractStartDate,
         // Manejamos los campos que pueden ser nulos
-        "contract_end_date" to contractEndDate,
-        "assigned_vehicle_id" to assignedVehicleId,
-        "assigned_phone_id" to assignedPhoneId,
-        "assigned_pc_id" to assignedPcId
+        "contractEndDate" to contractEndDate,
+        "assignedVehicleId" to assignedVehicleId,
+        "assignedPhoneId" to assignedPhoneId,
+        "assignedPcId" to assignedPcId
     )
 }
 

@@ -30,7 +30,7 @@ class WorkerRequestViewModel @Inject constructor(
     val createRequestState = _createRequestState.asStateFlow()
 
     // Suponemos que tenemos el ID del usuario actual. En una app real, lo obtendríamos de Firebase Auth.
-    private val currentUserId = "id_del_usuario_actual" // Esto lo reemplazaremos con la autenticación real
+    private val currentUserId = "worker_001" // Esto lo reemplazaremos con la autenticación real
 
     init {
         loadMyRequests()

@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.Date
+import java.util.UUID
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
@@ -24,15 +25,27 @@ class AddUserViewModel @Inject constructor(
     fun createUser(name: String, email: String, position: String, area: String) {
         viewModelScope.launch {
             // Validación básica
-            if (name.isBlank() || email.isBlank() || position.isBlank() || area.isBlank()) {
-                _addUserState.value = Resource.Error("Todos los campos son obligatorios.")
+            if (name.isBlank()) {
+                _addUserState.value = Resource.Error("El nombre es obligatorio.")
+                return@launch
+            }
+            if (email.isBlank() || !email.contains("@")) {
+                _addUserState.value = Resource.Error("El email es obligatorio y debe ser válido.")
+                return@launch
+            }
+            if (position.isBlank()) {
+                _addUserState.value = Resource.Error("El cargo es obligatorio.")
+                return@launch
+            }
+            if (area.isBlank()) {
+                _addUserState.value = Resource.Error("El área es obligatoria.")
                 return@launch
             }
 
             _addUserState.value = Resource.Loading()
 
             val newUser = User(
-                uid = "", // El repositorio se encargará de esto con Auth
+                uid = "user_${UUID.randomUUID()}",
                 name = name,
                 email = email,
                 position = position,

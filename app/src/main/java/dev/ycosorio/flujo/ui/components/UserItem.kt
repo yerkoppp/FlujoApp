@@ -63,7 +63,7 @@ fun UserItem(user: User) {
 }
 
 @Composable
-private fun UserAvatar(user: User) {
+fun UserAvatar(user: User) {
     Box(
         modifier = Modifier
             .size(50.dp)
@@ -91,7 +91,7 @@ private fun UserAvatar(user: User) {
 }
 
 @Composable
-private fun InfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
+fun InfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(
             imageVector = icon,
