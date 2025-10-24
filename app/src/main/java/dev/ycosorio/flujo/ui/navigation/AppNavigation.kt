@@ -20,13 +20,21 @@ import dev.ycosorio.flujo.ui.screens.worker.inventory.WorkerRequestViewModel
 fun AppNavigation() {
 
     // Por ahora, vamos directamente a la pantalla principal.
-    MainScreen()
- /*   val navController = rememberNavController()
+    //MainScreen()
+    val navController = rememberNavController()
 
     NavHost(
         navController = navController,
-        startDestination = Routes.UserManagement.route
+        startDestination = "main"
     ) {
+        // Pantalla principal con BottomNav
+        composable("main") {
+            MainScreen(
+                onNavigateToUserManagement = {
+                    navController.navigate(Routes.UserManagement.route)
+                }
+            )
+        }
 
         // --- GRAFO DE NAVEGACIÓN DEL ADMINISTRADOR ---
 
@@ -37,6 +45,9 @@ fun AppNavigation() {
                 viewModel = viewModel,
                 onAddUserClicked = {
                     navController.navigate(Routes.AddUser.route)
+                },
+                onBackPressed = {
+                    navController.popBackStack()
                 }
             )
         }
@@ -48,6 +59,9 @@ fun AppNavigation() {
                 viewModel = viewModel,
                 onUserAddedSuccessfully = {
                     navController.popBackStack() // Regresa a la pantalla anterior
+                },
+                onBackPressed = {
+                    navController.popBackStack()
                 }
             )
         }
@@ -81,11 +95,5 @@ fun AppNavigation() {
                 }
             )
         }
-
-
-
-
     }
-*/
-
 }

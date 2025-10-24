@@ -6,12 +6,18 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.ycosorio.flujo.utils.Resource
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.Icons
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ExperimentalMaterial3Api
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddUserScreen(
     viewModel: AddUserViewModel, // <-- CAMBIO: Ahora usa AddUserViewModel
-    onUserAddedSuccessfully: () -> Unit
+    onUserAddedSuccessfully: () -> Unit,
+    onBackPressed: () -> Unit = {}
 ) {
     val name by remember { mutableStateOf("") }
     val email by remember { mutableStateOf("") }
@@ -29,7 +35,16 @@ fun AddUserScreen(
     }
 
     Scaffold(
-        topBar = { /* ... */ }
+        topBar = {
+            TopAppBar(
+                title = { Text("Añadir Trabajador") },
+                navigationIcon = {
+                    IconButton(onClick = onBackPressed) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                    }
+                }
+            )
+        }
     ) { paddingValues ->
         Column(
             modifier = Modifier

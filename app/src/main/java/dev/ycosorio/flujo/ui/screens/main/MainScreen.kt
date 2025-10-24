@@ -18,7 +18,9 @@ import dev.ycosorio.flujo.ui.screens.dashboard.DashboardViewModel
 import dev.ycosorio.flujo.utils.Resource
 
 @Composable
-fun MainScreen() {
+fun MainScreen(
+    onNavigateToUserManagement: () -> Unit = {}
+) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -48,7 +50,9 @@ fun MainScreen() {
             MainTopAppBar(
                 user = (userState as? Resource.Success)?.data,
                 onProfileClicked = { /* navController.navigate("profile") */ },
-                onSignOutClicked = { /* Lógica para cerrar sesión */ }
+                onSignOutClicked = { /* Lógica para cerrar sesión */ },
+                onUserManagementClicked = onNavigateToUserManagement
+
             )
         },
         bottomBar = {

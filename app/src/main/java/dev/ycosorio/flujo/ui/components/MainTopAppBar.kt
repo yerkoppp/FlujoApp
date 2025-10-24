@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import dev.ycosorio.flujo.domain.model.User
+import dev.ycosorio.flujo.domain.model.Role
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -14,6 +15,7 @@ fun MainTopAppBar(
     user: User?,
     onProfileClicked: () -> Unit,
     onSignOutClicked: () -> Unit,
+    onUserManagementClicked: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -39,7 +41,20 @@ fun MainTopAppBar(
                         },
                         leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) }
                     )
+
+                    // Solo mostrar si es ADMINISTRADOR
+                    if (user.role == Role.ADMINISTRADOR) {
+                        DropdownMenuItem(
+                            text = { Text("Gestión de Usuarios") },
+                            onClick = {
+                                showMenu = false
+                                onUserManagementClicked()
+                            },
+                            leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) }
+                        )
+                    }
                     HorizontalDivider()
+
                     DropdownMenuItem(
                         text = { Text("Cerrar Sesión") },
                         onClick = {

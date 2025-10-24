@@ -21,16 +21,33 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Icon
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ExperimentalMaterial3Api
 
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserManagementScreen(
     viewModel: UserManagementViewModel, // Recibiremos el ViewModel aquí
-    onAddUserClicked: () -> Unit // Lambda para navegar a la nueva pantalla
+    onAddUserClicked: () -> Unit, // Lambda para navegar a la nueva pantalla
+    onBackPressed: () -> Unit = {}
 ) {
     // Observamos el estado del ViewModel. 'collectAsState' hace que la UI se recomponga
     // automáticamente cada vez que el estado cambia.
     val uiState by viewModel.usersState.collectAsState()
     Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Gestión de Usuarios") },
+                navigationIcon = {
+                    IconButton(onClick = onBackPressed) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                    }
+                }
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = onAddUserClicked) {
                 Icon(Icons.Default.Add, contentDescription = "Añadir usuario")
