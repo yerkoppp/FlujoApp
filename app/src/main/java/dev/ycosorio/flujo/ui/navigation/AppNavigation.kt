@@ -40,7 +40,7 @@ fun AppNavigation() {
 
     NavHost(
         navController = navController,
-        startDestination = "main"
+        startDestination = Routes.WorkerRequests.route
     ) {
         // Pantalla principal con BottomNav
         composable("main") {

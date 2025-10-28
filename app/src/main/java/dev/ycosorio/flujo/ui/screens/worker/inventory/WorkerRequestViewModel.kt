@@ -26,7 +26,7 @@ class WorkerRequestViewModel @Inject constructor(
     private val _myRequestsState = MutableStateFlow<Resource<List<MaterialRequest>>>(Resource.Loading())
     val myRequestsState = _myRequestsState.asStateFlow()
 
-    private val _createRequestState = MutableStateFlow<Resource<Unit>>(Resource.Success(Unit))
+    private val _createRequestState = MutableStateFlow<Resource<Unit>>(Resource.Idle())
     val createRequestState = _createRequestState.asStateFlow()
 
     // Suponemos que tenemos el ID del usuario actual. En una app real, lo obtendríamos de Firebase Auth.
@@ -45,6 +45,16 @@ class WorkerRequestViewModel @Inject constructor(
 
     fun createMaterialRequest(materialId: String, materialName: String, quantity: Int) {
         viewModelScope.launch {
+            // --- VALIDACIONES ---
+            if (materialName.isBlank()) {
+                _createRequestState.value = Resource.Error("El nombre del material no puede estar vacío.")
+                return@launch
+            }
+            if (quantity <= 0) {
+                _createRequestState.value = Resource.Error("La cantidad debe ser mayor que cero.")
+                return@launch
+            }
+
             _createRequestState.value = Resource.Loading()
 
             // Simulamos obtener el nombre del trabajador. En la app real, lo tendríamos del perfil.
@@ -63,5 +73,12 @@ class WorkerRequestViewModel @Inject constructor(
 
             _createRequestState.value = inventoryRepository.createMaterialRequest(newRequest)
         }
+    }
+
+    /**
+     * Resetea el estado de creación a Idle. Útil después de mostrar un error.
+     */
+    fun resetCreateState() {
+        _createRequestState.value = Resource.Idle()
     }
 }

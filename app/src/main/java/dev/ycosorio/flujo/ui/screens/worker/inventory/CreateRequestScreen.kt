@@ -23,6 +23,7 @@ fun CreateRequestScreen(
     // Efecto para volver atrás cuando la solicitud se crea con éxito
     LaunchedEffect(createState) {
         if (createState is Resource.Success) {
+            viewModel.resetCreateState()
             onSuccess()
         }
     }
@@ -61,7 +62,7 @@ fun CreateRequestScreen(
                     // Por ahora, el ID del material es el mismo que el nombre
                     viewModel.createMaterialRequest(materialName, materialName, quantityInt)
                 },
-                enabled = createState !is Resource.Loading,
+                enabled = createState !is Resource.Loading && createState !is Resource.Success,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 if (createState is Resource.Loading) {
@@ -77,6 +78,12 @@ fun CreateRequestScreen(
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.padding(top = 8.dp)
                 )
+                Button(
+                    onClick = { viewModel.resetCreateState() },
+                    modifier = Modifier.padding(top = 8.dp)
+                ) {
+                    Text("Entendido")
+                }
             }
         }
     }
