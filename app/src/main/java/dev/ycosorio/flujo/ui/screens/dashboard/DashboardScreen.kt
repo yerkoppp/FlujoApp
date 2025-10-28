@@ -26,7 +26,7 @@ fun DashboardScreen(
         contentAlignment = Alignment.TopCenter
     ) {
         when (val state = userState) {
-            is Resource.Loading -> CircularProgressIndicator()
+            is Resource.Idle, is Resource.Loading -> CircularProgressIndicator()
             is Resource.Success -> {
                 val user = state.data
                 if (user != null) {

@@ -1,6 +1,7 @@
 package dev.ycosorio.flujo.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -21,11 +22,15 @@ import coil.compose.AsyncImage
 import dev.ycosorio.flujo.domain.model.User
 
 @Composable
-fun UserItem(user: User) {
+fun UserItem(
+    user: User,
+    onClick: () -> Unit = {}
+    ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp)
+            .clickable{ onClick() }
     ) {
         Row(
             modifier = Modifier.padding(16.dp),

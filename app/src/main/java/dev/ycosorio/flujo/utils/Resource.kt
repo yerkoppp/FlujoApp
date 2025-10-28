@@ -21,4 +21,9 @@ sealed class Resource<T>(val data: T? = null, val message: String? = null) {
      * Representa un estado de carga, por ejemplo, mientras se espera la respuesta de la red.
      */
     class Loading<T> : Resource<T>()
+
+    /**
+     * Representa un estado inactivo, antes de que se inicie cualquier operación.
+     */
+    class Idle<T> : Resource<T>()
 }

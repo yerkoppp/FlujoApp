@@ -1,6 +1,7 @@
 package dev.ycosorio.flujo.ui.components
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
@@ -61,7 +62,7 @@ fun MainTopAppBar(
                             showMenu = false
                             onSignOutClicked()
                         },
-                        leadingIcon = { Icon(Icons.Default.ExitToApp, contentDescription = null) }
+                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null) }
                     )
                 }
             }

@@ -1,4 +1,4 @@
-package dev.ycosorio.flujo.ui.screens.admin.users
+package dev.ycosorio.flujo.ui.screens.admin.users.usermanagament
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,14 +17,15 @@ import dev.ycosorio.flujo.domain.model.User
 import dev.ycosorio.flujo.ui.components.UserItem
 import dev.ycosorio.flujo.utils.Resource
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Icon
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ExperimentalMaterial3Api
+import dev.ycosorio.flujo.ui.screens.admin.users.usermanagament.UserManagementViewModel
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -32,7 +33,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 fun UserManagementScreen(
     viewModel: UserManagementViewModel, // Recibiremos el ViewModel aquí
     onAddUserClicked: () -> Unit, // Lambda para navegar a la nueva pantalla
-    onBackPressed: () -> Unit = {}
+    onBackPressed: () -> Unit = {},
+    onUserClicked: (User) -> Unit = {}
 ) {
     // Observamos el estado del ViewModel. 'collectAsState' hace que la UI se recomponga
     // automáticamente cada vez que el estado cambia.
@@ -43,7 +45,7 @@ fun UserManagementScreen(
                 title = { Text("Gestión de Usuarios") },
                 navigationIcon = {
                     IconButton(onClick = onBackPressed) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 }
             )
@@ -62,15 +64,16 @@ fun UserManagementScreen(
         ) {
             // Usamos un 'when' para decidir qué mostrar en pantalla según el estado.
             when (uiState) {
-                is Resource.Loading -> {
-                    CircularProgressIndicator() // Muestra un círculo de carga.
-                }
+                is Resource.Idle, is Resource.Loading -> CircularProgressIndicator()
                 is Resource.Success -> {
                     val users = (uiState as Resource.Success<List<User>>).data
                     if (users.isNullOrEmpty()) {
                         Text("No se encontraron trabajadores.")
                     } else {
-                        UserList(users = users) // Muestra la lista de usuarios.
+                        UserList(
+                            users = users,
+                            onUserClicked = onUserClicked
+                            ) // Muestra la lista de usuarios.
                     }
                 }
                 is Resource.Error -> {
@@ -83,14 +86,20 @@ fun UserManagementScreen(
 }
 
 @Composable
-private fun UserList(users: List<User>) {
+private fun UserList(
+    users: List<User>,
+    onUserClicked: (User) -> Unit
+    ) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
         items(users) { user ->
-            UserItem(user = user)
+            UserItem(
+                user = user,
+                onClick = { onUserClicked(user) }
+                )
         }
     }
 }

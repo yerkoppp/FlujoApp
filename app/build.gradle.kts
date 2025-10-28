@@ -58,6 +58,7 @@ dependencies {
     implementation(libs.bundles.room)
     implementation(libs.androidx.foundation)
     implementation(libs.identity.jvm)
+    implementation(libs.ui)
     ksp(libs.androidx.room.compiler)
 
     // Firebase

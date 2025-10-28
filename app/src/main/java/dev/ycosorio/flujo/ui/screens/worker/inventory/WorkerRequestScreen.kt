@@ -40,7 +40,7 @@ fun WorkerRequestScreen(
             contentAlignment = Alignment.Center
         ) {
             when (val state = uiState) {
-                is Resource.Loading -> CircularProgressIndicator()
+                is Resource.Idle, is Resource.Loading -> CircularProgressIndicator()
                 is Resource.Success -> {
                     if (state.data.isNullOrEmpty()) {
                         Text("No has realizado ninguna solicitud.")

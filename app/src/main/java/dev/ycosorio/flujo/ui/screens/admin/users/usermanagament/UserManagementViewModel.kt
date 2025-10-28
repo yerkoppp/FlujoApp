@@ -1,14 +1,14 @@
-package dev.ycosorio.flujo.ui.screens.admin.users
+package dev.ycosorio.flujo.ui.screens.admin.users.usermanagament
 
 import androidx.lifecycle.ViewModel
-import dev.ycosorio.flujo.domain.repository.UserRepository
+import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.ycosorio.flujo.domain.model.User
+import dev.ycosorio.flujo.domain.repository.UserRepository
 import dev.ycosorio.flujo.utils.Resource
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
-import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
 /**
