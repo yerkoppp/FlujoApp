@@ -10,6 +10,8 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 import dev.ycosorio.flujo.data.repository.InventoryRepositoryImpl
 import dev.ycosorio.flujo.domain.repository.InventoryRepository
+import dev.ycosorio.flujo.data.repository.DocumentRepositoryImpl
+import dev.ycosorio.flujo.domain.repository.DocumentRepository
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -33,5 +35,12 @@ object AppModule {
     @Singleton
     fun provideInventoryRepository(firestore: FirebaseFirestore): InventoryRepository {
         return InventoryRepositoryImpl(firestore)
+    }
+
+    @Provides
+    @Singleton
+    fun provideDocumentRepository(firestore: FirebaseFirestore): DocumentRepository {
+        // A futuro, pasaremos también FirebaseStorage aquí
+        return DocumentRepositoryImpl(firestore)
     }
 }

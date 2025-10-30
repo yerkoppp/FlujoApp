@@ -16,6 +16,7 @@ import dev.ycosorio.flujo.ui.navigation.BottomNavItem
 import dev.ycosorio.flujo.ui.screens.dashboard.DashboardScreen
 import dev.ycosorio.flujo.ui.screens.dashboard.DashboardViewModel
 import dev.ycosorio.flujo.utils.Resource
+import dev.ycosorio.flujo.ui.screens.documents.DocumentScreen
 
 @Composable
 fun MainScreen(
@@ -90,8 +91,7 @@ fun MainScreen(
             }
 
             composable(BottomNavItem.Documents.route) {
-                // Aquí irá la pantalla de Documentos
-                Text("Pantalla de Documentos")
+                DocumentScreen() // Hilt se encargará de proveer el ViewModel
             }
             composable(BottomNavItem.Inventory.route) {
                 // Aquí decidiremos qué pantalla de inventario mostrarval currentUser = (userState as? Resource.Success)?.data
