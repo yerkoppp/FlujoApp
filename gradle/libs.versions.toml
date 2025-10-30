@@ -48,6 +48,9 @@ foundation = "1.9.3"
 identityJvm = "202411.1"
 ui = "1.9.4"
 
+# ========== Captura de canvas ===========
+capturable = "1.0.1"
+
 # ========== PLUGINS ==========
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -112,6 +115,10 @@ hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-com
 androidx-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundation" }
 identity-jvm = { group = "com.android.identity", name = "identity-jvm", version.ref = "identityJvm" }
 ui = { group = "androidx.compose.ui", name = "ui", version.ref = "ui" }
+
+# ========== Captura de canvas ===========
+composerefreshlayout = { group = "com.google.accompanist", name = "accompanist-swiperefresh", version = "0.36.0" }
+capturable = { group = "dev.shreyaspatil", name = "capturable", version.ref = "capturable" }
 
 # ========== BUNDLES (OPCIONAL) ==========
 # Agrupa dependencias comunes para facilitar su inclusión

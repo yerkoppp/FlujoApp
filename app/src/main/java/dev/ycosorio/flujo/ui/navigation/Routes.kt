@@ -15,4 +15,7 @@ sealed class Routes(val route: String) {
     object MaterialRequests : Routes("admin/inventory/requests")
     object WorkerRequests : Routes("worker/requests")
     object CreateRequest : Routes("worker/requests/new")
+    object Signature : Routes("documents/{assignmentId}/sign") {
+        fun createRoute(assignmentId: String) = "documents/$assignmentId/sign"
+    }
 }

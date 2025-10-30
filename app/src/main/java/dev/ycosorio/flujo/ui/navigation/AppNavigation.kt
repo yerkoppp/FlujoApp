@@ -30,6 +30,8 @@ import dev.ycosorio.flujo.ui.screens.worker.inventory.CreateRequestScreen
 import dev.ycosorio.flujo.ui.screens.worker.inventory.WorkerRequestScreen
 import dev.ycosorio.flujo.ui.screens.worker.inventory.WorkerRequestViewModel
 import dev.ycosorio.flujo.utils.Resource
+import dev.ycosorio.flujo.ui.screens.documents.SignatureScreen
+import dev.ycosorio.flujo.ui.screens.documents.SignatureViewModel
 
 @Composable
 fun AppNavigation() {
@@ -45,6 +47,7 @@ fun AppNavigation() {
         // Pantalla principal con BottomNav
         composable("main") {
             MainScreen(
+                navController = navController,
                 onNavigateToUserManagement = {
                     navController.navigate(Routes.UserManagement.route)
                 }
@@ -191,6 +194,17 @@ fun AppNavigation() {
                 onSuccess = {
                     navController.popBackStack() // Volver a la lista
                 }
+            )
+        }
+
+        composable(
+            route = Routes.Signature.route,
+            arguments = listOf(navArgument("assignmentId") { type = NavType.StringType })
+        ) {
+            // Hilt proveerá el ViewModel y el assignmentId
+            SignatureScreen(
+                onSignatureSaved = { navController.popBackStack() },
+                onBackPressed = { navController.popBackStack() }
             )
         }
     }

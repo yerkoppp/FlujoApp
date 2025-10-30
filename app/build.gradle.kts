@@ -78,6 +78,9 @@ dependencies {
     ksp(libs.hilt.compiler) // Usa ksp en lugar de kapt
     implementation(libs.hilt.navigation.compose) // Para inyectar en Navigation Compose
 
+    //Captura de canvas
+    implementation(libs.capturable)
+
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

@@ -17,7 +17,8 @@ import java.util.*
 
 @Composable
 fun DocumentScreen(
-    viewModel: DocumentViewModel = viewModel() // Hilt proveerá el VM
+    viewModel: DocumentViewModel = viewModel(),
+    onNavigateToSignature: (String) -> Unit
 ) {
     val userState by viewModel.userState.collectAsState()
 
@@ -34,7 +35,7 @@ fun DocumentScreen(
                 if (user != null) {
                     when (user.role) {
                         Role.ADMINISTRADOR -> AdminDocumentScreen(viewModel)
-                        Role.TRABAJADOR -> WorkerDocumentScreen(viewModel)
+                        Role.TRABAJADOR -> WorkerDocumentScreen(viewModel, onNavigateToSignature)
                     }
                 } else {
                     Text("Error: Usuario no encontrado.")
@@ -71,7 +72,10 @@ private fun AdminDocumentScreen(viewModel: DocumentViewModel) {
 
 // --- VISTA PARA EL TRABAJADOR ---
 @Composable
-private fun WorkerDocumentScreen(viewModel: DocumentViewModel) {
+private fun WorkerDocumentScreen(
+    viewModel: DocumentViewModel,
+    onNavigateToSignature: (String) -> Unit
+) {
     val pendingState by viewModel.pendingAssignments.collectAsState()
 
     Column {
@@ -86,7 +90,7 @@ private fun WorkerDocumentScreen(viewModel: DocumentViewModel) {
                 } else {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(assignments) { assignment ->
-                            DocumentAssignmentItem(assignment = assignment)
+                            DocumentAssignmentItem(assignment = assignment, onNavigateToSignature)
                         }
                     }
                 }
@@ -98,7 +102,10 @@ private fun WorkerDocumentScreen(viewModel: DocumentViewModel) {
 
 // --- COMPONENTE REUTILIZABLE PARA UN ITEM DE ASIGNACIÓN ---
 @Composable
-fun DocumentAssignmentItem(assignment: DocumentAssignment) {
+fun DocumentAssignmentItem(
+    assignment: DocumentAssignment,
+    onNavigateToSignature: (String) -> Unit
+) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -113,7 +120,7 @@ fun DocumentAssignmentItem(assignment: DocumentAssignment) {
             }
             // Mostramos el botón solo si está pendiente
             if (assignment.status == DocumentStatus.PENDIENTE) {
-                Button(onClick = { /* TODO: Navegar a la pantalla de firma */ }) {
+                Button(onClick = { onNavigateToSignature(assignment.id) }) {
                     Text("Firmar")
                 }
             } else {

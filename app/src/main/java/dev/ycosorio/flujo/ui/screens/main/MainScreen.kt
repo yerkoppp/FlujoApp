@@ -16,13 +16,16 @@ import dev.ycosorio.flujo.ui.navigation.BottomNavItem
 import dev.ycosorio.flujo.ui.screens.dashboard.DashboardScreen
 import dev.ycosorio.flujo.ui.screens.dashboard.DashboardViewModel
 import dev.ycosorio.flujo.utils.Resource
+import dev.ycosorio.flujo.ui.navigation.Routes
+import androidx.navigation.NavHostController
 import dev.ycosorio.flujo.ui.screens.documents.DocumentScreen
 
 @Composable
 fun MainScreen(
+    navController: NavHostController,
     onNavigateToUserManagement: () -> Unit = {}
 ) {
-    val navController = rememberNavController()
+    //val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     //val dashboardViewModel: DashboardViewModel = viewModel()
@@ -91,7 +94,9 @@ fun MainScreen(
             }
 
             composable(BottomNavItem.Documents.route) {
-                DocumentScreen() // Hilt se encargará de proveer el ViewModel
+                DocumentScreen(onNavigateToSignature = { assignmentId ->
+                    navController.navigate(Routes.Signature.createRoute(assignmentId))
+                }) // Hilt se encargará de proveer el ViewModel
             }
             composable(BottomNavItem.Inventory.route) {
                 // Aquí decidiremos qué pantalla de inventario mostrarval currentUser = (userState as? Resource.Success)?.data
