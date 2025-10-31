@@ -7,6 +7,7 @@ import dev.ycosorio.flujo.domain.model.User
 import dev.ycosorio.flujo.domain.repository.UserRepository
 import dev.ycosorio.flujo.utils.Resource
 import kotlinx.coroutines.flow.MutableStateFlow
+import dev.ycosorio.flujo.utils.SimulationAuth
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -20,16 +21,20 @@ class DashboardViewModel @Inject constructor(
     val userState = _userState.asStateFlow()
 
     // A futuro, este ID vendrá del servicio de autenticación de Firebase.
-    private val currentUserId = "worker_001"
+    private val _currentUserId = SimulationAuth.currentUserId
 
     init {
-        loadCurrentUser()
+        viewModelScope.launch {
+            _currentUserId.collect { userId ->
+                loadCurrentUser(userId)
+            }
+        }
     }
 
-    private fun loadCurrentUser() {
+    private fun loadCurrentUser(userId: String) {
         viewModelScope.launch {
             _userState.value = Resource.Loading()
-            val result = userRepository.getUser(currentUserId)
+            val result = userRepository.getUser(userId)
             _userState.value = result
         }
     }

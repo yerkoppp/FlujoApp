@@ -13,25 +13,24 @@ import androidx.compose.ui.Modifier
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
-import dev.ycosorio.flujo.ui.screens.admin.inventory.MaterialRequestScreen
-import dev.ycosorio.flujo.ui.screens.admin.inventory.MaterialRequestViewModel
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import dev.ycosorio.flujo.ui.screens.admin.inventory.MaterialRequestScreen
+import dev.ycosorio.flujo.ui.screens.admin.inventory.MaterialRequestViewModel
 import dev.ycosorio.flujo.ui.screens.admin.users.EditUserScreen
 import dev.ycosorio.flujo.ui.screens.admin.users.EditUserViewModel
 import dev.ycosorio.flujo.ui.screens.admin.users.UserDetailScreen
-import dev.ycosorio.flujo.ui.screens.main.MainScreen
 import dev.ycosorio.flujo.ui.screens.admin.users.adduser.AddUserScreen
-import dev.ycosorio.flujo.ui.screens.admin.users.usermanagament.UserManagementViewModel
 import dev.ycosorio.flujo.ui.screens.admin.users.adduser.AddUserViewModel
 import dev.ycosorio.flujo.ui.screens.admin.users.usermanagament.UserManagementScreen
+import dev.ycosorio.flujo.ui.screens.admin.users.usermanagament.UserManagementViewModel
+import dev.ycosorio.flujo.ui.screens.documents.SignatureScreen
+import dev.ycosorio.flujo.ui.screens.main.MainScreen
 import dev.ycosorio.flujo.ui.screens.worker.inventory.CreateRequestScreen
 import dev.ycosorio.flujo.ui.screens.worker.inventory.WorkerRequestScreen
 import dev.ycosorio.flujo.ui.screens.worker.inventory.WorkerRequestViewModel
 import dev.ycosorio.flujo.utils.Resource
-import dev.ycosorio.flujo.ui.screens.documents.SignatureScreen
-import dev.ycosorio.flujo.ui.screens.documents.SignatureViewModel
 
 @Composable
 fun AppNavigation() {
@@ -42,12 +41,12 @@ fun AppNavigation() {
 
     NavHost(
         navController = navController,
-        startDestination = Routes.WorkerRequests.route
+        startDestination = "main"
     ) {
         // Pantalla principal con BottomNav
         composable("main") {
             MainScreen(
-                navController = navController,
+                externalNavController = navController,
                 onNavigateToUserManagement = {
                     navController.navigate(Routes.UserManagement.route)
                 }
@@ -166,7 +165,7 @@ fun AppNavigation() {
                 else -> CircularProgressIndicator()
             }
         }
-
+/*
         // Pantalla para Solicitudes de Materiales
         composable(Routes.MaterialRequests.route) {
             val viewModel: MaterialRequestViewModel = hiltViewModel()
@@ -185,7 +184,7 @@ fun AppNavigation() {
                 }
             )
         }
-
+*/
         // Pantalla para crear una nueva solicitud
         composable(Routes.CreateRequest.route) {
             val viewModel: WorkerRequestViewModel = hiltViewModel()
@@ -196,7 +195,7 @@ fun AppNavigation() {
                 }
             )
         }
-
+        //Pantalla de Firma
         composable(
             route = Routes.Signature.route,
             arguments = listOf(navArgument("assignmentId") { type = NavType.StringType })

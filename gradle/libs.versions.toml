@@ -6,10 +6,10 @@
 # Android Gradle Plugin y Kotlin
 agp = "8.12.3"
 kotlin = "2.2.20"
-ksp = "2.2.20-2.0.2"            # (debe coincidir con Kotlin)
+ksp = "2.2.20-2.0.3"            # (debe coincidir con Kotlin)
 
 # ========== JETPACK COMPOSE ==========
-composeBom = "2025.10.00"
+composeBom = "2025.10.01"
 activityCompose = "1.11.0"
 navigationCompose = "2.9.5"
 
@@ -20,10 +20,10 @@ viewModelCompose = "2.9.4"       # (debe coincidir con lifecycle)
 
 
 # ========== BASE DE DATOS LOCAL (ROOM) ==========
-room = "2.8.2"
+room = "2.8.3"
 
 # ========== FIREBASE ==========
-firebaseBom = "34.4.0"
+firebaseBom = "34.5.0"
 googleServicesPlugin = "4.4.4"
 googleAuth = "21.4.0"
 firebaseAuth = "23.2.1"
@@ -44,12 +44,12 @@ coil = "2.7.0"
 # ========== Inyección de dependencias ===========
 hilt = "2.57.2"
 hiltNavigationCompose = "1.3.0"
-foundation = "1.9.3"
+foundation = "1.9.4"
 identityJvm = "202411.1"
 ui = "1.9.4"
 
 # ========== Captura de canvas ===========
-capturable = "1.0.1"
+capturable = "3.0.1"
 
 # ========== PLUGINS ==========
 [plugins]

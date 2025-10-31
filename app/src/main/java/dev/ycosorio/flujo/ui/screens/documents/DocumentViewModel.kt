@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.ycosorio.flujo.domain.model.DocumentAssignment
 import dev.ycosorio.flujo.domain.model.DocumentTemplate
+import dev.ycosorio.flujo.utils.SimulationAuth
 import dev.ycosorio.flujo.domain.model.Role
 import dev.ycosorio.flujo.domain.model.User
 import dev.ycosorio.flujo.domain.repository.DocumentRepository
@@ -38,17 +39,21 @@ class DocumentViewModel @Inject constructor(
     private val _pendingAssignments = MutableStateFlow<Resource<List<DocumentAssignment>>>(Resource.Idle())
     val pendingAssignments = _pendingAssignments.asStateFlow()
 
-    // ID de usuario (temporalmente hardcodeado, luego vendrá de Auth)
-    private val currentUserId = "admin_001" // Cambia a "worker_001" para probar el otro rol
+    // ID de usuario (cambio de role)
+    private val _currentUserId = SimulationAuth.currentUserId
 
     init {
-        loadCurrentUser()
+        viewModelScope.launch {
+            _currentUserId.collect { userId ->
+                loadCurrentUser(userId)
+            }
+        }
     }
 
-    private fun loadCurrentUser() {
+    private fun loadCurrentUser(userId: String) {
         viewModelScope.launch {
             _userState.value = Resource.Loading()
-            val result = userRepository.getUser(currentUserId)
+            val result = userRepository.getUser(userId)
             _userState.value = result
 
             // Si el usuario se carga exitosamente, cargamos los datos según su rol

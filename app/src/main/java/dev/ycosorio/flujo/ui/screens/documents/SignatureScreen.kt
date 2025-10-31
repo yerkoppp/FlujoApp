@@ -1,5 +1,6 @@
 package dev.ycosorio.flujo.ui.screens.documents
 
+import android.graphics.Bitmap
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -10,19 +11,22 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import dev.shreyaspatil.capturable.Capturable
+import dev.shreyaspatil.capturable.capturable
 import dev.shreyaspatil.capturable.controller.rememberCaptureController
 import dev.ycosorio.flujo.ui.components.SignatureCanvas
 import dev.ycosorio.flujo.ui.components.StrokePath
 import dev.ycosorio.flujo.utils.Resource
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
 fun SignatureScreen(
-    viewModel: SignatureViewModel = viewModel(),
+    viewModel: SignatureViewModel = hiltViewModel(),
     onSignatureSaved: () -> Unit,
     onBackPressed: () -> Unit
 ) {
@@ -67,8 +71,18 @@ fun SignatureScreen(
                 Button(
                     onClick = {
                         coroutineScope.launch {
-                            val bitmapResult = captureController.captureAsBitmap()
-                            viewModel.saveSignature(bitmapResult)
+                            try {
+                                // 1. Llama a la función. Si falla, salta al 'catch'.
+                                val imageBitmap: ImageBitmap = captureController.captureAsync().await()
+
+                                // 2. Si tiene éxito, convierte y guarda.
+                                val androidBitmap = imageBitmap.asAndroidBitmap()
+                                viewModel.saveSignature(androidBitmap)
+
+                            } catch (e: Exception) {
+                                // 3. Aquí manejas el error de captura
+                                // ej: viewModel.showError("Error al capturar firma")
+                            }
                         }
                     },
                     enabled = paths.isNotEmpty() && signatureState !is Resource.Loading,
@@ -93,20 +107,16 @@ fun SignatureScreen(
                 )
             }
             // El lienzo para firmar
-            Capturable(
-                controller = captureController,
+            SignatureCanvas(
+                paths = paths,
+                onPathDrawn = {
+                    paths.add(it)
+                },
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Gray),
-                onCaptured = {}// Un fondo para el área de captura
-            ) {
-                SignatureCanvas(
-                    paths = paths,
-                    onPathDrawn = {
-                        paths.add(it)
-                    }
-                )
-            }
+                    .background(Color.Gray) // Mantenemos el fondo gris
+                    .capturable(controller = captureController) // <- El modificador v3.x
+            )
         }
     }
 }

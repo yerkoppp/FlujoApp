@@ -2,8 +2,8 @@ package dev.ycosorio.flujo.ui.components
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -17,17 +17,26 @@ fun MainTopAppBar(
     onProfileClicked: () -> Unit,
     onSignOutClicked: () -> Unit,
     onUserManagementClicked: () -> Unit,
+    onToggleUser: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
     TopAppBar(
-        title = { Text("Flujo") },
+        title = { Text(text = "Flujo") },
         modifier = modifier,
         actions = {
+            // --- BOTÓN DE DEBUG PARA CAMBIAR ROL ---
+            IconButton(onClick = onToggleUser) {
+                Icon(
+                    imageVector = Icons.Default.Sync,
+                    contentDescription = "Cambiar Rol (Debug)"
+                )
+            }
+            // ----------------------------------------
             if (user != null) {
                 IconButton(onClick = { showMenu = true }) {
-                    UserAvatar(user = user) // Reutilizamos el avatar que ya creamos
+                    UserAvatar(user = user)
                 }
 
                 DropdownMenu(
@@ -35,34 +44,40 @@ fun MainTopAppBar(
                     onDismissRequest = { showMenu = false }
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Mi Perfil") },
+                        text = { Text(text = "Mi Perfil") },
                         onClick = {
                             showMenu = false
                             onProfileClicked()
                         },
-                        leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) }
+                        leadingIcon = { Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null) }
                     )
 
                     // Solo mostrar si es ADMINISTRADOR
                     if (user.role == Role.ADMINISTRADOR) {
                         DropdownMenuItem(
-                            text = { Text("Gestión de Usuarios") },
+                            text = { Text(text = "Gestión de Usuarios") },
                             onClick = {
                                 showMenu = false
                                 onUserManagementClicked()
                             },
-                            leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) }
+                            leadingIcon = { Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = null) }
                         )
                     }
                     HorizontalDivider()
 
                     DropdownMenuItem(
-                        text = { Text("Cerrar Sesión") },
+                        text = { Text(text = "Cerrar Sesión") },
                         onClick = {
                             showMenu = false
                             onSignOutClicked()
                         },
-                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null) }
+                        leadingIcon = { Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                            contentDescription = null) }
                     )
                 }
             }

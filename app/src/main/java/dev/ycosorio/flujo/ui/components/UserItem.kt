@@ -20,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import dev.ycosorio.flujo.domain.model.User
+import androidx.compose.ui.graphics.vector.ImageVector
 
 @Composable
 fun UserItem(
@@ -96,7 +97,7 @@ fun UserAvatar(user: User) {
 }
 
 @Composable
-fun InfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
+fun InfoRow(icon: ImageVector, text: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(
             imageVector = icon,

@@ -8,6 +8,7 @@ import dev.ycosorio.flujo.domain.model.RequestStatus
 import dev.ycosorio.flujo.domain.repository.InventoryRepository
 import dev.ycosorio.flujo.domain.repository.UserRepository
 import dev.ycosorio.flujo.utils.Resource
+import dev.ycosorio.flujo.utils.SimulationAuth
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
@@ -30,20 +31,25 @@ class WorkerRequestViewModel @Inject constructor(
     val createRequestState = _createRequestState.asStateFlow()
 
     // Suponemos que tenemos el ID del usuario actual. En una app real, lo obtendríamos de Firebase Auth.
-    private val currentUserId = "worker_001" // Esto lo reemplazaremos con la autenticación real
+    private val _currentUserId = SimulationAuth.currentUserId // Esto lo reemplazaremos con la autenticación real
 
     init {
-        loadMyRequests()
+        viewModelScope.launch {
+            _currentUserId.collect { userId ->
+                loadMyRequests(userId)
+            }
+        }
     }
 
-    private fun loadMyRequests() {
-        inventoryRepository.getRequestsForWorker(currentUserId)
+    private fun loadMyRequests(userId: String) {
+        inventoryRepository.getRequestsForWorker(userId)
             .onEach { result ->
                 _myRequestsState.value = result
             }.launchIn(viewModelScope)
     }
 
     fun createMaterialRequest(materialId: String, materialName: String, quantity: Int) {
+        val currentUserId = _currentUserId.value
         viewModelScope.launch {
             // --- VALIDACIONES ---
             if (materialName.isBlank()) {
@@ -57,8 +63,13 @@ class WorkerRequestViewModel @Inject constructor(
 
             _createRequestState.value = Resource.Loading()
 
-            // Simulamos obtener el nombre del trabajador. En la app real, lo tendríamos del perfil.
-            val workerName = "Nombre del Trabajador"
+            // Simulamos obtener el nombre del trabajador.
+            val userResource = userRepository.getUser(currentUserId)
+            val workerName = if (userResource is Resource.Success) {
+                userResource.data?.name ?: "Trabajador"
+            } else {
+                "Trabajador"
+            }
 
             val newRequest = MaterialRequest(
                 id = UUID.randomUUID().toString(), // Generamos un ID único

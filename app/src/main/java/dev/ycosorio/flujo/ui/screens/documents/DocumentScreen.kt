@@ -14,10 +14,11 @@ import dev.ycosorio.flujo.domain.model.*
 import dev.ycosorio.flujo.utils.Resource
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 
 @Composable
 fun DocumentScreen(
-    viewModel: DocumentViewModel = viewModel(),
+    viewModel: DocumentViewModel = hiltViewModel(),
     onNavigateToSignature: (String) -> Unit
 ) {
     val userState by viewModel.userState.collectAsState()
