@@ -9,6 +9,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.ycosorio.flujo.domain.model.RequestStatus
+import dev.ycosorio.flujo.domain.model.Role
 import dev.ycosorio.flujo.ui.components.MaterialRequestItem
 import dev.ycosorio.flujo.utils.Resource
 
@@ -54,6 +55,7 @@ fun MaterialRequestScreen(
                             ) {
                                 items(state.data) { request ->
                                     MaterialRequestItem(
+                                        role = Role.ADMINISTRADOR,
                                         request = request,
                                         onApprove = { viewModel.updateRequestStatus(request.id, RequestStatus.APROBADO) },
                                         onReject = { viewModel.updateRequestStatus(request.id, RequestStatus.RECHAZADO) }

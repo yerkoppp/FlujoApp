@@ -44,14 +44,16 @@ fun CreateRequestScreen(
                 value = materialName,
                 onValueChange = { materialName = it },
                 label = { Text("Nombre del Material") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                maxLines = 1
             )
             OutlinedTextField(
                 value = quantity,
                 onValueChange = { quantity = it },
                 label = { Text("Cantidad") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                maxLines = 1
             )
 
             Spacer(modifier = Modifier.weight(1f))

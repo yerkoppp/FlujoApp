@@ -50,4 +50,9 @@ interface UserRepository {
      * @return Un Resource que indica si la operación fue exitosa o falló.
      */
     suspend fun deleteUser(uid: String): Resource<Unit>
+
+    /**
+     * Obtiene un usuario por su email (usado para vincular con Firebase Auth).
+     */
+    suspend fun getUserByEmail(email: String): Resource<User>
 }

@@ -51,6 +51,8 @@ ui = "1.9.4"
 
 # ========== Captura de canvas ===========
 capturable = "3.0.1"
+coreI18n = "1.0.0"
+material3 = "1.4.0"
 
 # ========== PLUGINS ==========
 [plugins]
@@ -121,6 +123,8 @@ ui = { group = "androidx.compose.ui", name = "ui", version.ref = "ui" }
 # ========== Captura de canvas ===========
 composerefreshlayout = { group = "com.google.accompanist", name = "accompanist-swiperefresh", version = "0.36.0" }
 capturable = { group = "dev.shreyaspatil", name = "capturable", version.ref = "capturable" }
+androidx-core-i18n = { group = "androidx.core", name = "core-i18n", version.ref = "coreI18n" }
+material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
 
 # ========== BUNDLES (OPCIONAL) ==========
 # Agrupa dependencias comunes para facilitar su inclusión

@@ -29,28 +29,18 @@ class AppViewModel @Inject constructor(
 
     /**
      * Verifica si el usuario autenticado existe en Firestore.
-     * Si no existe, lo crea con rol TRABAJADOR por defecto.
+     * Si NO existe, significa que NO está autorizado.
      */
-    fun ensureUserExistsInFirestore(authUser: AuthUser) {
+    fun checkUserExists(authUser: AuthUser, onAuthorized: (User) -> Unit, onUnauthorized: () -> Unit) {
         viewModelScope.launch {
             when (val result = userRepository.getUser(authUser.uid)) {
-                is Resource.Error -> {
-                    // Usuario no existe en Firestore, crear uno nuevo
-                    val newUser = User(
-                        uid = authUser.uid,
-                        name = authUser.displayName ?: "Usuario",
-                        email = authUser.email ?: "",
-                        phoneNumber = null,
-                        photoUrl = authUser.photoUrl,
-                        role = Role.TRABAJADOR, // Por defecto
-                        position = "Sin asignar",
-                        area = "Sin asignar",
-                        contractStartDate = Date()
-                    )
-                    userRepository.createUser(newUser)
-                }
                 is Resource.Success -> {
-                    // Usuario ya existe, no hacer nada
+                    // ✅ Usuario existe en Firestore → Autorizado
+                    result.data?.let { onAuthorized(it) }
+                }
+                is Resource.Error -> {
+                    // ❌ Usuario NO existe en Firestore → No autorizado
+                    onUnauthorized()
                 }
                 else -> {}
             }

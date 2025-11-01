@@ -1,9 +1,11 @@
 package dev.ycosorio.flujo.data.repository
 
+import android.net.Uri
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Query
+import com.google.firebase.storage.FirebaseStorage
 import dev.ycosorio.flujo.domain.model.DocumentAssignment
 import dev.ycosorio.flujo.domain.model.DocumentStatus
 import dev.ycosorio.flujo.domain.model.DocumentTemplate
@@ -14,6 +16,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import java.util.Date
+import java.util.UUID
 import javax.inject.Inject
 
 /**
@@ -22,12 +25,38 @@ import javax.inject.Inject
  * @property firestore Instancia de FirebaseFirestore inyectada.
  */
 class DocumentRepositoryImpl @Inject constructor(
-    private val firestore: FirebaseFirestore
-    // private val storage: FirebaseStorage // Para guardar las firmas
+    private val firestore: FirebaseFirestore,
+    private val storage: FirebaseStorage // Para guardar las firmas
 ) : DocumentRepository {
 
     private val templatesCollection = firestore.collection("document_templates")
     private val assignmentsCollection = firestore.collection("document_assignments")
+
+    override suspend fun uploadTemplate(title: String, fileUri: Uri): Resource<Unit> {
+        return try {
+            // 1. Definir dónde se guardará en Storage
+            val fileName = "${UUID.randomUUID()}-${fileUri.lastPathSegment}"
+            val storageRef = storage.reference.child("document_templates/$fileName")
+
+            // 2. Subir el archivo
+            val uploadTask = storageRef.putFile(fileUri).await()
+            val downloadUrl = uploadTask.storage.downloadUrl.await().toString()
+
+            // 3. Crear el documento en Firestore
+            val newTemplateRef = templatesCollection.document()
+            val newTemplate = DocumentTemplate(
+                id = newTemplateRef.id,
+                title = title,
+                fileUrl = downloadUrl
+            )
+
+            newTemplateRef.set(newTemplate).await()
+            Resource.Success(Unit)
+
+        } catch (e: Exception) {
+            Resource.Error(e.localizedMessage ?: "Error al subir la plantilla.")
+        }
+    }
 
     /**
      * Obtiene todas las plantillas de documentos (para el Admin).

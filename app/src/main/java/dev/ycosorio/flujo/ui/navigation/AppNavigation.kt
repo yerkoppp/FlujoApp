@@ -21,6 +21,7 @@ import dev.ycosorio.flujo.domain.repository.UserRepository
 import dev.ycosorio.flujo.ui.AppViewModel
 import dev.ycosorio.flujo.ui.screens.admin.inventory.MaterialRequestScreen
 import dev.ycosorio.flujo.ui.screens.admin.inventory.MaterialRequestViewModel
+import dev.ycosorio.flujo.ui.screens.documents.AssignDocumentScreen
 import dev.ycosorio.flujo.ui.screens.admin.users.EditUserScreen
 import dev.ycosorio.flujo.ui.screens.admin.users.EditUserViewModel
 import dev.ycosorio.flujo.ui.screens.admin.users.UserDetailScreen
@@ -28,9 +29,12 @@ import dev.ycosorio.flujo.ui.screens.admin.users.adduser.AddUserScreen
 import dev.ycosorio.flujo.ui.screens.admin.users.adduser.AddUserViewModel
 import dev.ycosorio.flujo.ui.screens.admin.users.usermanagament.UserManagementScreen
 import dev.ycosorio.flujo.ui.screens.admin.users.usermanagament.UserManagementViewModel
+import dev.ycosorio.flujo.ui.screens.auth.AccessVerificationScreen
 import dev.ycosorio.flujo.ui.screens.auth.LoginScreen
 import dev.ycosorio.flujo.ui.screens.documents.SignatureScreen
+import dev.ycosorio.flujo.ui.screens.documents.UploadTemplateScreen
 import dev.ycosorio.flujo.ui.screens.main.MainScreen
+import dev.ycosorio.flujo.ui.screens.settings.SettingsScreen
 import dev.ycosorio.flujo.ui.screens.worker.inventory.CreateRequestScreen
 import dev.ycosorio.flujo.ui.screens.worker.inventory.WorkerRequestScreen
 import dev.ycosorio.flujo.ui.screens.worker.inventory.WorkerRequestViewModel
@@ -41,37 +45,52 @@ fun AppNavigation() {
 
     val navController = rememberNavController()
     val appViewModel: AppViewModel = hiltViewModel()
-    val currentUser by appViewModel.currentUser.collectAsState()
+    val currentAuthUser by appViewModel.currentUser.collectAsState()
 
-    LaunchedEffect(currentUser) {
+    /*LaunchedEffect(currentUser) {
         currentUser?.let { authUser ->
             appViewModel.ensureUserExistsInFirestore(authUser)
         }
-    }
+    }*/
 
     NavHost(
         navController = navController,
         startDestination = "login"
     ) {
         composable(Routes.Login.route) {
-        LoginScreen(onLoginSuccess = {
-            navController.navigate("main") {
-                popUpTo(Routes.Login.route) { inclusive = true }
-            }
-        })
-    }
+            LoginScreen(
+                onLoginSuccess = {
+                    navController.navigate(Routes.AccessVerification.route) {
+                        popUpTo(Routes.Login.route) { inclusive = true }
+                    }
+                }
+            )
+        }
+        composable(Routes.AccessVerification.route) {
+            AccessVerificationScreen(
+                authUser = currentAuthUser,
+                onAccessGranted = {
+                    navController.navigate(Routes.Main.route) {
+                        popUpTo(Routes.AccessVerification.route) { inclusive = true }
+                    }
+                },
+                onAccessDenied = {
+                    navController.navigate(Routes.Login.route) {
+                        popUpTo(Routes.AccessVerification.route) { inclusive = true }
+                    }
+                }
+            )
+        }
         // Pantalla principal con BottomNav
-        composable("main") {
+        composable(Routes.Main.route) {
             MainScreen(
                 externalNavController = navController,
                 onNavigateToUserManagement = {
                     navController.navigate(Routes.UserManagement.route)
                 },
                 onNavigateToAuth = {
-                    // El usuario fue expulsado (no autorizado) o cerró sesión.
-                    // (Asegúrate de que FirebaseAuth.getInstance().signOut() se llame)
-                    navController.navigate("login") {
-                        popUpTo("main") { inclusive = true } // Borra "main" del historial
+                    navController.navigate(Routes.Login.route) {
+                        popUpTo(Routes.Main.route) { inclusive = true }
                     }
                 }
             )
@@ -149,7 +168,7 @@ fun AppNavigation() {
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ){
-                        Text("Usuario no encontrado")
+                            Text("Usuario no encontrado")
                         }
                     }
                 }
@@ -189,26 +208,26 @@ fun AppNavigation() {
                 else -> CircularProgressIndicator()
             }
         }
-/*
-        // Pantalla para Solicitudes de Materiales
-        composable(Routes.MaterialRequests.route) {
-            val viewModel: MaterialRequestViewModel = hiltViewModel()
-            MaterialRequestScreen(viewModel = viewModel)
-        }
-
-        // --- GRAFO DE NAVEGACIÓN DEL TRABAJADOR ---
-
-        // Pantalla de la lista de solicitudes del trabajador
-        composable(Routes.WorkerRequests.route) {
-            val viewModel: WorkerRequestViewModel = hiltViewModel()
-            WorkerRequestScreen(
-                viewModel = viewModel,
-                onAddRequestClicked = {
-                    navController.navigate(Routes.CreateRequest.route)
+        /*
+                // Pantalla para Solicitudes de Materiales
+                composable(Routes.MaterialRequests.route) {
+                    val viewModel: MaterialRequestViewModel = hiltViewModel()
+                    MaterialRequestScreen(viewModel = viewModel)
                 }
-            )
-        }
-*/
+
+                // --- GRAFO DE NAVEGACIÓN DEL TRABAJADOR ---
+
+                // Pantalla de la lista de solicitudes del trabajador
+                composable(Routes.WorkerRequests.route) {
+                    val viewModel: WorkerRequestViewModel = hiltViewModel()
+                    WorkerRequestScreen(
+                        viewModel = viewModel,
+                        onAddRequestClicked = {
+                            navController.navigate(Routes.CreateRequest.route)
+                        }
+                    )
+                }
+        */
         // Pantalla para crear una nueva solicitud
         composable(Routes.CreateRequest.route) {
             val viewModel: WorkerRequestViewModel = hiltViewModel()
@@ -219,7 +238,7 @@ fun AppNavigation() {
                 }
             )
         }
-        //Pantalla de Firma
+        // Pantalla de Firma
         composable(
             route = Routes.Signature.route,
             arguments = listOf(navArgument("assignmentId") { type = NavType.StringType })
@@ -228,6 +247,42 @@ fun AppNavigation() {
             SignatureScreen(
                 onSignatureSaved = { navController.popBackStack() },
                 onBackPressed = { navController.popBackStack() }
+            )
+        }
+
+        // Documento asignado
+        composable(
+            route = Routes.AssignDocument.route,
+            arguments = listOf(navArgument("templateId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val templateId = backStackEntry.arguments?.getString("templateId") ?: return@composable
+
+            AssignDocumentScreen(
+                templateId = templateId,
+                onBackPressed = { navController.popBackStack() },
+                onAssignSuccess = { navController.popBackStack() }
+            )
+        }
+
+        composable(Routes.UploadTemplate.route) {
+            UploadTemplateScreen(
+                onBackPressed = { navController.popBackStack() },
+                onUploadSuccess = { navController.popBackStack() }
+            )
+        }
+
+        // Pantalla de Configuración
+        composable(Routes.Settings.route) {
+            SettingsScreen(
+                onBackPressed = { navController.popBackStack() },
+                onNavigateToAuth = {
+                    // Navega a login y limpia todo el historial
+                    navController.navigate("login") {
+                        popUpTo(navController.graph.id) {
+                            inclusive = true
+                        }
+                    }
+                }
             )
         }
     }

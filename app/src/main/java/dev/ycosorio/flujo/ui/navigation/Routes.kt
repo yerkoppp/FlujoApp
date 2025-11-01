@@ -6,6 +6,9 @@ package dev.ycosorio.flujo.ui.navigation
 sealed class Routes(val route: String) {
 
     object Login : Routes("login")
+    object Main : Routes("main")
+    object AccessVerification : Routes("verify_access")
+
     object UserManagement : Routes("admin/users")
     object AddUser : Routes("admin/users/add")
     object UserDetail : Routes("admin/users/detail/{userId}") {
@@ -20,4 +23,10 @@ sealed class Routes(val route: String) {
     object Signature : Routes("documents/{assignmentId}/sign") {
         fun createRoute(assignmentId: String) = "documents/$assignmentId/sign"
     }
+    object Settings : Routes("settings")
+
+    object AssignDocument : Routes("admin/documents/assign/{templateId}") {
+        fun createRoute(templateId: String) = "admin/documents/assign/$templateId"
+    }
+    object UploadTemplate : Routes("admin/documents/upload")
 }

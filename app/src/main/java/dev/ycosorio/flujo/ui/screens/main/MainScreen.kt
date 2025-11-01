@@ -22,8 +22,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -35,17 +35,17 @@ import dev.ycosorio.flujo.domain.model.User
 import dev.ycosorio.flujo.ui.components.MainTopAppBar
 import dev.ycosorio.flujo.ui.navigation.BottomNavItem
 import dev.ycosorio.flujo.ui.navigation.Routes
+import dev.ycosorio.flujo.ui.screens.admin.dashboard.AdminDashboard
 import dev.ycosorio.flujo.ui.screens.admin.inventory.MaterialRequestScreen
 import dev.ycosorio.flujo.ui.screens.admin.inventory.MaterialRequestViewModel
 import dev.ycosorio.flujo.ui.screens.auth.LoginViewModel
 import dev.ycosorio.flujo.ui.screens.dashboard.DashboardScreen
 import dev.ycosorio.flujo.ui.screens.dashboard.DashboardViewModel
 import dev.ycosorio.flujo.ui.screens.documents.DocumentScreen
+import dev.ycosorio.flujo.ui.screens.worker.dashboard.WorkerDashboard
 import dev.ycosorio.flujo.ui.screens.worker.inventory.WorkerRequestScreen
 import dev.ycosorio.flujo.ui.screens.worker.inventory.WorkerRequestViewModel
-import dev.ycosorio.flujo.utils.Resource
-import dev.ycosorio.flujo.utils.SimulationAuth
-import java.util.Date
+
 
 @Composable
 fun MainScreen(
@@ -89,22 +89,19 @@ fun MainScreen(
             if (isAuthorized) {
                 MainTopAppBar(
                     user = authorizedUser,
-                    onProfileClicked = { /* navController.navigate("profile") */ },
-                    onSignOutClicked = {
+                    onProfileClicked = {
+                        externalNavController.navigate(Routes.Settings.route)
+                    },
+               /*     onSignOutClicked = {
                         loginViewModel.signOut()
                         AuthUI.getInstance()
                             .signOut(context)
-                            .addOnCompleteListener {
-                                onNavigateToAuth()
-                            }
+                            .addOnCompleteListener { onNavigateToAuth() }
                         /*externalNavController.navigate(Routes.Login.route) {
                             popUpTo(0) { inclusive = true }
                         }*/
-                    },
-                    onUserManagementClicked = onNavigateToUserManagement
-                    /*onToggleUser = {
-                        SimulationAuth.toggleUser()
-                    }*/
+                    },*/
+                    //onUserManagementClicked = onNavigateToUserManagement
                 )
             }
         },
@@ -148,7 +145,6 @@ fun MainScreen(
                 },
                 onUserUnauthorized = {
                     // ¡Expulsado! Notificamos a AppNavigation para que vaya al Login
-                    // FirebaseAuth.getInstance().signOut() // Asegúrate de cerrar sesión
                     loginViewModel.signOut()
                     onNavigateToAuth()
                 }
@@ -161,14 +157,21 @@ fun MainScreen(
                 Modifier.padding(innerPadding)
             ) {
                 composable(BottomNavItem.Dashboard.route) {
-                    //DashboardScreen(viewModel = dashboardViewModel)
-                    RealDashboardContent(user = authorizedUser!!)
+
+                    RealDashboardContent(
+                        user = authorizedUser!!,
+                        navController = externalNavController,
+                        onNavigateToUserManagement = onNavigateToUserManagement
+                    )
                 }
 
                 composable(BottomNavItem.Documents.route) {
-                    DocumentScreen(onNavigateToSignature = { assignmentId ->
-                        externalNavController.navigate(Routes.Signature.createRoute(assignmentId))
-                    }) // Hilt se encargará de proveer el ViewModel
+                    DocumentScreen(
+                        onNavigateToSignature = { assignmentId ->
+                            externalNavController.navigate(Routes.Signature.createRoute(assignmentId))
+                                                },
+                        navController = externalNavController
+                    )
                 }
                 composable(BottomNavItem.Inventory.route) {
                     // Aquí decidiremos qué pantalla de inventario mostrar
@@ -202,7 +205,12 @@ fun MainScreen(
 
 
 @Composable
-private fun RealDashboardContent(user: User) {
+private fun RealDashboardContent(
+    user: User,
+    navController: NavHostController,
+    onNavigateToUserManagement: () -> Unit
+) {
+
     Column(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -221,24 +229,14 @@ private fun RealDashboardContent(user: User) {
 
         // El contenido del dashboard cambia según el rol del usuario
         when (user.role) {
-            Role.ADMINISTRADOR -> AdminDashboard()
-            Role.TRABAJADOR -> WorkerDashboard()
+            Role.ADMINISTRADOR -> AdminDashboard(
+                navController = navController,
+                onNavigateToUserManagement = onNavigateToUserManagement
+            )
+            Role.TRABAJADOR -> WorkerDashboard(
+                user = user,
+                navController = navController
+            )
         }
     }
 }
-
-
-@Composable
-fun AdminDashboard() {
-    // Aquí irán los componentes específicos para el administrador
-    // Por ejemplo, un resumen de solicitudes pendientes, usuarios activos, etc.
-    Text("Vista del Administrador", style = MaterialTheme.typography.bodyLarge)
-}
-
-@Composable
-fun WorkerDashboard() {
-    // Aquí irán los componentes específicos para el trabajador
-    // Por ejemplo, documentos pendientes de firma, estado de su última solicitud, etc.
-    Text("Vista del Trabajador", style = MaterialTheme.typography.bodyLarge)
-}
-

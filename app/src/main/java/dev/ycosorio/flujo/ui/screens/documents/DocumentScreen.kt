@@ -3,6 +3,8 @@ package dev.ycosorio.flujo.ui.screens.documents
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -15,11 +17,17 @@ import dev.ycosorio.flujo.utils.Resource
 import java.text.SimpleDateFormat
 import java.util.*
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.navigation.NavHostController
+import dev.ycosorio.flujo.ui.navigation.Routes
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Scaffold
 
 @Composable
 fun DocumentScreen(
     viewModel: DocumentViewModel = hiltViewModel(),
-    onNavigateToSignature: (String) -> Unit
+    onNavigateToSignature: (String) -> Unit,
+    navController: NavHostController
 ) {
     val userState by viewModel.userState.collectAsState()
 
@@ -35,8 +43,13 @@ fun DocumentScreen(
                 val user = state.data
                 if (user != null) {
                     when (user.role) {
-                        Role.ADMINISTRADOR -> AdminDocumentScreen(viewModel)
-                        Role.TRABAJADOR -> WorkerDocumentScreen(viewModel, onNavigateToSignature)
+                        Role.ADMINISTRADOR -> AdminDocumentScreen(
+                            viewModel = viewModel,
+                            navController = navController
+                        )
+                        Role.TRABAJADOR -> WorkerDocumentScreen(
+                            viewModel, onNavigateToSignature
+                        )
                     }
                 } else {
                     Text("Error: Usuario no encontrado.")
@@ -49,24 +62,62 @@ fun DocumentScreen(
 
 // --- VISTA PARA EL ADMINISTRADOR ---
 @Composable
-private fun AdminDocumentScreen(viewModel: DocumentViewModel) {
+private fun AdminDocumentScreen(
+    viewModel: DocumentViewModel,
+    navController: NavHostController
+) {
     val templatesState by viewModel.templates.collectAsState()
 
-    Column {
-        Text("Admin: Plantillas de Documentos", style = MaterialTheme.typography.headlineSmall)
+    Scaffold(
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+                    navController.navigate(Routes.UploadTemplate.route)
+                }
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Subir nueva plantilla")
+            }
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(16.dp)
+        ) {
+            Text(
+                text = "Admin: Plantillas de Documentos",
+                style = MaterialTheme.typography.headlineSmall
+            )
+            Spacer(Modifier.height(16.dp))
 
-        // Aquí iría la UI para asignar plantillas, etc.
-        when (val state = templatesState) {
-            is Resource.Loading, is Resource.Idle -> CircularProgressIndicator()
-            is Resource.Success -> {
-                LazyColumn {
-                    items(state.data ?: emptyList()) { template ->
-                        // UI simple por ahora
-                        Text(template.title, modifier = Modifier.padding(8.dp))
+            // Aquí iría la UI para asignar plantillas, etc.
+            when (val state = templatesState) {
+                is Resource.Loading, is Resource.Idle -> CircularProgressIndicator()
+                is Resource.Success -> {
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) { // <-- Añadir spacedBy
+                        items(state.data ?: emptyList()) { template ->
+                            // --- Convertir en Card Clicable ---
+                            Card(
+                                onClick = {
+                                    // Navegar a la nueva pantalla de asignación
+                                    navController.navigate(Routes.AssignDocument.createRoute(template.id))
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(template.title, modifier = Modifier.weight(1f))
+                                    Icon(Icons.Default.ChevronRight, contentDescription = "Asignar")
+                                }
+                            }
+                        }
                     }
                 }
+                is Resource.Error -> Text(state.message ?: "Error")
             }
-            is Resource.Error -> Text(state.message ?: "Error")
         }
     }
 }

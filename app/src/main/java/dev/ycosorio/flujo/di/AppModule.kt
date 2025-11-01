@@ -2,7 +2,6 @@ package dev.ycosorio.flujo.di
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.FirebaseFirestoreSettings
 import dev.ycosorio.flujo.data.repository.UserRepositoryImpl
 import dev.ycosorio.flujo.domain.repository.UserRepository
 import dagger.Module
@@ -44,9 +43,12 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideDocumentRepository(firestore: FirebaseFirestore): DocumentRepository {
+    fun provideDocumentRepository(
+        firestore: FirebaseFirestore,
+        storage: FirebaseStorage
+    ): DocumentRepository {
 
-        return DocumentRepositoryImpl(firestore)
+        return DocumentRepositoryImpl(firestore, storage)
     }
 
     @Provides

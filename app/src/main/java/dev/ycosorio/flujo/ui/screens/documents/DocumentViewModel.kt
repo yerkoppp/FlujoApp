@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import android.net.Uri
 
 @HiltViewModel
 class DocumentViewModel @Inject constructor(
@@ -40,6 +41,15 @@ class DocumentViewModel @Inject constructor(
     // --- Estados para el Trabajador ---
     private val _pendingAssignments = MutableStateFlow<Resource<List<DocumentAssignment>>>(Resource.Idle())
     val pendingAssignments = _pendingAssignments.asStateFlow()
+
+    private val _allWorkers = MutableStateFlow<Resource<List<User>>>(Resource.Idle())
+    val allWorkers = _allWorkers.asStateFlow()
+
+    private val _assignmentState = MutableStateFlow<Resource<Unit>>(Resource.Idle())
+    val assignmentState = _assignmentState.asStateFlow()
+
+    private val _uploadState = MutableStateFlow<Resource<Unit>>(Resource.Idle())
+    val uploadState = _uploadState.asStateFlow()
 
     // ID de usuario (cambio de role)
     private val _currentUserId = SimulationAuth.currentUserId
@@ -80,11 +90,51 @@ class DocumentViewModel @Inject constructor(
                 _allAssignments.value = it
             }.launchIn(viewModelScope)
 
+            userRepository.getAllWorkers().onEach { workers ->
+                _allWorkers.value = Resource.Success(workers)
+            }.launchIn(viewModelScope)
+
         } else if (user.role == Role.TRABAJADOR) {
             // Cargar datos para el Trabajador
             documentRepository.getPendingAssignmentsForWorker(user.uid).onEach {
                 _pendingAssignments.value = it
             }.launchIn(viewModelScope)
         }
+    }
+
+    fun assignDocumentToWorkers(template: DocumentTemplate, workerIds: List<String>) {
+        viewModelScope.launch {
+            _assignmentState.value = Resource.Loading()
+            if (workerIds.isEmpty()) {
+                _assignmentState.value = Resource.Error("Selecciona al menos un trabajador.")
+                return@launch
+            }
+            // Llamamos a la función del repositorio que ya existe
+            _assignmentState.value = documentRepository.assignDocument(template, workerIds)
+        }
+    }
+
+    fun resetAssignmentState() {
+        _assignmentState.value = Resource.Idle()
+    }
+
+    fun uploadTemplate(title: String, fileUri: Uri?) {
+        viewModelScope.launch {
+            if (title.isBlank()) {
+                _uploadState.value = Resource.Error("El título no puede estar vacío.")
+                return@launch
+            }
+            if (fileUri == null || fileUri == Uri.EMPTY) {
+                _uploadState.value = Resource.Error("Debes seleccionar un archivo.")
+                return@launch
+            }
+
+            _uploadState.value = Resource.Loading()
+            _uploadState.value = documentRepository.uploadTemplate(title, fileUri)
+        }
+    }
+
+    fun resetUploadState() {
+        _uploadState.value = Resource.Idle()
     }
 }

@@ -27,27 +27,19 @@ class DashboardViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            authRepository.currentUser.collect { authUser -> // <-- CAMBIAR
-                authUser?.let { loadCurrentUser(it.uid) }
+            authRepository.currentUser.collect { authUser ->
+                //Busca usuario por email
+                authUser?.let { loadCurrentUser(it.email ?: "") }
             }
         }
     }
 
-    private fun loadCurrentUser(userId: String) {
+    private fun loadCurrentUser(email: String) {
         viewModelScope.launch {
 
             _userState.value = Resource.Loading()
-            _userState.value = userRepository.getUser(userId)
+            _userState.value = userRepository.getUserByEmail(email)
 
-           // println("DEBUG: Intentando cargar usuario con ID: $userId")
-          //  _userState.value = Resource.Loading()
-           // val result = userRepository.getUser(userId)
-          //  when (result) {
-          //      is Resource.Success -> println("DEBUG: Usuario cargado exitosamente: ${result.data?.name}")
-          //      is Resource.Error -> println("DEBUG: Error al cargar usuario: ${result.message}")
-          //      else -> println("DEBUG: Estado inesperado")
-          //  }
-          //  _userState.value = result
         }
     }
 }

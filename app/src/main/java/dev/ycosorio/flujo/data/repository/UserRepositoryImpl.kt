@@ -179,6 +179,34 @@ class UserRepositoryImpl @Inject constructor(
             Resource.Error("Ocurrió un error inesperado al eliminar el usuario.")
         }
     }
+
+    override suspend fun getUserByEmail(email: String): Resource<User> {
+        return try {
+            val query = usersCollection
+                .whereEqualTo("email", email)
+                .limit(1)
+                .get()
+                .await()
+
+            if (query.documents.isEmpty()) {
+                Resource.Error("Usuario no encontrado.")
+            } else {
+                val user = query.documents.first().toUser()
+                if (user != null) {
+                    Resource.Success(user)
+                } else {
+                    Resource.Error("Error al cargar datos del usuario.")
+                }
+            }
+        } catch (e: FirebaseFirestoreException) {
+            when (e.code) {
+                FirebaseFirestoreException.Code.UNAVAILABLE -> Resource.Error("No hay conexión a internet.")
+                else -> Resource.Error("Error: ${e.localizedMessage}")
+            }
+        } catch (e: Exception) {
+            Resource.Error("Error desconocido.")
+        }
+    }
 }
 /**
  * Función de extensión privada para convertir un DocumentSnapshot de Firestore
@@ -248,4 +276,3 @@ private fun User.toFirestoreMap(): Map<String, Any?> {
         "assignedPcId" to assignedPcId
     )
 }
-

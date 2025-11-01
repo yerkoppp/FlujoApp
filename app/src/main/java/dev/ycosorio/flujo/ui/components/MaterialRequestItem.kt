@@ -13,11 +13,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.ycosorio.flujo.domain.model.MaterialRequest
 import dev.ycosorio.flujo.domain.model.RequestStatus
+import dev.ycosorio.flujo.domain.model.Role
 import java.text.SimpleDateFormat
 import java.util.*
 
 @Composable
 fun MaterialRequestItem(
+    role: Role,
     request: MaterialRequest,
     onApprove: () -> Unit,
     onReject: () -> Unit,
@@ -50,18 +52,30 @@ fun MaterialRequestItem(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
                 ) {
-                    Button(
-                        onClick = onReject,
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                    ) {
-                        Icon(Icons.Default.Cancel, contentDescription = "Rechazar")
-                        Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                        Text("Rechazar")
+                    if(role == Role.ADMINISTRADOR) {
+                        Button(
+                            onClick = onReject,
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                        ) {
+                            Icon(Icons.Default.Cancel, contentDescription = "Rechazar")
+                            Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                            Text("Rechazar")
+                        }
+                        Button(onClick = onApprove) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = "Aprobar")
+                            Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                            Text("Aprobar")
+                        }
                     }
-                    Button(onClick = onApprove) {
-                        Icon(Icons.Default.CheckCircle, contentDescription = "Aprobar")
-                        Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                        Text("Aprobar")
+                    if(role == Role.TRABAJADOR) {
+                        Button(
+                            onClick = {},
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                        ) {
+                            Icon(Icons.Default.Cancel, contentDescription = "Cancelar")
+                            Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                            Text("Cancelar")
+                        }
                     }
                 }
             }

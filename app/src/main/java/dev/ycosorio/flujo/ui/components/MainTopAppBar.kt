@@ -16,12 +16,12 @@ import dev.ycosorio.flujo.BuildConfig
 fun MainTopAppBar(
     user: User?,
     onProfileClicked: () -> Unit,
-    onSignOutClicked: () -> Unit,
-    onUserManagementClicked: () -> Unit,
+    //onSignOutClicked: () -> Unit,
+    //onUserManagementClicked: () -> Unit,
     //onToggleUser: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var showMenu by remember { mutableStateOf(false) }
+    //var showMenu by remember { mutableStateOf(false) }
 
     TopAppBar(
         title = { Text(text = "Hola ${user?.name}") },
@@ -38,10 +38,10 @@ fun MainTopAppBar(
         }*/
             // ----------------------------------------
             if (user != null) {
-                IconButton(onClick = { showMenu = true }) {
+                IconButton(onClick = onProfileClicked) {
                     UserAvatar(user = user)
                 }
-
+/*
                 DropdownMenu(
                     expanded = showMenu,
                     onDismissRequest = { showMenu = false }
@@ -82,7 +82,7 @@ fun MainTopAppBar(
                             imageVector = Icons.AutoMirrored.Filled.ExitToApp,
                             contentDescription = null) }
                     )
-                }
+                }*/
             }
         }
     )

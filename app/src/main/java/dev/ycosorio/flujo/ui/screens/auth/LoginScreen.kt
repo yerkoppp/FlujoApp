@@ -2,14 +2,17 @@ package dev.ycosorio.flujo.ui.screens.auth
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import coil.decode.ImageSource
 import com.firebase.ui.auth.AuthUI
 import com.firebase.ui.auth.FirebaseAuthUIActivityResultContract
 import dev.ycosorio.flujo.ui.theme.FlujoAppTheme
@@ -34,7 +37,7 @@ fun LoginScreen(
         AuthUI.getInstance()
             .createSignInIntentBuilder()
             .setAvailableProviders(providers)
-            .setLogo(R.mipmap.ic_logo)
+            .setLogo(R.drawable.logo_transp)
             .build()
     }
 
@@ -65,26 +68,19 @@ fun LoginScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(32.dp)
             ) {
-                // Logo/Título
+                // Logo
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = "Flujo",
-                        style = MaterialTheme.typography.displayLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-
-                    Text(
-                        text = "Gestión de Trabajadores",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    Image(
+                        painter = painterResource(id = R.drawable.logo_transp),
+                        contentDescription = "Logo de la app",
+                        modifier = Modifier.padding(16.dp)
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(32.dp))
 
                 // Botón de inicio de sesión
                 Button(
@@ -101,7 +97,7 @@ fun LoginScreen(
 
                 Text(
                     text = "Inicia sesión con tu cuenta de Google",
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }

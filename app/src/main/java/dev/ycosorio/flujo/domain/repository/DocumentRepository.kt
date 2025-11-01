@@ -5,11 +5,19 @@ import dev.ycosorio.flujo.domain.model.DocumentStatus
 import dev.ycosorio.flujo.domain.model.DocumentTemplate
 import dev.ycosorio.flujo.utils.Resource
 import kotlinx.coroutines.flow.Flow
+import android.net.Uri
 
 /**
  * Define el contrato para las operaciones de datos relacionadas con los documentos y sus asignaciones.
  */
 interface DocumentRepository {
+
+    /**
+     * Sube un archivo de plantilla a Storage y crea la entrada en Firestore.
+     * @param title El título que verá el usuario.
+     * @param fileUri El Uri del archivo local (PDF, etc.) a subir.
+     */
+    suspend fun uploadTemplate(title: String, fileUri: Uri): Resource<Unit>
 
     /**
      * Obtiene todas las plantillas de documentos disponibles (para el administrador).

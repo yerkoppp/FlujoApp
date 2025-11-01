@@ -60,6 +60,8 @@ dependencies {
     implementation(libs.androidx.foundation)
     implementation(libs.identity.jvm)
     implementation(libs.ui)
+    implementation(libs.androidx.core.i18n)
+    implementation(libs.material3)
     ksp(libs.androidx.room.compiler)
 
     // Firebase
