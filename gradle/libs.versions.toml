@@ -29,6 +29,7 @@ googleAuth = "21.4.0"
 firebaseAuth = "23.2.1"
 firebaseFirestore = "25.1.4"
 firebaseStorage = "21.0.2"
+firebaseUiAuth = "9.1.1"
 
 # ========== SEGURIDAD ==========
 securityCrypto = "1.1.0"
@@ -94,6 +95,7 @@ firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore
 firebase-storage = { group = "com.google.firebase", name = "firebase-storage-ktx", version.ref = "firebaseStorage" }
 google-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "googleAuth" }
 firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics" }
+firebase-ui-auth = { group = "com.firebaseui", name = "firebase-ui-auth", version.ref = "firebaseUiAuth" }
 
 # ---------- Seguridad ----------
 androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }

@@ -3,6 +3,7 @@ package dev.ycosorio.flujo.ui.screens.dashboard
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -15,7 +16,9 @@ import dev.ycosorio.flujo.utils.Resource
 
 @Composable
 fun DashboardScreen(
-    viewModel: DashboardViewModel
+    viewModel: DashboardViewModel,
+    onUserAuthorized: (User) -> Unit, // Callback para notificar que el usuario es válido
+    onUserUnauthorized: () -> Unit // Callback para expulsar al usuario
 ) {
     val userState by viewModel.userState.collectAsState()
 
@@ -23,59 +26,50 @@ fun DashboardScreen(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp),
-        contentAlignment = Alignment.TopCenter
+        contentAlignment = Alignment.Center
     ) {
         when (val state = userState) {
-            is Resource.Idle, is Resource.Loading -> CircularProgressIndicator()
+            is Resource.Idle, is Resource.Loading -> {
+                CircularProgressIndicator()
+                Text("Verificando acceso...", modifier = Modifier.padding(top = 16.dp))
+            }
             is Resource.Success -> {
                 val user = state.data
                 if (user != null) {
-                    DashboardContent(user = user)
+                    // ¡Éxito! El usuario existe en Firestore.
+                    // Usamos LaunchedEffect para notificar a MainScreen que cargue el dashboard real.
+                    LaunchedEffect(user) {
+                        onUserAuthorized(user)
+                    }
                 } else {
-                    Text("No se pudo cargar la información del usuario.")
+                    // Esto no debería pasar si Success tiene datos, pero es un buen seguro.
+                    UnauthorizedContent(onSignOut = onUserUnauthorized)
                 }
             }
-            is Resource.Error -> Text(text = state.message ?: "Error al cargar el usuario.")
+
+            is Resource.Error -> {
+                Text(text = state.message ?: "Error al cargar el usuario.")
+                UnauthorizedContent(onSignOut = onUserUnauthorized)
+            }
         }
     }
 }
 
 @Composable
-private fun DashboardContent(user: User) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+private fun UnauthorizedContent(onSignOut: () -> Unit) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
-            text = "¡Hola, ${user.name}!",
-            style = MaterialTheme.typography.headlineMedium,
+            "Acceso Denegado",
+            style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
         )
         Text(
-            text = "Bienvenido a Flujo",
-            style = MaterialTheme.typography.titleMedium
+            "No tienes permiso para acceder a esta aplicación. " +
+                    "Contacta al administrador para que apruebe tu cuenta.",
+            modifier = Modifier.padding(vertical = 16.dp)
         )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        // El contenido del dashboard cambia según el rol del usuario
-        when (user.role) {
-            Role.ADMINISTRADOR -> AdminDashboard()
-            Role.TRABAJADOR -> WorkerDashboard()
+        Button(onClick = onSignOut) {
+            Text("Cerrar Sesión")
         }
     }
-}
-
-@Composable
-private fun AdminDashboard() {
-    // Aquí irían los componentes específicos para el administrador
-    // Por ejemplo, un resumen de solicitudes pendientes, usuarios activos, etc.
-    Text("Vista del Administrador", style = MaterialTheme.typography.bodyLarge)
-}
-
-@Composable
-private fun WorkerDashboard() {
-    // Aquí irían los componentes específicos para el trabajador
-    // Por ejemplo, documentos pendientes de firma, estado de su última solicitud, etc.
-    Text("Vista del Trabajador", style = MaterialTheme.typography.bodyLarge)
 }

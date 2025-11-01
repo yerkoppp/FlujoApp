@@ -19,3 +19,12 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Reglas para FirebaseUI (Específicas para las clases no encontradas)
+-keep class com.firebase.ui.auth.data.model.** { *; }
+-keep class com.firebase.ui.auth.** { *; }
+
+# Reglas generales recomendadas para FirebaseUI
+-keepnames class com.google.android.gms.common.api.CommonStatusCodes
+-keepnames class com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes
+-keepnames class com.google.firebase.auth.FirebaseAuthException

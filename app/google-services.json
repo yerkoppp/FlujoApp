@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "148579629079-slrro1j397354f7k6k4rq4965aemt8en.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "dev.ycosorio.flujo",
+            "certificate_hash": "b61717410a325dedae5669db3d2c17ae591b13bb"
+          }
+        },
+        {
           "client_id": "148579629079-cjrh3aup46n1ej6eoqdourmq7lfh5v61.apps.googleusercontent.com",
           "client_type": 3
         }

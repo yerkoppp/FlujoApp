@@ -16,6 +16,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import dev.ycosorio.flujo.domain.repository.AuthRepository
+import dev.ycosorio.flujo.domain.repository.UserRepository
+import dev.ycosorio.flujo.ui.AppViewModel
 import dev.ycosorio.flujo.ui.screens.admin.inventory.MaterialRequestScreen
 import dev.ycosorio.flujo.ui.screens.admin.inventory.MaterialRequestViewModel
 import dev.ycosorio.flujo.ui.screens.admin.users.EditUserScreen
@@ -25,6 +28,7 @@ import dev.ycosorio.flujo.ui.screens.admin.users.adduser.AddUserScreen
 import dev.ycosorio.flujo.ui.screens.admin.users.adduser.AddUserViewModel
 import dev.ycosorio.flujo.ui.screens.admin.users.usermanagament.UserManagementScreen
 import dev.ycosorio.flujo.ui.screens.admin.users.usermanagament.UserManagementViewModel
+import dev.ycosorio.flujo.ui.screens.auth.LoginScreen
 import dev.ycosorio.flujo.ui.screens.documents.SignatureScreen
 import dev.ycosorio.flujo.ui.screens.main.MainScreen
 import dev.ycosorio.flujo.ui.screens.worker.inventory.CreateRequestScreen
@@ -35,20 +39,40 @@ import dev.ycosorio.flujo.utils.Resource
 @Composable
 fun AppNavigation() {
 
-    // Por ahora, vamos directamente a la pantalla principal.
-    //MainScreen()
     val navController = rememberNavController()
+    val appViewModel: AppViewModel = hiltViewModel()
+    val currentUser by appViewModel.currentUser.collectAsState()
+
+    LaunchedEffect(currentUser) {
+        currentUser?.let { authUser ->
+            appViewModel.ensureUserExistsInFirestore(authUser)
+        }
+    }
 
     NavHost(
         navController = navController,
-        startDestination = "main"
+        startDestination = "login"
     ) {
+        composable(Routes.Login.route) {
+        LoginScreen(onLoginSuccess = {
+            navController.navigate("main") {
+                popUpTo(Routes.Login.route) { inclusive = true }
+            }
+        })
+    }
         // Pantalla principal con BottomNav
         composable("main") {
             MainScreen(
                 externalNavController = navController,
                 onNavigateToUserManagement = {
                     navController.navigate(Routes.UserManagement.route)
+                },
+                onNavigateToAuth = {
+                    // El usuario fue expulsado (no autorizado) o cerró sesión.
+                    // (Asegúrate de que FirebaseAuth.getInstance().signOut() se llame)
+                    navController.navigate("login") {
+                        popUpTo("main") { inclusive = true } // Borra "main" del historial
+                    }
                 }
             )
         }

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.ycosorio.flujo.domain.model.MaterialRequest
 import dev.ycosorio.flujo.domain.model.RequestStatus
+import dev.ycosorio.flujo.domain.repository.AuthRepository
 import dev.ycosorio.flujo.domain.repository.InventoryRepository
 import dev.ycosorio.flujo.domain.repository.UserRepository
 import dev.ycosorio.flujo.utils.Resource
@@ -21,7 +22,8 @@ import javax.inject.Inject
 @HiltViewModel
 class WorkerRequestViewModel @Inject constructor(
     private val inventoryRepository: InventoryRepository,
-    private val userRepository: UserRepository // Necesitamos saber quién es el usuario actual
+    private val userRepository: UserRepository,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val _myRequestsState = MutableStateFlow<Resource<List<MaterialRequest>>>(Resource.Loading())
@@ -31,12 +33,17 @@ class WorkerRequestViewModel @Inject constructor(
     val createRequestState = _createRequestState.asStateFlow()
 
     // Suponemos que tenemos el ID del usuario actual. En una app real, lo obtendríamos de Firebase Auth.
-    private val _currentUserId = SimulationAuth.currentUserId // Esto lo reemplazaremos con la autenticación real
+    //private val _currentUserId = SimulationAuth.currentUserId // Esto lo reemplazaremos con la autenticación real
+    private var currentUserId: String? = null
 
     init {
         viewModelScope.launch {
-            _currentUserId.collect { userId ->
+            /*_currentUserId.collect { userId ->
                 loadMyRequests(userId)
+            }*/
+            authRepository.currentUser.collect { authUser -> // <-- CAMBIAR
+                currentUserId = authUser?.uid
+                authUser?.let { loadMyRequests(it.uid) }
             }
         }
     }
@@ -49,7 +56,9 @@ class WorkerRequestViewModel @Inject constructor(
     }
 
     fun createMaterialRequest(materialId: String, materialName: String, quantity: Int) {
-        val currentUserId = _currentUserId.value
+        //val currentUserId = _currentUserId.value
+        val userId = currentUserId ?: return
+
         viewModelScope.launch {
             // --- VALIDACIONES ---
             if (materialName.isBlank()) {
@@ -64,7 +73,7 @@ class WorkerRequestViewModel @Inject constructor(
             _createRequestState.value = Resource.Loading()
 
             // Simulamos obtener el nombre del trabajador.
-            val userResource = userRepository.getUser(currentUserId)
+            val userResource = userRepository.getUser(userId)
             val workerName = if (userResource is Resource.Success) {
                 userResource.data?.name ?: "Trabajador"
             } else {
@@ -73,7 +82,7 @@ class WorkerRequestViewModel @Inject constructor(
 
             val newRequest = MaterialRequest(
                 id = UUID.randomUUID().toString(), // Generamos un ID único
-                workerId = currentUserId,
+                workerId = userId,
                 workerName = workerName,
                 materialId = materialId,
                 materialName = materialName,

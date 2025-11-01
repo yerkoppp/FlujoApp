@@ -1,5 +1,6 @@
 package dev.ycosorio.flujo.di
 
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreSettings
 import dev.ycosorio.flujo.data.repository.UserRepositoryImpl
@@ -14,6 +15,8 @@ import dev.ycosorio.flujo.domain.repository.InventoryRepository
 import dev.ycosorio.flujo.data.repository.DocumentRepositoryImpl
 import dev.ycosorio.flujo.domain.repository.DocumentRepository
 import com.google.firebase.storage.FirebaseStorage
+import dev.ycosorio.flujo.data.repository.AuthRepositoryImpl
+import dev.ycosorio.flujo.domain.repository.AuthRepository
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -50,5 +53,15 @@ object AppModule {
     @Singleton
     fun provideFirebaseStorage(): FirebaseStorage {
         return FirebaseStorage.getInstance()
+    }
+
+    @Provides
+    @Singleton
+    fun provideFirebaseAuth(): FirebaseAuth = FirebaseAuth.getInstance()
+
+    @Provides
+    @Singleton
+    fun provideAuthRepository(firebaseAuth: FirebaseAuth): AuthRepository {
+        return AuthRepositoryImpl(firebaseAuth)
     }
 }

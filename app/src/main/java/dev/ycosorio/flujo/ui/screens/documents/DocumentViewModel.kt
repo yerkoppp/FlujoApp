@@ -8,6 +8,7 @@ import dev.ycosorio.flujo.domain.model.DocumentTemplate
 import dev.ycosorio.flujo.utils.SimulationAuth
 import dev.ycosorio.flujo.domain.model.Role
 import dev.ycosorio.flujo.domain.model.User
+import dev.ycosorio.flujo.domain.repository.AuthRepository
 import dev.ycosorio.flujo.domain.repository.DocumentRepository
 import dev.ycosorio.flujo.domain.repository.UserRepository
 import dev.ycosorio.flujo.utils.Resource
@@ -21,7 +22,8 @@ import javax.inject.Inject
 @HiltViewModel
 class DocumentViewModel @Inject constructor(
     private val documentRepository: DocumentRepository,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     // --- Estado para el Usuario Actual ---
@@ -44,8 +46,12 @@ class DocumentViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            _currentUserId.collect { userId ->
+           /* _currentUserId.collect { userId ->
                 loadCurrentUser(userId)
+            }*/
+
+            authRepository.currentUser.collect { authUser -> // <-- CAMBIAR
+                authUser?.let { loadCurrentUser(it.uid) }
             }
         }
     }

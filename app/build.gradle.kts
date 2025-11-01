@@ -66,6 +66,7 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.bundles.firebase)
     implementation(libs.google.auth) // Google Sign-In se maneja fuera de la BoM
+    implementation(libs.firebase.ui.auth)
 
     // Core & Seguridad
     implementation(libs.androidx.core.ktx)
@@ -76,7 +77,7 @@ dependencies {
 
     //Inyección de dependencias
     implementation(libs.hilt.android)
-    ksp(libs.hilt.compiler) // Usa ksp en lugar de kapt
+    ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose) // Para inyectar en Navigation Compose
 
     //Captura de canvas

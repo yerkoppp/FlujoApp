@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Flujo</string>
+    <string name="default_web_client_id" translatable="false">148579629079-cjrh3aup46n1ej6eoqdourmq7lfh5v61.apps.googleusercontent.com</string>
 </resources>

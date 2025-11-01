@@ -18,7 +18,7 @@ fun MainTopAppBar(
     onProfileClicked: () -> Unit,
     onSignOutClicked: () -> Unit,
     onUserManagementClicked: () -> Unit,
-    onToggleUser: () -> Unit,
+    //onToggleUser: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -28,13 +28,14 @@ fun MainTopAppBar(
         modifier = modifier,
         actions = {
             // --- BOTÓN DE DEBUG PARA CAMBIAR ROL ---
-            if (BuildConfig.DEBUG) {
+           /* if (BuildConfig.DEBUG) {
             IconButton(onClick = onToggleUser) {
                 Icon(
                     imageVector = Icons.Default.Sync,
                     contentDescription = "Cambiar Rol (Debug)"
                 )
-            }}
+            }
+        }*/
             // ----------------------------------------
             if (user != null) {
                 IconButton(onClick = { showMenu = true }) {
