@@ -28,6 +28,9 @@ class SignatureViewModel @Inject constructor(
     private val _signatureState = MutableStateFlow<Resource<Unit>>(Resource.Idle())
     val signatureState = _signatureState.asStateFlow()
 
+    private val _captureError = MutableStateFlow<String?>(null)
+    val captureError = _captureError.asStateFlow()
+
     fun saveSignature(bitmap: Bitmap) {
         viewModelScope.launch {
             _signatureState.value = Resource.Loading()
@@ -52,5 +55,13 @@ class SignatureViewModel @Inject constructor(
                 _signatureState.value = Resource.Error(e.localizedMessage ?: "Error al guardar la firma")
             }
         }
+    }
+
+    fun setCaptureError(message: String) {
+        _captureError.value = message
+    }
+
+    fun clearCaptureError() {
+        _captureError.value = null
     }
 }

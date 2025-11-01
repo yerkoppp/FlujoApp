@@ -1,6 +1,7 @@
 package dev.ycosorio.flujo.utils
 
 import kotlinx.coroutines.flow.MutableStateFlow
+import dev.ycosorio.flujo.BuildConfig
 
 /**
  * Un objeto singleton para simular el estado de autenticación en toda la app.
@@ -19,6 +20,12 @@ object SimulationAuth {
      * Cambia el usuario actual entre Admin y Trabajador.
      */
     fun toggleUser() {
+
+        // Solo permitir cambio en modo DEBUG
+        if (!BuildConfig.DEBUG) {
+            return
+        }
+
         if (currentUserId.value == ADMIN_ID) {
             currentUserId.value = WORKER_ID
         } else {

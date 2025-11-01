@@ -6,6 +6,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.ycosorio.flujo.domain.model.User
 import dev.ycosorio.flujo.domain.repository.UserRepository
 import dev.ycosorio.flujo.utils.Resource
+import dev.ycosorio.flujo.utils.isValidEmail
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -29,7 +30,7 @@ class EditUserViewModel @Inject constructor(
                 _updateUserState.value = Resource.Error("El nombre es obligatorio.")
                 return@launch
             }
-            if (user.email.isBlank() || !user.email.contains("@")) {
+            if (user.email.isBlank() || !user.email.isValidEmail()) {
                 _updateUserState.value = Resource.Error("El email es obligatorio y debe ser válido.")
                 return@launch
             }

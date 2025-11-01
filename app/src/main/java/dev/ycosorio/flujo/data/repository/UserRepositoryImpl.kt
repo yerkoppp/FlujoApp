@@ -12,6 +12,7 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.callbackFlow
 import javax.inject.Inject
+import android.util.Log
 
 /**
  * Implementación del UserRepository que se comunica con Firebase Firestore.
@@ -97,11 +98,14 @@ class UserRepositoryImpl @Inject constructor(
             val document = usersCollection.document(uid).get().await()
             val user = document.toUser() // Usamos nuestra función traductora
             if(user != null){
+                Log.d("UserRepository", "Usuario $uid cargado exitosamente.") // <-- AÑADE ESTA LÍNEA
                 Resource.Success(user)
             } else {
+                Log.e("UserRepository", "Error al mapear: toUser() devolvió null para $uid. ¿Datos incompletos en Firestore?") // <-- AÑADE ESTA LÍNEA
                 Resource.Error("No se pudieron encontrar los datos del usuario.")
             }
         } catch (e: FirebaseFirestoreException) {
+            Log.e("UserRepository", "Error de Firestore: ${e.code.name}", e) // <-- AÑADE ESTA LÍNEA
             // Errores específicos de Firebase
             when (e.code) {
                 FirebaseFirestoreException.Code.UNAVAILABLE -> Resource.Error("No hay conexión a internet.")
@@ -110,6 +114,7 @@ class UserRepositoryImpl @Inject constructor(
             }
         } catch (e: Exception) {
             // Otros errores
+            Log.e("UserRepository", "Error general en getUser", e) // <-- AÑADE ESTA LÍNEA
             Resource.Error("Ocurrió un error desconocido.")
         }
     }
@@ -140,8 +145,11 @@ class UserRepositoryImpl @Inject constructor(
      */
     override suspend fun updateUser(user: User): Resource<Unit> {
         return try {
-            // La lógica es casi idéntica a createUser, pero usamos .update()
-            // para modificar un documento existente.
+            val document = usersCollection.document(user.uid).get().await()
+            if (!document.exists()) {
+                return Resource.Error("El usuario no existe.")
+            }
+
             usersCollection.document(user.uid).update(user.toFirestoreMap()).await()
             Resource.Success(Unit)
         } catch (e: FirebaseFirestoreException) {
@@ -158,6 +166,11 @@ class UserRepositoryImpl @Inject constructor(
      */
     override suspend fun deleteUser(uid: String): Resource<Unit> {
         return try {
+            // Verifica que el usuario existe primero
+            val document = usersCollection.document(uid).get().await()
+            if (!document.exists()) {
+                return Resource.Error("El usuario no existe.")
+            }
             usersCollection.document(uid).delete().await()
             Resource.Success(Unit)
         } catch (e: FirebaseFirestoreException) {

@@ -7,6 +7,7 @@ import dev.ycosorio.flujo.domain.model.Role
 import dev.ycosorio.flujo.domain.model.User
 import dev.ycosorio.flujo.domain.repository.UserRepository
 import dev.ycosorio.flujo.utils.Resource
+import dev.ycosorio.flujo.utils.isValidEmail
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -30,7 +31,7 @@ class AddUserViewModel @Inject constructor(
                 _addUserState.value = Resource.Error("El nombre es obligatorio.")
                 return@launch
             }
-            if (email.isBlank() || !email.contains("@")) {
+            if (email.isBlank() || !email.isValidEmail()) {
                 _addUserState.value = Resource.Error("El email es obligatorio y debe ser válido.")
                 return@launch
             }

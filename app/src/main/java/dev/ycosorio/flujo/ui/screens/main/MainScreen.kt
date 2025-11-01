@@ -9,6 +9,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 //import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -19,6 +20,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import dev.ycosorio.flujo.domain.model.Role
+import dev.ycosorio.flujo.domain.model.User
 import dev.ycosorio.flujo.ui.components.MainTopAppBar
 import dev.ycosorio.flujo.ui.navigation.BottomNavItem
 import dev.ycosorio.flujo.ui.navigation.Routes
@@ -31,6 +33,7 @@ import dev.ycosorio.flujo.ui.screens.worker.inventory.WorkerRequestScreen
 import dev.ycosorio.flujo.ui.screens.worker.inventory.WorkerRequestViewModel
 import dev.ycosorio.flujo.utils.Resource
 import dev.ycosorio.flujo.utils.SimulationAuth
+import java.util.Date
 
 @Composable
 fun MainScreen(
@@ -60,7 +63,6 @@ fun MainScreen(
 
     val userState = Resource.Success(mockUser)
 */
-
     val userState by dashboardViewModel.userState.collectAsState()
 
     Scaffold(

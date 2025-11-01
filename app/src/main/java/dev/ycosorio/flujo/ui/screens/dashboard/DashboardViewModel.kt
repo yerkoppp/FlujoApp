@@ -33,8 +33,14 @@ class DashboardViewModel @Inject constructor(
 
     private fun loadCurrentUser(userId: String) {
         viewModelScope.launch {
+            println("DEBUG: Intentando cargar usuario con ID: $userId")
             _userState.value = Resource.Loading()
             val result = userRepository.getUser(userId)
+            when (result) {
+                is Resource.Success -> println("DEBUG: Usuario cargado exitosamente: ${result.data?.name}")
+                is Resource.Error -> println("DEBUG: Error al cargar usuario: ${result.message}")
+                else -> println("DEBUG: Estado inesperado")
+            }
             _userState.value = result
         }
     }

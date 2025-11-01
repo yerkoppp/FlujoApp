@@ -9,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import dev.ycosorio.flujo.domain.model.User
 import dev.ycosorio.flujo.domain.model.Role
+import dev.ycosorio.flujo.BuildConfig
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -23,16 +24,17 @@ fun MainTopAppBar(
     var showMenu by remember { mutableStateOf(false) }
 
     TopAppBar(
-        title = { Text(text = "Flujo") },
+        title = { Text(text = "Hola ${user?.name}") },
         modifier = modifier,
         actions = {
             // --- BOTÓN DE DEBUG PARA CAMBIAR ROL ---
+            if (BuildConfig.DEBUG) {
             IconButton(onClick = onToggleUser) {
                 Icon(
                     imageVector = Icons.Default.Sync,
                     contentDescription = "Cambiar Rol (Debug)"
                 )
-            }
+            }}
             // ----------------------------------------
             if (user != null) {
                 IconButton(onClick = { showMenu = true }) {

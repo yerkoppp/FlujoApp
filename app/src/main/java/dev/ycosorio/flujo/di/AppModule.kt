@@ -1,6 +1,7 @@
 package dev.ycosorio.flujo.di
 
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreSettings
 import dev.ycosorio.flujo.data.repository.UserRepositoryImpl
 import dev.ycosorio.flujo.domain.repository.UserRepository
 import dagger.Module

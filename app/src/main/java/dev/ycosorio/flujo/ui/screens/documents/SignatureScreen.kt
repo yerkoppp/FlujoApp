@@ -34,6 +34,7 @@ fun SignatureScreen(
     val captureController = rememberCaptureController()
     val signatureState by viewModel.signatureState.collectAsState()
     val coroutineScope = rememberCoroutineScope()
+    val captureError by viewModel.captureError.collectAsState()
 
     LaunchedEffect(signatureState) {
         if (signatureState is Resource.Success) {
@@ -80,8 +81,7 @@ fun SignatureScreen(
                                 viewModel.saveSignature(androidBitmap)
 
                             } catch (e: Exception) {
-                                // 3. Aquí manejas el error de captura
-                                // ej: viewModel.showError("Error al capturar firma")
+                                viewModel.setCaptureError("Error al capturar la firma: ${e.localizedMessage}")
                             }
                         }
                     },
@@ -106,6 +106,19 @@ fun SignatureScreen(
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
             }
+            if (captureError != null) {
+                Text(
+                    captureError!!,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                Button(
+                    onClick = { viewModel.clearCaptureError() },
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                ) {
+                    Text("Entendido")
+                }
+            }
             // El lienzo para firmar
             SignatureCanvas(
                 paths = paths,
@@ -117,6 +130,8 @@ fun SignatureScreen(
                     .background(Color.Gray) // Mantenemos el fondo gris
                     .capturable(controller = captureController) // <- El modificador v3.x
             )
+
+
         }
     }
 }
