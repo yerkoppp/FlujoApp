@@ -1,5 +1,6 @@
 package dev.ycosorio.flujo.ui.navigation
 
+import android.util.Log
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -70,11 +71,13 @@ fun AppNavigation() {
             AccessVerificationScreen(
                 authUser = currentAuthUser,
                 onAccessGranted = {
+                    Log.d("AppNavigation", "✅ Navegando a Main")
                     navController.navigate(Routes.Main.route) {
                         popUpTo(Routes.AccessVerification.route) { inclusive = true }
                     }
                 },
                 onAccessDenied = {
+                    Log.d("AppNavigation", "❌ Navegando a Login")
                     navController.navigate(Routes.Login.route) {
                         popUpTo(Routes.AccessVerification.route) { inclusive = true }
                     }

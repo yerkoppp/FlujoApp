@@ -9,13 +9,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.firebase.ui.auth.AuthUI
 import dev.ycosorio.flujo.domain.model.AuthUser
-import dev.ycosorio.flujo.domain.repository.UserRepository
 import dev.ycosorio.flujo.utils.Resource
-import kotlinx.coroutines.launch
+import android.util.Log
 
 @Composable
 fun AccessVerificationScreen(
@@ -28,27 +26,41 @@ fun AccessVerificationScreen(
     val verificationState by viewModel.verificationState.collectAsState()
 
     // Verificar acceso cuando hay un usuario autenticado
-    LaunchedEffect(authUser) {
+    LaunchedEffect(authUser?.uid) {
+        Log.d("AccessVerification", "AuthUser: ${authUser?.email}")
         authUser?.let {
+            Log.d("AccessVerification", "Verificando usuario: ${it.email}")
             viewModel.verifyUserAccess(it)
         }
     }
 
     // Manejar resultado de verificación
     LaunchedEffect(verificationState) {
-        when (verificationState) {
+        Log.d("AccessVerification", "Estado: ${verificationState::class.simpleName}")
+
+        when (val state = verificationState) {
             is Resource.Success -> {
+                Log.d("AccessVerification", "✅ Acceso concedido")
+                kotlinx.coroutines.delay(500) // Pequeño delay para que se vea el mensaje
                 onAccessGranted()
             }
             is Resource.Error -> {
-                // Cerrar sesión y volver al login
-                AuthUI.getInstance()
-                    .signOut(context)
-                    .addOnCompleteListener {
-                        onAccessDenied()
-                    }
+                // Solo cerrar sesión si NO es error de conexión
+                if (state.message?.contains("conexión", ignoreCase = true) == false &&
+                    state.message?.contains("tiempo de espera", ignoreCase = true) == false) {
+
+                    Log.e("AccessVerification", "❌ Acceso denegado: ${state.message}")
+                    kotlinx.coroutines.delay(2000)
+                    AuthUI.getInstance()
+                        .signOut(context)
+                        .addOnCompleteListener {
+                            onAccessDenied()
+                        }
+                }
             }
-            else -> {}
+            else -> {
+                Log.d("AccessVerification", "⏳ Verificando...")
+            }
         }
     }
 
@@ -61,15 +73,46 @@ fun AccessVerificationScreen(
             is Resource.Loading -> {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.padding(32.dp)
                 ) {
                     CircularProgressIndicator()
                     Text(
                         "Verificando acceso...",
                         style = MaterialTheme.typography.bodyLarge
                     )
+                    Text(
+                        authUser?.email ?: "",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
+
+            is Resource.Success -> {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.padding(32.dp)
+                ) {
+                    Text(
+                        "✅",
+                        style = MaterialTheme.typography.displayLarge
+                    )
+                    Text(
+                        "Acceso Concedido",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        "Bienvenido, ${state.data?.name}",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                }
+            }
+
             is Resource.Error -> {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -77,37 +120,73 @@ fun AccessVerificationScreen(
                     modifier = Modifier.padding(32.dp)
                 ) {
                     Text(
-                        "⚠️ Acceso Denegado",
+                        "⚠️",
+                        style = MaterialTheme.typography.displayLarge
+                    )
+                    Text(
+                        "Acceso Denegado",
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.error
                     )
-
                     Text(
                         state.message ?: "Tu cuenta no está registrada en el sistema.",
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center
                     )
 
-                    Text(
-                        "Contacta al administrador para solicitar acceso.",
-                        style = MaterialTheme.typography.bodySmall,
-                        textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Spacer(Modifier.height(16.dp))
 
-                    Spacer(Modifier.height(8.dp))
+                    // Mostrar botón de reintentar si es error de conexión
+                    if (state.message?.contains("conexión", ignoreCase = true) == true ||
+                        state.message?.contains("tiempo de espera", ignoreCase = true) == true) {
 
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                        Button(
+                            onClick = {
+                                authUser?.let { viewModel.verifyUserAccess(it) }
+                            }
+                        ) {
+                            Text("Reintentar")
+                        }
 
-                    Text(
-                        "Cerrando sesión...",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                        Spacer(Modifier.height(8.dp))
+
+                        Text(
+                            "Verifica que tengas conexión a internet",
+                            style = MaterialTheme.typography.bodySmall,
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        Text(
+                            "Contacta al administrador para solicitar acceso.",
+                            style = MaterialTheme.typography.bodySmall,
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(Modifier.height(8.dp))
+
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+
+                        Text(
+                            "Cerrando sesión...",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
-            else -> {}
+
+            is Resource.Idle -> {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    CircularProgressIndicator()
+                    Text("Iniciando verificación...")
+                }
+            }
         }
     }
 }

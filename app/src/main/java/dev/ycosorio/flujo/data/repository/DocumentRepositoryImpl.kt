@@ -35,7 +35,7 @@ class DocumentRepositoryImpl @Inject constructor(
     override suspend fun uploadTemplate(title: String, fileUri: Uri): Resource<Unit> {
         return try {
             // 1. Definir dónde se guardará en Storage
-            val fileName = "${UUID.randomUUID()}-${fileUri.lastPathSegment}"
+            val fileName = "${UUID.randomUUID()}-${fileUri.lastPathSegment ?: "document"}"
             val storageRef = storage.reference.child("document_templates/$fileName")
 
             // 2. Subir el archivo
@@ -44,10 +44,10 @@ class DocumentRepositoryImpl @Inject constructor(
 
             // 3. Crear el documento en Firestore
             val newTemplateRef = templatesCollection.document()
-            val newTemplate = DocumentTemplate(
-                id = newTemplateRef.id,
-                title = title,
-                fileUrl = downloadUrl
+            val newTemplate = mapOf(
+                "id" to newTemplateRef.id,
+                "title" to title,
+                "fileUrl" to downloadUrl
             )
 
             newTemplateRef.set(newTemplate).await()

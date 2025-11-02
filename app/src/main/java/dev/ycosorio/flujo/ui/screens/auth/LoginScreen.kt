@@ -1,5 +1,6 @@
 package dev.ycosorio.flujo.ui.screens.auth
 
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -38,6 +39,7 @@ fun LoginScreen(
             .createSignInIntentBuilder()
             .setAvailableProviders(providers)
             .setLogo(R.drawable.logo_transp)
+            .enableAnonymousUsersAutoUpgrade()
             .build()
     }
 
@@ -45,13 +47,21 @@ fun LoginScreen(
     val launcher = rememberLauncherForActivityResult(
         contract = FirebaseAuthUIActivityResultContract()
     ) { result ->
-        // Auth UI maneja todo automáticamente
-        // Si el login es exitoso, currentUser cambiará
+        Log.d("LoginScreen", "Auth result code: ${result.resultCode}")
+        // El resultado de FirebaseUI puede tener errores de credenciales
+        // pero eso no impide que la autenticación sea exitosa
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            Log.d("LoginScreen", "✅ Login exitoso")
+        } else {
+            Log.w("LoginScreen", "⚠️ Result code: ${result.resultCode}")
+            // Aún así, verificamos si hay usuario autenticado
+        }
     }
 
     // Navegar automáticamente cuando hay usuario
     LaunchedEffect(currentUser) {
         if (currentUser != null) {
+            Log.d("LoginScreen", "✅ Usuario detectado: ${currentUser?.email}")
             onLoginSuccess()
         }
     }
@@ -84,7 +94,10 @@ fun LoginScreen(
 
                 // Botón de inicio de sesión
                 Button(
-                    onClick = { launcher.launch(signInIntent) },
+                    onClick = {
+                        Log.d("LoginScreen", "🚀 Iniciando flujo de login")
+                        launcher.launch(signInIntent)
+                              },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp)

@@ -1,10 +1,14 @@
 package dev.ycosorio.flujo.ui.screens.main
 
+import android.util.Log
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -12,6 +16,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,6 +50,7 @@ import dev.ycosorio.flujo.ui.screens.documents.DocumentScreen
 import dev.ycosorio.flujo.ui.screens.worker.dashboard.WorkerDashboard
 import dev.ycosorio.flujo.ui.screens.worker.inventory.WorkerRequestScreen
 import dev.ycosorio.flujo.ui.screens.worker.inventory.WorkerRequestViewModel
+import dev.ycosorio.flujo.utils.Resource
 
 
 @Composable
@@ -60,10 +66,10 @@ fun MainScreen(
     val currentRoute = navBackStackEntry?.destination?.route
 
     val dashboardViewModel: DashboardViewModel = hiltViewModel()
-    val loginViewModel: LoginViewModel = hiltViewModel()
+    //val loginViewModel: LoginViewModel = hiltViewModel()
 
-    var isAuthorized by remember { mutableStateOf(false) }
-    var authorizedUser by remember { mutableStateOf<User?>(null) }
+    //var isAuthorized by remember { mutableStateOf(false) }
+    //var authorizedUser by remember { mutableStateOf<User?>(null) }
     /*
         val mockUser = remember {
             User(
@@ -84,30 +90,24 @@ fun MainScreen(
     */
     val userState by dashboardViewModel.userState.collectAsState()
 
+    // Cargar usuario actual
+    LaunchedEffect(Unit) {
+        Log.d("MainScreen", "🔄 Cargando usuario actual")
+        dashboardViewModel.loadCurrentUser()
+    }
+
     Scaffold(
         topBar = {
-            if (isAuthorized) {
+            val user = (userState as? Resource.Success)?.data
                 MainTopAppBar(
-                    user = authorizedUser,
+                    user = user,
                     onProfileClicked = {
                         externalNavController.navigate(Routes.Settings.route)
-                    },
-               /*     onSignOutClicked = {
-                        loginViewModel.signOut()
-                        AuthUI.getInstance()
-                            .signOut(context)
-                            .addOnCompleteListener { onNavigateToAuth() }
-                        /*externalNavController.navigate(Routes.Login.route) {
-                            popUpTo(0) { inclusive = true }
-                        }*/
-                    },*/
-                    //onUserManagementClicked = onNavigateToUserManagement
+                    }
                 )
-            }
         },
         bottomBar = {
-            // Solo muestra la BottomBar si el usuario está autorizado
-            if (isAuthorized) {
+
                 NavigationBar {
                     val items = listOf(
                         BottomNavItem.Dashboard,
@@ -132,69 +132,74 @@ fun MainScreen(
                     }
                 }
             }
-        }
     ) { innerPadding ->
-        if (!isAuthorized) {
-            // 1. AÚN NO AUTORIZADO: Muestra la pantalla de "Control de Acceso"
-            DashboardScreen(
-                viewModel = dashboardViewModel,
-                onUserAuthorized = { user ->
-                    // ¡Autorizado! Actualizamos el estado
-                    authorizedUser = user
-                    isAuthorized = true
-                },
-                onUserUnauthorized = {
-                    // ¡Expulsado! Notificamos a AppNavigation para que vaya al Login
-                    loginViewModel.signOut()
-                    onNavigateToAuth()
+        Box(
+            modifier = Modifier.padding(innerPadding),
+            contentAlignment = Alignment.Center
+        ) {
+            when (val state = userState) {
+                is Resource.Loading, is Resource.Idle -> {
+                    CircularProgressIndicator()
                 }
-            )
-        } else {
-            // 2. ¡AUTORIZADO! Muestra el contenido normal de la app
-            NavHost(
-                internalNavController,
-                startDestination = BottomNavItem.Dashboard.route,
-                Modifier.padding(innerPadding)
-            ) {
-                composable(BottomNavItem.Dashboard.route) {
+                is Resource.Success -> {
+                    state.data?.let { user ->
+                        Log.d("MainScreen", "✅ Usuario cargado: ${user.name}")
+                        NavHost(
+                            internalNavController,
+                            startDestination = BottomNavItem.Dashboard.route
+                        ) {
+                            composable(BottomNavItem.Dashboard.route) {
+                                RealDashboardContent(
+                                    user = user,
+                                    navController = externalNavController,
+                                    onNavigateToUserManagement = onNavigateToUserManagement
+                                )
+                            }
 
-                    RealDashboardContent(
-                        user = authorizedUser!!,
-                        navController = externalNavController,
-                        onNavigateToUserManagement = onNavigateToUserManagement
-                    )
-                }
+                            composable(BottomNavItem.Documents.route) {
+                                DocumentScreen(
+                                    onNavigateToSignature = { assignmentId ->
+                                        externalNavController.navigate(Routes.Signature.createRoute(assignmentId))
+                                    },
+                                    navController = externalNavController
+                                )
+                            }
 
-                composable(BottomNavItem.Documents.route) {
-                    DocumentScreen(
-                        onNavigateToSignature = { assignmentId ->
-                            externalNavController.navigate(Routes.Signature.createRoute(assignmentId))
-                                                },
-                        navController = externalNavController
-                    )
-                }
-                composable(BottomNavItem.Inventory.route) {
-                    // Aquí decidiremos qué pantalla de inventario mostrar
-                    val currentUser = authorizedUser
-                    when (currentUser?.role) {
-                        Role.ADMINISTRADOR -> {
-                            // Carga la pantalla del Admin
-                            val adminInventoryViewModel: MaterialRequestViewModel = hiltViewModel()
-                            MaterialRequestScreen(viewModel = adminInventoryViewModel)
-                        }
-                        Role.TRABAJADOR -> {
-                            // Carga la pantalla del Trabajador
-                            val workerInventoryViewModel: WorkerRequestViewModel = hiltViewModel()
-                            WorkerRequestScreen(
-                                viewModel = workerInventoryViewModel,
-                                onAddRequestClicked = {
-                                    // Navega a la pantalla de crear solicitud
-                                    externalNavController.navigate(Routes.CreateRequest.route)
+                            composable(BottomNavItem.Inventory.route) {
+                                when (user.role) {
+                                    Role.ADMINISTRADOR -> {
+                                        val adminInventoryViewModel: MaterialRequestViewModel = hiltViewModel()
+                                        MaterialRequestScreen(viewModel = adminInventoryViewModel)
+                                    }
+                                    Role.TRABAJADOR -> {
+                                        val workerInventoryViewModel: WorkerRequestViewModel = hiltViewModel()
+                                        WorkerRequestScreen(
+                                            viewModel = workerInventoryViewModel,
+                                            onAddRequestClicked = {
+                                                externalNavController.navigate(Routes.CreateRequest.route)
+                                            }
+                                        )
+                                    }
                                 }
-                            )
+                            }
                         }
-                        else -> {
-                            Text("Cargando...")
+                    }
+                }
+                is Resource.Error -> {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(32.dp)
+                    ) {
+                        Text(
+                            "Error al cargar usuario",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        Text(state.message ?: "Error desconocido")
+                        Spacer(Modifier.height(16.dp))
+                        Button(onClick = onNavigateToAuth) {
+                            Text("Volver a Login")
                         }
                     }
                 }
@@ -202,6 +207,7 @@ fun MainScreen(
         }
     }
 }
+
 
 
 @Composable

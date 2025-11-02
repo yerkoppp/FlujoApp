@@ -13,6 +13,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.callbackFlow
 import javax.inject.Inject
 import android.util.Log
+import kotlinx.coroutines.withTimeout
 
 /**
  * Implementación del UserRepository que se comunica con Firebase Firestore.
@@ -128,9 +129,15 @@ class UserRepositoryImpl @Inject constructor(
      */
     override suspend fun createUser(user: User): Resource<Unit> {
         return try {
+            val userWithNormalizedEmail = user.copy(
+                email = user.email.trim().lowercase()
+            )
             // Usamos el uid del usuario como ID del documento para una fácil vinculación
-            usersCollection.document(user.uid).set(user.toFirestoreMap()).await()
-            Resource.Success(Unit) // Unit significa que la operación fue exitosa pero no devuelve datos
+            usersCollection
+                .document(user.uid)
+                .set(user.toFirestoreMap())
+                .await()
+            Resource.Success(Unit)
         } catch (e: FirebaseFirestoreException) {
             Resource.Error("Error de base de datos: ${e.localizedMessage}")
         } catch (e: Exception) {
@@ -182,29 +189,45 @@ class UserRepositoryImpl @Inject constructor(
 
     override suspend fun getUserByEmail(email: String): Resource<User> {
         return try {
-            val query = usersCollection
-                .whereEqualTo("email", email)
-                .limit(1)
-                .get()
-                .await()
+            Log.d("UserRepository", "🔍 Buscando email: $email")
+            val normalizedEmail = email.trim().lowercase()
+            val query = withTimeout(12_000L) {
+                usersCollection
+                    .whereEqualTo("email", normalizedEmail)
+                    .limit(1)
+                    .get()
+                    .await()
+            }
+
+            Log.d("UserRepository", "📦 Documentos encontrados: ${query.documents.size}")
 
             if (query.documents.isEmpty()) {
-                Resource.Error("Usuario no encontrado.")
+                Log.w("UserRepository", "❌ Usuario no encontrado")
+                Resource.Error("Usuario no registrado en el sistema.")
             } else {
                 val user = query.documents.first().toUser()
                 if (user != null) {
+                    Log.d("UserRepository", "✅ Usuario cargado: ${user.name}")
                     Resource.Success(user)
                 } else {
+                    Log.e("UserRepository", "❌ Error al mapear usuario")
                     Resource.Error("Error al cargar datos del usuario.")
                 }
             }
+        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+            Log.e("UserRepository", "⏱️ Timeout en Firestore")
+            Resource.Error("Tiempo de espera agotado. Verifica tu conexión.")
         } catch (e: FirebaseFirestoreException) {
             when (e.code) {
-                FirebaseFirestoreException.Code.UNAVAILABLE -> Resource.Error("No hay conexión a internet.")
+                FirebaseFirestoreException.Code.UNAVAILABLE ->
+                    Resource.Error("No hay conexión a internet.")
+                FirebaseFirestoreException.Code.FAILED_PRECONDITION ->
+                    Resource.Error("Configuración de base de datos incompleta. Contacta al administrador.")
                 else -> Resource.Error("Error: ${e.localizedMessage}")
             }
         } catch (e: Exception) {
-            Resource.Error("Error desconocido.")
+            Log.e("UserRepository", "💥 Error general", e)
+            Resource.Error("Error desconocido: ${e.localizedMessage}")
         }
     }
 }

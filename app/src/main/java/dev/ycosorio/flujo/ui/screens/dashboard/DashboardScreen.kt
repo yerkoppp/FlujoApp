@@ -36,21 +36,13 @@ fun DashboardScreen(
                 Text("Verificando acceso...", modifier = Modifier.padding(top = 16.dp))
             }
             is Resource.Success -> {
-                val user = state.data
-                if (user != null) {
-                    // ¡Éxito! El usuario existe en Firestore.
-                    // Usamos LaunchedEffect para notificar a MainScreen que cargue el dashboard real.
-                    LaunchedEffect(user) {
+                state.data?.let { user ->
+                    LaunchedEffect(user.uid) {
                         onUserAuthorized(user)
                     }
-                } else {
-                    // Esto no debería pasar si Success tiene datos, pero es un buen seguro.
-                    UnauthorizedContent(onSignOut = onUserUnauthorized)
                 }
             }
-
             is Resource.Error -> {
-                Text(text = state.message ?: "Error al cargar el usuario.")
                 UnauthorizedContent(onSignOut = onUserUnauthorized)
             }
         }

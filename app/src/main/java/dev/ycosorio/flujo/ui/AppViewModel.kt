@@ -9,7 +9,9 @@ import dev.ycosorio.flujo.domain.model.User
 import dev.ycosorio.flujo.domain.repository.AuthRepository
 import dev.ycosorio.flujo.domain.repository.UserRepository
 import dev.ycosorio.flujo.utils.Resource
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Date
@@ -21,11 +23,16 @@ class AppViewModel @Inject constructor(
     private val userRepository: UserRepository
 ) : ViewModel() {
 
+    private val _currentUserProfile = MutableStateFlow<User?>(null)
+    val currentUserProfile = _currentUserProfile.asStateFlow()
+
     val currentUser = authRepository.currentUser.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = null
     )
+
+
 
     /**
      * Verifica si el usuario autenticado existe en Firestore.
@@ -36,7 +43,10 @@ class AppViewModel @Inject constructor(
             when (val result = userRepository.getUser(authUser.uid)) {
                 is Resource.Success -> {
                     // ✅ Usuario existe en Firestore → Autorizado
-                    result.data?.let { onAuthorized(it) }
+                    result.data?.let {
+                        _currentUserProfile.value = it // Cache del usuario
+                        onAuthorized(it)
+                    }
                 }
                 is Resource.Error -> {
                     // ❌ Usuario NO existe en Firestore → No autorizado

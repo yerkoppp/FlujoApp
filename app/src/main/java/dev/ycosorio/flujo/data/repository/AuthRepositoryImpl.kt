@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
+import android.util.Log
 
 class AuthRepositoryImpl @Inject constructor(
     private val firebaseAuth: FirebaseAuth
@@ -17,6 +18,8 @@ class AuthRepositoryImpl @Inject constructor(
 
     override val currentUser: Flow<AuthUser?> = callbackFlow {
         val authStateListener = FirebaseAuth.AuthStateListener { auth ->
+            val user = auth.currentUser
+            Log.d("AuthRepository", "Estado de auth cambió: ${user?.email}")
             trySend(auth.currentUser?.toAuthUser())
         }
 
