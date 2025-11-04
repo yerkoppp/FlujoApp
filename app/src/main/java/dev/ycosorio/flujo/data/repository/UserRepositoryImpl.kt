@@ -31,6 +31,8 @@ class UserRepositoryImpl @Inject constructor(
      */
     private val usersCollection = firestore.collection("users")
 
+    // Caché simple para evitar búsquedas repetidas
+    private val emailCache = mutableMapOf<String, User?>()
     /**
      * Obtiene todos los usuarios con el rol de TRABAJADOR en tiempo real.
      * @return Un Flow que emite la lista de trabajadores cada vez que hay un cambio en Firestore.
@@ -99,10 +101,10 @@ class UserRepositoryImpl @Inject constructor(
             val document = usersCollection.document(uid).get().await()
             val user = document.toUser() // Usamos nuestra función traductora
             if(user != null){
-                Log.d("UserRepository", "Usuario $uid cargado exitosamente.") // <-- AÑADE ESTA LÍNEA
+                Log.d("UserRepository", "Usuario $uid cargado exitosamente.")
                 Resource.Success(user)
             } else {
-                Log.e("UserRepository", "Error al mapear: toUser() devolvió null para $uid. ¿Datos incompletos en Firestore?") // <-- AÑADE ESTA LÍNEA
+                Log.e("UserRepository", "Error al mapear: toUser() devolvió null para $uid. ¿Datos incompletos en Firestore?")
                 Resource.Error("No se pudieron encontrar los datos del usuario.")
             }
         } catch (e: FirebaseFirestoreException) {
@@ -135,8 +137,11 @@ class UserRepositoryImpl @Inject constructor(
             // Usamos el uid del usuario como ID del documento para una fácil vinculación
             usersCollection
                 .document(user.uid)
-                .set(user.toFirestoreMap())
+                .set(userWithNormalizedEmail.toFirestoreMap())
                 .await()
+            // Actualizar caché
+            emailCache[userWithNormalizedEmail.email] = userWithNormalizedEmail
+
             Resource.Success(Unit)
         } catch (e: FirebaseFirestoreException) {
             Resource.Error("Error de base de datos: ${e.localizedMessage}")
@@ -158,6 +163,9 @@ class UserRepositoryImpl @Inject constructor(
             }
 
             usersCollection.document(user.uid).update(user.toFirestoreMap()).await()
+
+            // Actualizar caché
+            emailCache[user.email.lowercase()] = user
             Resource.Success(Unit)
         } catch (e: FirebaseFirestoreException) {
             Resource.Error("Error al actualizar la base de datos: ${e.localizedMessage}")
@@ -178,7 +186,11 @@ class UserRepositoryImpl @Inject constructor(
             if (!document.exists()) {
                 return Resource.Error("El usuario no existe.")
             }
+            val user = document.toUser()
             usersCollection.document(uid).delete().await()
+            // Limpiar caché
+            user?.let { emailCache.remove(it.email.lowercase()) }
+
             Resource.Success(Unit)
         } catch (e: FirebaseFirestoreException) {
             Resource.Error("Error de base de datos al eliminar: ${e.localizedMessage}")
@@ -191,6 +203,14 @@ class UserRepositoryImpl @Inject constructor(
         return try {
             Log.d("UserRepository", "🔍 Buscando email: $email")
             val normalizedEmail = email.trim().lowercase()
+
+            // Verificar caché primero
+            emailCache[normalizedEmail]?.let { cachedUser ->
+                Log.d("UserRepository", "⚡ Usuario encontrado en caché: ${cachedUser.name}")
+                return Resource.Success(cachedUser)
+            }
+
+            // Si no está en caché, buscar en Firestore
             val query = withTimeout(12_000L) {
                 usersCollection
                     .whereEqualTo("email", normalizedEmail)
@@ -203,11 +223,15 @@ class UserRepositoryImpl @Inject constructor(
 
             if (query.documents.isEmpty()) {
                 Log.w("UserRepository", "❌ Usuario no encontrado")
+                // Limpiar entrada de caché si existía
+                emailCache.remove(normalizedEmail)
                 Resource.Error("Usuario no registrado en el sistema.")
             } else {
                 val user = query.documents.first().toUser()
                 if (user != null) {
                     Log.d("UserRepository", "✅ Usuario cargado: ${user.name}")
+                    // Guardar en caché
+                    emailCache[normalizedEmail] = user
                     Resource.Success(user)
                 } else {
                     Log.e("UserRepository", "❌ Error al mapear usuario")
@@ -229,6 +253,14 @@ class UserRepositoryImpl @Inject constructor(
             Log.e("UserRepository", "💥 Error general", e)
             Resource.Error("Error desconocido: ${e.localizedMessage}")
         }
+    }
+
+    /**
+     * Limpia la caché de usuarios (útil al cerrar sesión)
+     */
+    fun clearCache() {
+        Log.d("UserRepository", "🧹 Limpiando caché de usuarios")
+        emailCache.clear()
     }
 }
 /**
@@ -270,8 +302,6 @@ private fun DocumentSnapshot.toUser(): User? {
             assignedPcId = assignedPcId
         )
     } catch (e: Exception) {
-        // Si algún campo obligatorio es nulo o el tipo es incorrecto, la conversión falla.
-        // Puedes añadir un log aquí: Log.e("FirestoreMapper", "Error mapping user", e)
         null
     }
 }
@@ -285,7 +315,7 @@ private fun User.toFirestoreMap(): Map<String, Any?> {
     return mapOf(
         "uid" to uid,
         "name" to name,
-        "email" to email,
+        "email" to email.trim().lowercase(),
         "phoneNumber" to phoneNumber,
         "photoUrl" to photoUrl,
         "role" to role.name, // Guardamos el enum como un String

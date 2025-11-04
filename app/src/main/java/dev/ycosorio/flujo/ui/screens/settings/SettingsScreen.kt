@@ -1,5 +1,6 @@
 package dev.ycosorio.flujo.ui.screens.settings
 
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
@@ -17,6 +18,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.firebase.ui.auth.AuthUI
 import dev.ycosorio.flujo.BuildConfig
 import dev.ycosorio.flujo.domain.model.User
+import dev.ycosorio.flujo.ui.AppViewModel
 import dev.ycosorio.flujo.ui.components.UserAvatar
 import dev.ycosorio.flujo.utils.Resource
 
@@ -24,6 +26,7 @@ import dev.ycosorio.flujo.utils.Resource
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
+    appViewModel: AppViewModel = hiltViewModel(),
     onBackPressed: () -> Unit,
     onNavigateToAuth: () -> Unit,
     onNavigateToProfile: () -> Unit,
@@ -160,9 +163,18 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
+                        showLogoutDialog = false
+                        Log.d("SettingsScreen", "🚪 Iniciando cierre de sesión")
+                        // 1. Limpiar el perfil de usuario en AppViewModel
+                        appViewModel.clearUserProfile()
+
+                        // 2. Cerrar sesión en Firebase
                         AuthUI.getInstance()
                             .signOut(context)
-                            .addOnCompleteListener { onNavigateToAuth() }
+                            .addOnCompleteListener {
+                                Log.d("SettingsScreen", "✅ Sesión cerrada en Firebase")
+                                onNavigateToAuth()
+                            }
                     }
                 ) {
                     Text("Cerrar sesión")

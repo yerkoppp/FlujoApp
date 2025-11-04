@@ -25,12 +25,22 @@ fun AccessVerificationScreen(
     val context = LocalContext.current
     val verificationState by viewModel.verificationState.collectAsState()
 
+    // Variable para rastrear si ya se cerró sesión
+    var hasSignedOut by remember { mutableStateOf(false) }
+
+    // Resetear estado al entrar a la pantalla
+    LaunchedEffect(Unit) {
+        Log.d("AccessVerification", "🔄 Pantalla iniciada, reseteando estado")
+        viewModel.resetVerification()
+    }
+
     // Verificar acceso cuando hay un usuario autenticado
     LaunchedEffect(authUser?.uid) {
-        Log.d("AccessVerification", "AuthUser: ${authUser?.email}")
-        authUser?.let {
-            Log.d("AccessVerification", "Verificando usuario: ${it.email}")
-            viewModel.verifyUserAccess(it)
+        Log.d("AccessVerification", "👤 AuthUser cambió: ${authUser?.email}")
+
+        if (authUser != null && verificationState !is Resource.Success) {
+            Log.d("AccessVerification", "🔍 Verificando usuario: ${authUser.email}")
+            viewModel.verifyUserAccess(authUser)
         }
     }
 
@@ -41,19 +51,24 @@ fun AccessVerificationScreen(
         when (val state = verificationState) {
             is Resource.Success -> {
                 Log.d("AccessVerification", "✅ Acceso concedido")
-                kotlinx.coroutines.delay(500) // Pequeño delay para que se vea el mensaje
+                kotlinx.coroutines.delay(1000)
                 onAccessGranted()
             }
             is Resource.Error -> {
-                // Solo cerrar sesión si NO es error de conexión
-                if (state.message?.contains("conexión", ignoreCase = true) == false &&
-                    state.message?.contains("tiempo de espera", ignoreCase = true) == false) {
+                val isConnectionError = state.message?.contains("conexión", ignoreCase = true) == true ||
+                        state.message?.contains("tiempo de espera", ignoreCase = true) == true
 
+                // Solo cerrar sesión si NO es error de conexión
+                if (!isConnectionError && !hasSignedOut) {
                     Log.e("AccessVerification", "❌ Acceso denegado: ${state.message}")
+                    hasSignedOut = true
+
                     kotlinx.coroutines.delay(2000)
+
                     AuthUI.getInstance()
                         .signOut(context)
                         .addOnCompleteListener {
+                            Log.d("AccessVerification", "🚪 Sesión cerrada")
                             onAccessDenied()
                         }
                 }
@@ -70,7 +85,7 @@ fun AccessVerificationScreen(
         contentAlignment = Alignment.Center
     ) {
         when (val state = verificationState) {
-            is Resource.Loading -> {
+            is Resource.Idle, is Resource.Loading -> {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -143,7 +158,10 @@ fun AccessVerificationScreen(
 
                         Button(
                             onClick = {
-                                authUser?.let { viewModel.verifyUserAccess(it) }
+                                authUser?.let {
+                                    viewModel.resetVerification()
+                                    viewModel.verifyUserAccess(it)
+                                }
                             }
                         ) {
                             Text("Reintentar")
@@ -157,7 +175,7 @@ fun AccessVerificationScreen(
                             textAlign = TextAlign.Center,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    } else {
+                    } else if (!hasSignedOut) {
                         Text(
                             "Contacta al administrador para solicitar acceso.",
                             style = MaterialTheme.typography.bodySmall,
@@ -175,16 +193,6 @@ fun AccessVerificationScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                }
-            }
-
-            is Resource.Idle -> {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    CircularProgressIndicator()
-                    Text("Iniciando verificación...")
                 }
             }
         }

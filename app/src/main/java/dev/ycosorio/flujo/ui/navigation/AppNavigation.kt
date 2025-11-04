@@ -51,12 +51,6 @@ fun AppNavigation() {
     val appViewModel: AppViewModel = hiltViewModel()
     val currentAuthUser by appViewModel.currentUser.collectAsState()
 
-    /*LaunchedEffect(currentUser) {
-        currentUser?.let { authUser ->
-            appViewModel.ensureUserExistsInFirestore(authUser)
-        }
-    }*/
-
     NavHost(
         navController = navController,
         startDestination = "login"
@@ -81,6 +75,8 @@ fun AppNavigation() {
                 },
                 onAccessDenied = {
                     Log.d("AppNavigation", "❌ Navegando a Login")
+                    // Limpiar el estado del usuario
+                    appViewModel.clearUserProfile()
                     navController.navigate(Routes.Login.route) {
                         popUpTo(Routes.AccessVerification.route) { inclusive = true }
                     }
@@ -95,6 +91,8 @@ fun AppNavigation() {
                     navController.navigate(Routes.UserManagement.route)
                 },
                 onNavigateToAuth = {
+                    // Limpiar el estado antes de navegar a auth
+                    appViewModel.clearUserProfile()
                     navController.navigate(Routes.Login.route) {
                         popUpTo(Routes.Main.route) { inclusive = true }
                     }
@@ -282,7 +280,8 @@ fun AppNavigation() {
             SettingsScreen(
                 onBackPressed = { navController.popBackStack() },
                 onNavigateToAuth = {
-                    // Navega a login y limpia todo el historial
+                    // Limpiar estado antes de navegar
+                    appViewModel.clearUserProfile()
                     navController.navigate("login") {
                         popUpTo(navController.graph.id) {
                             inclusive = true

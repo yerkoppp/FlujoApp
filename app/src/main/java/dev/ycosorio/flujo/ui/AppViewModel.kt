@@ -1,5 +1,6 @@
 package dev.ycosorio.flujo.ui
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -32,27 +33,44 @@ class AppViewModel @Inject constructor(
         initialValue = null
     )
 
-
+    /**
+     * Limpia el perfil de usuario actual (llamar al cerrar sesión)
+     */
+    fun clearUserProfile() {
+        Log.d("AppViewModel", "🧹 Limpiando perfil de usuario")
+        _currentUserProfile.value = null
+    }
 
     /**
      * Verifica si el usuario autenticado existe en Firestore.
      * Si NO existe, significa que NO está autorizado.
      */
-    fun checkUserExists(authUser: AuthUser, onAuthorized: (User) -> Unit, onUnauthorized: () -> Unit) {
+    fun checkUserExists(
+        authUser: AuthUser,
+        onAuthorized: (User) -> Unit,
+        onUnauthorized: () -> Unit
+    ) {
         viewModelScope.launch {
-            when (val result = userRepository.getUser(authUser.uid)) {
+            Log.d("AppViewModel", "🔍 Verificando usuario: ${authUser.email}")
+
+            when (val result = userRepository.getUserByEmail(authUser.email ?: "")) {
                 is Resource.Success -> {
                     // ✅ Usuario existe en Firestore → Autorizado
-                    result.data?.let {
-                        _currentUserProfile.value = it // Cache del usuario
-                        onAuthorized(it)
+                    result.data?.let { user ->
+                        Log.d("AppViewModel", "✅ Usuario autorizado: ${user.name}")
+                        _currentUserProfile.value = user // Cache del usuario
+                        onAuthorized(user)
                     }
                 }
                 is Resource.Error -> {
+                    Log.e("AppViewModel", "❌ Error al verificar usuario: ${result.message}")
+
                     // ❌ Usuario NO existe en Firestore → No autorizado
                     onUnauthorized()
                 }
-                else -> {}
+                else -> {
+                    Log.w("AppViewModel", "⏳ Estado inesperado")
+                }
             }
         }
     }

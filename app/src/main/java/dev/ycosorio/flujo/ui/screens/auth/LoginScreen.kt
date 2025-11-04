@@ -18,13 +18,21 @@ import com.firebase.ui.auth.AuthUI
 import com.firebase.ui.auth.FirebaseAuthUIActivityResultContract
 import dev.ycosorio.flujo.ui.theme.FlujoAppTheme
 import dev.ycosorio.flujo.R
+import dev.ycosorio.flujo.ui.AppViewModel
 
 @Composable
 fun LoginScreen(
     viewModel: LoginViewModel = hiltViewModel(),
+    appViewModel: AppViewModel = hiltViewModel(),
     onLoginSuccess: () -> Unit
 ) {
     val currentUser by viewModel.currentUser.collectAsState()
+
+    // Resetear el estado al entrar a la pantalla de login
+    LaunchedEffect(Unit) {
+        Log.d("LoginScreen", "🔄 Reseteando estado de autenticación")
+        appViewModel.clearUserProfile()
+    }
 
     // Configurar proveedores de Auth UI
     val providers = remember {
