@@ -28,7 +28,7 @@ class DashboardViewModel @Inject constructor(
                 if (authUser != null) {
                     Log.d("DashboardViewModel", "🔍 Cargando usuario: ${authUser.email}")
                     _userState.value = Resource.Loading()
-                    _userState.value = userRepository.getUserByEmail(authUser.email ?: "")
+                    _userState.value = userRepository.getUser(authUser.uid ?: "")
                 } else {
                     Log.w("DashboardViewModel", "⚠️ No hay usuario autenticado")
                     _userState.value = Resource.Error("No hay usuario autenticado")

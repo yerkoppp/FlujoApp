@@ -43,10 +43,10 @@ class AccessVerificationViewModel @Inject constructor(
                     lastVerifiedEmail = null
                     return@launch
                 }
-
-                // Buscar por email
+                val uid = authUser.uid
+                // Buscar por id
                 val result = withTimeout(15_000L) {
-                    userRepository.getUserByEmail(email)
+                    userRepository.getUser(uid)
                 }
 
                 when (result) {

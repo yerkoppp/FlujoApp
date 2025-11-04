@@ -32,7 +32,7 @@ class EditProfileViewModel @Inject constructor(
         viewModelScope.launch {
             authRepository.currentUser.collect { authUser ->
                 if (authUser != null) {
-                    _userState.value = userRepository.getUserByEmail(authUser.email ?: "")
+                    _userState.value = userRepository.getUser(authUser.uid ?: "")
                 }
             }
         }
