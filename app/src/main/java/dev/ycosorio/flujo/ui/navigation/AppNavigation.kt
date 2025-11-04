@@ -35,6 +35,9 @@ import dev.ycosorio.flujo.ui.screens.auth.LoginScreen
 import dev.ycosorio.flujo.ui.screens.documents.SignatureScreen
 import dev.ycosorio.flujo.ui.screens.documents.UploadTemplateScreen
 import dev.ycosorio.flujo.ui.screens.main.MainScreen
+import dev.ycosorio.flujo.ui.screens.profile.EditProfileScreen
+import dev.ycosorio.flujo.ui.screens.profile.ProfileScreen
+import dev.ycosorio.flujo.ui.screens.settings.AppearanceScreen
 import dev.ycosorio.flujo.ui.screens.settings.SettingsScreen
 import dev.ycosorio.flujo.ui.screens.worker.inventory.CreateRequestScreen
 import dev.ycosorio.flujo.ui.screens.worker.inventory.WorkerRequestScreen
@@ -285,7 +288,31 @@ fun AppNavigation() {
                             inclusive = true
                         }
                     }
+                },
+                onNavigateToProfile = {
+                    navController.navigate(Routes.Profile.route)
+                },
+                onNavigateToAppearance = {
+                    navController.navigate(Routes.Appearance.route)
                 }
+            )
+        }
+        composable(Routes.Appearance.route) {
+            AppearanceScreen(
+                onBackPressed = { navController.popBackStack() }
+            )
+        }
+        composable(Routes.Profile.route) {
+            ProfileScreen(
+                onBackPressed = { navController.popBackStack() },
+                onEditProfile = { navController.navigate(Routes.EditProfile.route) }
+            )
+        }
+
+        composable(Routes.EditProfile.route) {
+            EditProfileScreen(
+                onBackPressed = { navController.popBackStack() },
+                onSaveSuccess = { navController.popBackStack() }
             )
         }
     }

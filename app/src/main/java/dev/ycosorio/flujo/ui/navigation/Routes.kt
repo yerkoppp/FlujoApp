@@ -24,9 +24,11 @@ sealed class Routes(val route: String) {
         fun createRoute(assignmentId: String) = "documents/$assignmentId/sign"
     }
     object Settings : Routes("settings")
-
     object AssignDocument : Routes("admin/documents/assign/{templateId}") {
         fun createRoute(templateId: String) = "admin/documents/assign/$templateId"
     }
     object UploadTemplate : Routes("admin/documents/upload")
+    object Profile : Routes("profile")
+    object EditProfile : Routes("profile/edit")
+    object Appearance : Routes("settings/appearance")
 }

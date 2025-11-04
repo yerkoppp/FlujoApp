@@ -3,6 +3,7 @@ package dev.ycosorio.flujo.ui.theme
 import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
@@ -11,7 +12,15 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
+import androidx.compose.material3.Typography
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color // Asegúrate de importar Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
+import dev.ycosorio.flujo.data.preferences.AppTheme
+import dev.ycosorio.flujo.data.preferences.ContrastLevel
+import dev.ycosorio.flujo.data.preferences.FontScale
 
 // --- Definición del esquema de color CLARO (LightColorScheme) ---
 private val LightColorScheme = lightColorScheme(
@@ -82,17 +91,39 @@ private val DarkColorScheme = darkColorScheme(
 
 @Composable
 fun FlujoAppTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = false, // Esto es para Material You en Android 12+,
+    appTheme: AppTheme = AppTheme.SYSTEM,
+    fontScale: FontScale = FontScale.NORMAL,
+    contrastLevel: ContrastLevel = ContrastLevel.STANDARD,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
+    // Determinar si usar tema oscuro
+    val darkTheme = when (appTheme) {
+        AppTheme.LIGHT -> false
+        AppTheme.DARK -> true
+        AppTheme.SYSTEM -> isSystemInDarkTheme()
+    }
+
+    // Seleccionar esquema de colores según contraste
     val colorScheme = when {
-         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> { // Opcional: Material You
+        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-         }
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+        }
+        darkTheme -> getDarkColorScheme(contrastLevel)
+        else -> getLightColorScheme(contrastLevel)
+    }
+
+    // Aplicar escalado de fuente
+    val typography = getScaledTypography(fontScale)
+
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as Activity).window
+            window.statusBarColor = colorScheme.primary.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+        }
     }
 
     MaterialTheme(
@@ -100,5 +131,67 @@ fun FlujoAppTheme(
         typography = Typography,
         shapes = Shapes,
         content = content
+    )
+}
+
+private fun getLightColorScheme(contrastLevel: ContrastLevel): ColorScheme {
+    return when (contrastLevel) {
+        ContrastLevel.STANDARD -> LightColorScheme
+        ContrastLevel.MEDIUM -> LightColorScheme.copy(
+            primary = FlujoPrimaryBlueVariant,
+            onPrimary = FlujoSurfaceWhite,
+            surface = FlujoBackgroundLight
+        )
+        ContrastLevel.HIGH -> LightColorScheme.copy(
+            primary = FlujoPrimaryBlueVariant,
+            onPrimary = FlujoSurfaceWhite,
+            surface = FlujoSurfaceWhite,
+            onSurface = FlujoTextDark,
+            outline = FlujoTextDark
+        )
+    }
+}
+
+private fun getDarkColorScheme(contrastLevel: ContrastLevel): ColorScheme {
+    return when (contrastLevel) {
+        ContrastLevel.STANDARD -> DarkColorScheme
+        ContrastLevel.MEDIUM -> DarkColorScheme.copy(
+            primary = FlujoDarkPrimary,
+            onPrimary = FlujoDarkOnPrimary
+        )
+        ContrastLevel.HIGH -> DarkColorScheme.copy(
+            primary = FlujoDarkPrimary,
+            onPrimary = FlujoDarkBackground,
+            surface = FlujoDarkBackground,
+            onSurface = FlujoDarkTextPrimary,
+            outline = FlujoDarkTextPrimary
+        )
+    }
+}
+
+private fun getScaledTypography(fontScale: FontScale): Typography {
+    val scale = when (fontScale) {
+        FontScale.SMALL -> 0.85f
+        FontScale.NORMAL -> 1.0f
+        FontScale.LARGE -> 1.15f
+        FontScale.XLARGE -> 1.30f
+    }
+
+    return Typography.copy(
+        displayLarge = Typography.displayLarge.copy(fontSize = Typography.displayLarge.fontSize * scale),
+        displayMedium = Typography.displayMedium.copy(fontSize = Typography.displayMedium.fontSize * scale),
+        displaySmall = Typography.displaySmall.copy(fontSize = Typography.displaySmall.fontSize * scale),
+        headlineLarge = Typography.headlineLarge.copy(fontSize = Typography.headlineLarge.fontSize * scale),
+        headlineMedium = Typography.headlineMedium.copy(fontSize = Typography.headlineMedium.fontSize * scale),
+        headlineSmall = Typography.headlineSmall.copy(fontSize = Typography.headlineSmall.fontSize * scale),
+        titleLarge = Typography.titleLarge.copy(fontSize = Typography.titleLarge.fontSize * scale),
+        titleMedium = Typography.titleMedium.copy(fontSize = Typography.titleMedium.fontSize * scale),
+        titleSmall = Typography.titleSmall.copy(fontSize = Typography.titleSmall.fontSize * scale),
+        bodyLarge = Typography.bodyLarge.copy(fontSize = Typography.bodyLarge.fontSize * scale),
+        bodyMedium = Typography.bodyMedium.copy(fontSize = Typography.bodyMedium.fontSize * scale),
+        bodySmall = Typography.bodySmall.copy(fontSize = Typography.bodySmall.fontSize * scale),
+        labelLarge = Typography.labelLarge.copy(fontSize = Typography.labelLarge.fontSize * scale),
+        labelMedium = Typography.labelMedium.copy(fontSize = Typography.labelMedium.fontSize * scale),
+        labelSmall = Typography.labelSmall.copy(fontSize = Typography.labelSmall.fontSize * scale)
     )
 }

@@ -85,6 +85,9 @@ dependencies {
     //Captura de canvas
     implementation(libs.capturable)
 
+    //Preferencias
+    implementation(libs.androidx.datastore.preferences)
+
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
