@@ -1,32 +1,30 @@
 package dev.ycosorio.flujo.ui.screens.admin.users.adduser
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.functions.FirebaseFunctions
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dev.ycosorio.flujo.domain.model.Role
-import dev.ycosorio.flujo.domain.model.User
-import dev.ycosorio.flujo.domain.repository.UserRepository
 import dev.ycosorio.flujo.utils.Resource
 import dev.ycosorio.flujo.utils.isValidEmail
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.util.Date
-import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
 class AddUserViewModel @Inject constructor(
-    private val userRepository: UserRepository
+    private val functions: FirebaseFunctions
 ) : ViewModel() {
 
-    private val _addUserState =
-        MutableStateFlow<Resource<Unit>>(Resource.Idle()) // Inicia en éxito (inactivo)
+    private val _addUserState = MutableStateFlow<Resource<Unit>>(Resource.Idle())
     val addUserState = _addUserState.asStateFlow()
 
     fun createUser(name: String, email: String, position: String, area: String) {
         viewModelScope.launch {
-            // Validación básica
+            // Validaciones
             if (name.isBlank()) {
                 _addUserState.value = Resource.Error("El nombre es obligatorio.")
                 return@launch
@@ -46,18 +44,50 @@ class AddUserViewModel @Inject constructor(
 
             _addUserState.value = Resource.Loading()
 
-            val newUser = User(
-                uid = "user_${UUID.randomUUID()}",
-                name = name,
-                email = email,
-                position = position,
-                area = area,
-                role = Role.TRABAJADOR,
-                contractStartDate = Date()
-            )
+            try {
+                Log.d("AddUserViewModel", "📤 Llamando a Cloud Function...")
 
-            // El resultado de la operación del repositorio actualizará el estado
-            _addUserState.value = userRepository.createUser(newUser)
+                val data = hashMapOf(
+                    "email" to email.trim().lowercase(),
+                    "name" to name,
+                    "position" to position,
+                    "area" to area,
+                    "contractStartDate" to Date().time
+                )
+
+                val result = functions
+                    .getHttpsCallable("createWorker")
+                    .call(data)
+                    .await()
+
+                Log.d("AddUserViewModel", "✅ Respuesta: ${result.data}")
+                _addUserState.value = Resource.Success(Unit)
+
+            } catch (e: com.google.firebase.functions.FirebaseFunctionsException) {
+                Log.e("AddUserViewModel", "❌ Error de Function: ${e.code}", e)
+
+                val errorMessage = when (e.code) {
+                    com.google.firebase.functions.FirebaseFunctionsException.Code.ALREADY_EXISTS ->
+                        "Ya existe un usuario con este email"
+                    com.google.firebase.functions.FirebaseFunctionsException.Code.PERMISSION_DENIED ->
+                        "No tienes permisos para crear usuarios"
+                    com.google.firebase.functions.FirebaseFunctionsException.Code.INVALID_ARGUMENT ->
+                        "Datos inválidos: ${e.message}"
+                    else -> "Error al crear el trabajador: ${e.message}"
+                }
+
+                _addUserState.value = Resource.Error(errorMessage)
+
+            } catch (e: Exception) {
+                Log.e("AddUserViewModel", "❌ Error general", e)
+                _addUserState.value = Resource.Error(
+                    e.localizedMessage ?: "Error inesperado al crear el trabajador"
+                )
+            }
         }
+    }
+
+    fun resetState() {
+        _addUserState.value = Resource.Idle()
     }
 }
