@@ -128,7 +128,7 @@ fun FlujoAppTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography,
+        typography = typography,
         shapes = Shapes,
         content = content
     )

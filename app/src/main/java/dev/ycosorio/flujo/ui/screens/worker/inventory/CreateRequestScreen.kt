@@ -1,92 +1,244 @@
 package dev.ycosorio.flujo.ui.screens.worker.inventory
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import dev.ycosorio.flujo.utils.Resource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.ycosorio.flujo.domain.model.InventoryItem
+import dev.ycosorio.flujo.utils.Resource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateRequestScreen(
-    viewModel: WorkerRequestViewModel,
+    // Inyectamos el ViewModel que es compartido por WorkerRequestScreen
+    viewModel: WorkerRequestViewModel = hiltViewModel(),
     onSuccess: () -> Unit
-) {
-    // Estados para el formulario
-    var materialName by remember { mutableStateOf("") }
-    var quantity by remember { mutableStateOf("") }
-    val createState by viewModel.createRequestState.collectAsState()
 
-    // Efecto para volver atrás cuando la solicitud se crea con éxito
-    LaunchedEffect(createState) {
-        if (createState is Resource.Success) {
-            viewModel.resetCreateState()
-            onSuccess()
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val filteredMaterials by viewModel.filteredMaterials.collectAsStateWithLifecycle()
+    val createRequestState by viewModel.createRequestState.collectAsStateWithLifecycle()
+
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Estado para controlar qué item estamos solicitando (para el diálogo)
+    var itemToRequest by remember { mutableStateOf<InventoryItem?>(null) }
+
+    // Efecto para mostrar Snackbars de éxito o error al crear
+    LaunchedEffect(createRequestState) {
+        when (val state = createRequestState) {
+            is Resource.Success -> {
+                snackbarHostState.showSnackbar("Solicitud creada con éxito")
+                viewModel.resetCreateState()
+            }
+            is Resource.Error -> {
+                snackbarHostState.showSnackbar(state.message ?: "Error desconocido")
+                viewModel.resetCreateState()
+            }
+            else -> Unit
         }
     }
 
+    // Usamos un Scaffold simple solo para el SnackbarHost
     Scaffold(
-        topBar = {
-            TopAppBar(title = { Text("Nueva Solicitud de Material") })
-        }
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(paddingValues),
+            contentAlignment = Alignment.Center
         ) {
-            OutlinedTextField(
-                value = materialName,
-                onValueChange = { materialName = it },
-                label = { Text("Nombre del Material") },
-                modifier = Modifier.fillMaxWidth(),
-                maxLines = 1
-            )
-            OutlinedTextField(
-                value = quantity,
-                onValueChange = { quantity = it },
-                label = { Text("Cantidad") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth(),
-                maxLines = 1
-            )
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            Button(
-                onClick = {
-                    val quantityInt = quantity.toIntOrNull() ?: 0
-                    // Por ahora, el ID del material es el mismo que el nombre
-                    viewModel.createMaterialRequest(materialName, materialName, quantityInt)
-                },
-                enabled = createState !is Resource.Loading && createState !is Resource.Success,
-                modifier = Modifier.fillMaxWidth()
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
             ) {
-                if (createState is Resource.Loading) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                Text(
+                    text = "Nueva Solicitud de Material",
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                // --- CAMPO DE BÚSQUEDA ---
+                OutlinedTextField(
+                    value = uiState.searchQuery,
+                    onValueChange = viewModel::onSearchQueryChanged,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Buscar material...") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    singleLine = true,
+                    isError = uiState.error != null
+                )
+
+                if (uiState.error != null) {
+                    Text(
+                        text = uiState.error!!,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // --- LISTA DE RESULTADOS ---
+                if (uiState.isLoadingMaterials) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                } else if (filteredMaterials.isEmpty() && uiState.searchQuery.isNotBlank()) {
+                    Text(
+                        text = "No se encontraron materiales con ese nombre o no hay cantidad disponible.",
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(16.dp)
+                    )
                 } else {
-                    Text("ENVIAR SOLICITUD")
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(filteredMaterials, key = { it.id }) { item ->
+                            MaterialSearchResultItem(
+                                item = item,
+                                onClick = {
+                                    // Abre el diálogo para pedir cantidad
+                                    itemToRequest = item
+                                }
+                            )
+                        }
+                    }
                 }
             }
 
-            if (createState is Resource.Error) {
-                Text(
-                    text = (createState as Resource.Error<Unit>).message ?: "Error",
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-                Button(
-                    onClick = { viewModel.resetCreateState() },
-                    modifier = Modifier.padding(top = 8.dp)
-                ) {
-                    Text("Entendido")
-                }
+            // Muestra un indicador de carga si estamos creando la solicitud
+            if (createRequestState is Resource.Loading) {
+                CircularProgressIndicator()
             }
         }
     }
+
+
+    // --- DIÁLOGO PARA PEDIR CANTIDAD ---
+    itemToRequest?.let { item ->
+        RequestQuantityDialog(
+            item = item,
+            onDismiss = { itemToRequest = null },
+            onConfirm = { quantity ->
+                viewModel.createMaterialRequest(item, quantity)
+                itemToRequest = null
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MaterialSearchResultItem(
+    item: InventoryItem,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+    ) {
+        ListItem(
+            headlineContent = { Text(item.name) },
+            supportingContent = { Text("Disponible: ${item.quantity}") }
+        )
+    }
+}
+
+@Composable
+private fun RequestQuantityDialog(
+    item: InventoryItem,
+    onDismiss: () -> Unit,
+    onConfirm: (quantity: Int) -> Unit
+) {
+    var quantity by rememberSaveable { mutableStateOf("") }
+    var quantityError by rememberSaveable { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Solicitar: ${item.name}") },
+        text = {
+            Column {
+                Text("Cantidad disponible: ${item.quantity}")
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = quantity,
+                    onValueChange = {
+                        quantity = it.filter { char -> char.isDigit() }
+                        quantityError = null
+                    },
+                    label = { Text("Cantidad a solicitar") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    isError = quantityError != null,
+                    supportingText = { if (quantityError != null) Text(quantityError!!) },
+                    singleLine = true
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val quantityInt = quantity.toIntOrNull()
+                    // Validación
+                    if (quantityInt == null || quantityInt <= 0) {
+                        quantityError = "Cantidad inválida"
+                    } else if (quantityInt > item.quantity) {
+                        quantityError = "No puedes pedir más de lo disponible (${item.quantity})"
+                    } else {
+                        // ¡Éxito!
+                        onConfirm(quantityInt)
+                    }
+                }
+            ) {
+                Text("Solicitar")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
 }

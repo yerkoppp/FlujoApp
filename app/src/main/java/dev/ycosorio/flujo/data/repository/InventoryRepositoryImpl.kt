@@ -3,16 +3,22 @@ package dev.ycosorio.flujo.data.repository
 import com.google.firebase.firestore.FirebaseFirestore
 import dev.ycosorio.flujo.domain.model.MaterialRequest
 import dev.ycosorio.flujo.domain.model.RequestStatus
+import dev.ycosorio.flujo.domain.model.InventoryItem
 import dev.ycosorio.flujo.domain.repository.InventoryRepository
 import dev.ycosorio.flujo.utils.Resource
 import kotlinx.coroutines.flow.Flow
 import com.google.firebase.firestore.Query
 import javax.inject.Inject
 import kotlinx.coroutines.tasks.await
+import com.google.firebase.firestore.snapshots
+import kotlinx.coroutines.flow.map
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.FieldValue
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.channels.awaitClose
+import dev.ycosorio.flujo.utils.FirestoreConstants.INVENTORY_COLLECTION
+import dev.ycosorio.flujo.utils.FirestoreConstants.MATERIAL_REQUESTS_COLLECTION
 import java.util.Date
 
 /**
@@ -24,7 +30,8 @@ class InventoryRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore
 ) : InventoryRepository {
 
-    private val requestsCollection = firestore.collection("material_requests")
+    private val inventoryCollection = firestore.collection(INVENTORY_COLLECTION)
+    private val requestsCollection = firestore.collection(MATERIAL_REQUESTS_COLLECTION)
 
     override fun getMaterialRequests(
         orderBy: String,
@@ -106,6 +113,55 @@ class InventoryRepositoryImpl @Inject constructor(
         }
 
         awaitClose { subscription.remove() }
+    }
+
+    /**
+     * Implementación de la función que faltaba.
+     * Escucha en tiempo real los cambios en la colección "inventory".
+     */
+    override fun getAvailableMaterials(): Flow<Resource<List<InventoryItem>>> {
+        return inventoryCollection.snapshots().map { snapshot ->
+            try {
+                // Convierte los documentos a objetos InventoryItem
+                // (esto funciona si tu data class tiene @DocumentId val id: String)
+                val materials = snapshot.documents.mapNotNull { it.toObject(InventoryItem::class.java) }
+                Resource.Success(materials)
+            } catch (e: Exception) {
+                Resource.Error(e.message ?: "Error al obtener materiales")
+            }
+        }
+    }
+
+    override suspend fun createMaterial(name: String, initialStock: Int): Resource<Unit> {
+        return try {
+            // Creamos el nuevo item
+            val newItem = InventoryItem(
+                id = "", // El ID será asignado por Firestore
+                name = name,
+                quantity = initialStock,
+                locationId = "almacen_central" // Ubicación por defecto
+
+            )
+            // Dejamos que Firestore asigne el ID
+            inventoryCollection.add(newItem).await()
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Error al crear el material")
+        }
+    }
+
+    override suspend fun addStockToMaterial(itemId: String, amountToAdd: Int): Resource<Unit> {
+        if (amountToAdd <= 0) {
+            return Resource.Error("La cantidad debe ser positiva")
+        }
+        return try {
+            val itemRef = inventoryCollection.document(itemId)
+            // Usamos FieldValue.increment para añadir stock de forma segura (atómica)
+            itemRef.update("stock", FieldValue.increment(amountToAdd.toLong())).await()
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Error al actualizar stock")
+        }
     }
 }
 

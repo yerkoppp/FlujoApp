@@ -2,6 +2,7 @@ package dev.ycosorio.flujo.domain.repository
 
 import dev.ycosorio.flujo.domain.model.MaterialRequest
 import dev.ycosorio.flujo.domain.model.RequestStatus
+import dev.ycosorio.flujo.domain.model.InventoryItem
 import dev.ycosorio.flujo.utils.Resource
 import kotlinx.coroutines.flow.Flow
 import com.google.firebase.firestore.Query
@@ -40,4 +41,25 @@ interface InventoryRepository {
      * @param workerId El ID del trabajador del que se quieren obtener las solicitudes.
      */
     fun getRequestsForWorker(workerId: String): Flow<Resource<List<MaterialRequest>>>
+
+    // --- Funciones de Gestión de Admin ---
+
+    /**
+     * Esta es la función que faltaba. La necesitamos para que el admin
+     * vea la lista de materiales y para que el trabajador pueda buscar.
+     */
+    fun getAvailableMaterials(): Flow<Resource<List<InventoryItem>>>
+
+    /**
+     * Función para que el Admin añada más cantidad a un material existente.
+     */
+    suspend fun addStockToMaterial(itemId: String, amountToAdd: Int): Resource<Unit>
+
+
+    /**
+     * Función para que el Admin cree un nuevo material.
+     * Usa 'initialQuantity'
+     */
+    suspend fun createMaterial(name: String, initialQuantity: Int): Resource<Unit>
+
 }

@@ -3,9 +3,11 @@ package dev.ycosorio.flujo.utils
 object FirestoreConstants {
     // Colecciones
     const val USERS_COLLECTION = "users"
+    const val INVENTORY_COLLECTION = "inventory_items"
     const val MATERIAL_REQUESTS_COLLECTION = "material_requests"
     const val DOCUMENT_TEMPLATES_COLLECTION = "document_templates"
     const val DOCUMENT_ASSIGNMENTS_COLLECTION = "document_assignments"
+    const val VEHICLES_COLLECTION = "vehicles"
 
     // Campos comunes
     const val FIELD_ID = "id"

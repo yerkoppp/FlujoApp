@@ -20,6 +20,7 @@ import androidx.navigation.navArgument
 import dev.ycosorio.flujo.domain.repository.AuthRepository
 import dev.ycosorio.flujo.domain.repository.UserRepository
 import dev.ycosorio.flujo.ui.AppViewModel
+import dev.ycosorio.flujo.ui.screens.admin.inventory.MaterialManagementScreen
 import dev.ycosorio.flujo.ui.screens.admin.inventory.MaterialRequestScreen
 import dev.ycosorio.flujo.ui.screens.admin.inventory.MaterialRequestViewModel
 import dev.ycosorio.flujo.ui.screens.documents.AssignDocumentScreen
@@ -30,6 +31,7 @@ import dev.ycosorio.flujo.ui.screens.admin.users.adduser.AddUserScreen
 import dev.ycosorio.flujo.ui.screens.admin.users.adduser.AddUserViewModel
 import dev.ycosorio.flujo.ui.screens.admin.users.usermanagament.UserManagementScreen
 import dev.ycosorio.flujo.ui.screens.admin.users.usermanagament.UserManagementViewModel
+import dev.ycosorio.flujo.ui.screens.admin.vehicles.VehicleManagementScreen
 import dev.ycosorio.flujo.ui.screens.auth.AccessVerificationScreen
 import dev.ycosorio.flujo.ui.screens.auth.LoginScreen
 import dev.ycosorio.flujo.ui.screens.documents.SignatureScreen
@@ -118,7 +120,12 @@ fun AppNavigation() {
                 }
             )
         }
-
+        composable(Routes.VehicleManagement.route) {
+            VehicleManagementScreen(navController = navController)
+        }
+        composable(Routes.MaterialManagement.route) {
+            MaterialManagementScreen(navController = navController)
+        }
         // Pantalla para Añadir un Usuario
         composable(Routes.AddUser.route) {
             val viewModel: AddUserViewModel = hiltViewModel()
