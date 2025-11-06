@@ -12,16 +12,16 @@ val FlujoPrimaryBlueVariant = Color(0xFF0D5A9C) // Azul más oscuro para tema cl
 val FlujoSecondaryCyan = Color(0xFF00B8D4) // Cian de acento para tema claro
 val FlujoSecondaryCyanVariant = Color(0xFF0097A7) // Cian más oscuro para tema claro
 
-// Neutros para tema CLARO
-val FlujoBackgroundLight = Color(0xFFF0F2F5) // Gris muy claro para fondo
-val FlujoSurfaceWhite = Color(0xFFFFFFFF) // Blanco puro para superficies
+// ---  TEMA CLARO ---
+// Neutros para tema CLARO (Ajustados para más contraste)
+val FlujoBackgroundLight = Color(0xFFEEEEEE) // Fondo gris (antes F0F2F5)
+val FlujoSurfaceLight = Color(0xFFFFFFFF) // Superficie blanca (para las Cards)
+val FlujoSurfaceVariantLight = Color(0xFFE0E0E0) // Variante de superficie (gris más oscuro)
 val FlujoTextDark = Color(0xFF212121) // Gris oscuro para texto principal
 val FlujoTextMedium = Color(0xFF616161) // Gris medio para texto secundario
 val FlujoTextLight = Color(0xFFBDBDBD) // Gris claro para texto deshabilitado
 
 // --- Colores específicos para TEMA OSCURO ---
-// Usaremos tonos más profundos para fondos y superficies,
-// y haremos los colores primarios/secundarios un poco más sutiles o vibrantes según el contexto.
 
 val FlujoDarkBackground = Color(0xFF121212) // Fondo muy oscuro
 val FlujoDarkSurface = Color(0xFF1E1E1E) // Superficies ligeramente menos oscuras que el fondo
@@ -30,9 +30,8 @@ val FlujoDarkTextPrimary = Color(0xFFE0E0E0) // Gris muy claro para texto princi
 val FlujoDarkTextSecondary = Color(0xFFB0B0B0) // Gris claro para texto secundario
 val FlujoDarkTextDisabled = Color(0xFF6F6F6F) // Gris medio para texto deshabilitado
 
-// Colores para el tema oscuro, a menudo los primarios/secundarios se ajustan un poco
-// Podríamos usar el `FlujoSecondaryCyan` como `primary` en el tema oscuro para que resalte más.
-val FlujoDarkPrimary = Color(0xFF00BCD4) // Cian brillante (similar a FlujoSecondaryCyan) para ser primary en oscuro
+// Colores ESTÁNDAR para tema oscuro
+val FlujoDarkPrimary = Color(0xFF00BCD4) // Cian brillante (Estándar)
 val FlujoDarkOnPrimary = Color(0xFF212121) // Texto oscuro sobre este primary brillante
 val FlujoDarkPrimaryContainer = Color(0xFF0097A7) // Versión más oscura del cian para contenedores
 
@@ -42,3 +41,13 @@ val FlujoDarkSecondaryContainer = Color(0xFF42A5F5) // Versión más oscura del 
 
 val FlujoErrorRed = Color(0xFFCF6679) // Rojo de error para tema oscuro (más suave)
 val FlujoOnError = Color(0xFF000000) // Texto negro sobre el error rojo
+
+
+// --- COLORES PARA CONTRASTE MEDIO (Oscuro) ---
+// Usaremos el primario del tema claro (más oscuro) para aumentar contraste
+val FlujoDarkPrimaryMedium = Color(0xFF1B6EB5) // Azul oscuro (en lugar de cian brillante)
+val FlujoDarkOnPrimaryMedium = Color(0xFFFFFFFF) // Texto blanco
+
+// --- COLORES PARA CONTRASTE ALTO (Genéricos) ---
+val FlujoBlack = Color(0xFF000000)
+val FlujoWhite = Color(0xFFFFFFFF)
