@@ -56,7 +56,7 @@ coreI18n = "1.0.0"
 material3 = "1.4.0"
 
 # ========== Persitencia de Preferencias ===========
-datastore = "1.0.0"
+datastore = "1.1.7"
 
 # ========== PLUGINS ==========
 [plugins]

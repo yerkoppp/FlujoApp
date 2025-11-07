@@ -1,8 +1,14 @@
 // Archivo: functions/src/index.ts
 
-import *import * as functions from 'firebase-functions';
-import * as admin from 'firebase-admin';
+// Importaciones Modulares (Estilo v4/v2)
+import {onCall, HttpsError} from "firebase-functions/v2/https";
+import {setGlobalOptions} from "firebase-functions/v2"; // Para definir la región global
+import * as admin from "firebase-admin";
+
 admin.initializeApp();
+
+// Define la región globalmente para todas las funciones
+setGlobalOptions({region: "southamerica-west1"});
 
 /**
  * Define la estructura de los datos que esperamos
@@ -24,7 +30,7 @@ interface AppUser {
   uid: string;
   name: string;
   email: string;
-  role: 'TRABAJADOR' | 'ADMINISTRADOR'; // Usamos tipos literales
+  role: "TRABAJADOR" | "ADMINISTRADOR";
   position: string;
   area: string;
   contractStartDate: admin.firestore.Timestamp;
@@ -36,34 +42,36 @@ interface AppUser {
   assignedPcId: string | null;
 }
 
-export const createWorker = functions.https.onCall(async (data: CreateWorkerData, context) => {
-
-  // 1. Verificar autenticación
-  if (!context.auth) {
-    throw new functions.https.HttpsError(
-      'unauthenticated',
-      'Debes estar autenticado para realizar esta acción'
+export const createWorker = onCall(async (request) => {
+  // 1. Verificar autenticación (CAMBIO: request.auth)
+  if (!request.auth) {
+    throw new HttpsError( // CAMBIO: HttpsError (sin 'functions.https')
+      "unauthenticated",
+      "Debes estar autenticado para realizar esta acción"
     );
   }
 
-  // 2. Verificar que quien llama es admin
-  const callerUid = context.auth.uid;
-  const callerDoc = await admin.firestore().collection('users').doc(callerUid).get();
-  const callerData = callerDoc.data(); // TS sabe que esto puede ser undefined
+  // 2. Verificar que quien llama es admin (CAMBIO: request.auth.uid)
+  const callerUid = request.auth.uid;
+  const callerDoc = await admin.firestore().collection("users").doc(callerUid).get();
+  const callerData = callerDoc.data();
 
-  if (!callerDoc.exists || callerData?.role !== 'ADMINISTRADOR') {
-    throw new functions.https.HttpsError(
-      'permission-denied',
-      'Solo los administradores pueden crear nuevos trabajadores'
+  if (!callerDoc.exists || callerData?.role !== "ADMINISTRADOR") {
+    throw new HttpsError(
+      "permission-denied",
+      "Solo los administradores pueden crear nuevos trabajadores"
     );
   }
 
-  // 3. Validar datos recibidos (usando la interfaz)
-  const { email, name, position, area, contractStartDate } = data;
+  // 3. Validar datos recibidos (CAMBIO: request.data)
+  // TypeScript no conoce el tipo de request.data, así que lo "casteamos"
+  const data = request.data as CreateWorkerData;
+  const {email, name, position, area, contractStartDate} = data;
+
   if (!email || !name || !position || !area || !contractStartDate) {
-    throw new functions.https.HttpsError(
-      'invalid-argument',
-      'Faltan datos obligatorios'
+    throw new HttpsError(
+      "invalid-argument",
+      "Faltan datos obligatorios"
     );
   }
 
@@ -71,21 +79,23 @@ export const createWorker = functions.https.onCall(async (data: CreateWorkerData
   try {
     await admin.auth().getUserByEmail(email);
     // Si la promesa se resuelve, el usuario SÍ existe. Lanzamos error.
-    throw new functions.https.HttpsError(
-      'already-exists',
-      'Ya existe un usuario con este email'
+    throw new HttpsError(
+      "already-exists",
+      "Ya existe un usuario con este email"
     );
   } catch (error: any) {
-    // Esperamos que el error sea 'auth/user-not-found'.
-    // Si NO lo es, relanzamos el error (que podría ser el 'already-exists' de arriba).
-    if (error.code !== 'auth/user-not-found') {
+    // Si el error es el que lanzamos arriba, lo relanza.
+    if (error instanceof HttpsError) {
       throw error;
+    }
+    // Esperamos que el error sea 'auth/user-not-found'.
+    if (error.code !== "auth/user-not-found") {
+      throw error; // Relanza cualquier otro error inesperado
     }
     // Si es 'auth/user-not-found', está bien. Continuamos.
   }
 
   // 5. y 6. Crear usuario en Auth y documento en Firestore
-  // Lo ponemos en su propio Try/Catch para errores de CREACIÓN
   try {
     const userRecord = await admin.auth().createUser({
       email: email.toLowerCase().trim(),
@@ -93,14 +103,14 @@ export const createWorker = functions.https.onCall(async (data: CreateWorkerData
       disabled: false,
     });
 
-    console.log('Usuario creado en Auth:', userRecord.uid);
+    console.log("Usuario creado en Auth:", userRecord.uid);
 
     // Usamos la interfaz AppUser para asegurar que los datos son correctos
     const newUserDocument: AppUser = {
       uid: userRecord.uid,
       name: name,
       email: email.toLowerCase().trim(),
-      role: 'TRABAJADOR',
+      role: "TRABAJADOR",
       position: position,
       area: area,
       contractStartDate: admin.firestore.Timestamp.fromDate(
@@ -111,28 +121,79 @@ export const createWorker = functions.https.onCall(async (data: CreateWorkerData
       photoUrl: null,
       assignedVehicleId: null,
       assignedPhoneId: null,
-      assignedPcId: null
+      assignedPcId: null,
     };
 
     await admin.firestore()
-      .collection('users')
+      .collection("users")
       .doc(userRecord.uid)
       .set(newUserDocument);
 
-    console.log('Documento creado en Firestore:', userRecord.uid);
+    console.log("Documento creado en Firestore:", userRecord.uid);
 
     return {
       success: true,
       uid: userRecord.uid,
-      message: 'Trabajador creado exitosamente'
+      message: "Trabajador creado exitosamente",
     };
-
   } catch (error: any) {
     // Si falla la creación en Auth o Firestore.
-    console.error('Error en pasos 5 o 6:', error);
-    throw new functions.https.HttpsError(
-      'internal',
-      error.message || 'Error interno al crear el trabajador'
+    console.error("Error en pasos 5 o 6:", error);
+    throw new HttpsError(
+      "internal",
+      error.message || "Error interno al crear el trabajador"
     );
+  }
+});
+
+/**
+ * Define los datos esperados para eliminar un trabajador.
+ */
+interface DeleteWorkerData {
+  userId: string;
+}
+
+export const deleteWorker = onCall(async (request) => { // CAMBIO: onCall y request
+  // 1. Verificar autenticación (CAMBIO: request.auth)
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Debes estar autenticado");
+  }
+
+  // 2. Verificar que quien llama es admin (CAMBIO: request.auth.uid)
+  const callerUid = request.auth.uid;
+  const callerDoc = await admin.firestore().collection("users").doc(callerUid).get();
+  const callerData = callerDoc.data();
+
+  if (!callerDoc.exists || callerData?.role !== "ADMINISTRADOR") {
+    throw new HttpsError("permission-denied", "Solo los administradores pueden eliminar usuarios");
+  }
+
+  // 3. Obtener el UID del usuario a eliminar (CAMBIO: request.data)
+  const data = request.data as DeleteWorkerData;
+  const {userId} = data;
+
+  if (!userId) {
+    throw new HttpsError("invalid-argument", "Falta el userId");
+  }
+
+  try {
+    // 4. Eliminar de Authentication
+    await admin.auth().deleteUser(userId);
+    console.log("Usuario eliminado de Auth:", userId);
+
+    // 5. Eliminar de Firestore
+    await admin.firestore().collection("users").doc(userId).delete();
+    console.log("Documento eliminado de Firestore:", userId);
+
+    return {success: true, message: "Usuario eliminado exitosamente"};
+  } catch (error: any) {
+    console.error("Error al eliminar trabajador:", error);
+
+    // Manejo de error si el usuario no existe
+    if (error.code === "auth/user-not-found") {
+      throw new HttpsError("not-found", "El usuario a eliminar no existe en Authentication");
+    }
+
+    throw new HttpsError("internal", error.message || "Error interno al eliminar usuario");
   }
 });

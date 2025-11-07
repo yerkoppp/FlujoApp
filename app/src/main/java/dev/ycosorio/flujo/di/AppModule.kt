@@ -1,9 +1,11 @@
 package dev.ycosorio.flujo.di
 
 import android.content.Context
+import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.functions.functions
 import dev.ycosorio.flujo.data.repository.UserRepositoryImpl
 import dev.ycosorio.flujo.domain.repository.UserRepository
 import dagger.Module
@@ -83,12 +85,7 @@ object AppModule {
     @Provides
     @Singleton
     fun provideFirebaseFunctions(): FirebaseFunctions {
-        val functions = FirebaseFunctions.getInstance()
-
-        // Solo para emulador local
-        if (BuildConfig.DEBUG) {
-            functions.useEmulator("10.0.2.2", 5001)
-        }
+        val functions = Firebase.functions("southamerica-west1")
 
         return functions
     }
