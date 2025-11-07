@@ -11,10 +11,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.google.firebase.functions.FirebaseFunctions
+import kotlinx.coroutines.tasks.await
 
 @HiltViewModel
 class EditUserViewModel @Inject constructor(
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val functions: FirebaseFunctions
 ) : ViewModel() {
 
     private val _updateUserState = MutableStateFlow<Resource<Unit>>(Resource.Idle())
@@ -48,10 +51,24 @@ class EditUserViewModel @Inject constructor(
         }
     }
 
-    fun deleteUser(uid: String) {
+ /*   fun deleteUser(uid: String) {
         viewModelScope.launch {
             _deleteUserState.value = Resource.Loading()
             _deleteUserState.value = userRepository.deleteUser(uid)
+        }
+    }*/
+
+    fun deleteUser(uid: String) {
+        viewModelScope.launch {
+            _deleteUserState.value = Resource.Loading()
+
+            try {
+                val data = hashMapOf("userId" to uid)
+                functions.getHttpsCallable("deleteWorker").call(data).await()
+                _deleteUserState.value = Resource.Success(Unit)
+            } catch (e: Exception) {
+                _deleteUserState.value = Resource.Error(e.localizedMessage ?: "Error")
+            }
         }
     }
 

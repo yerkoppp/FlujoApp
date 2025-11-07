@@ -25,68 +25,67 @@ import dev.ycosorio.flujo.data.preferences.FontScale
 // --- Definición del esquema de color CLARO (LightColorScheme) ---
 private val LightColorScheme = lightColorScheme(
     primary = FlujoPrimaryBlue,
-    onPrimary = FlujoSurfaceWhite,
+    onPrimary = FlujoSurfaceLight, // Blanco
     primaryContainer = FlujoPrimaryBlueVariant,
-    onPrimaryContainer = FlujoSurfaceWhite,
+    onPrimaryContainer = FlujoSurfaceLight, // Blanco
 
     secondary = FlujoSecondaryCyan,
-    onSecondary = FlujoSurfaceWhite,
+    onSecondary = FlujoSurfaceLight,
     secondaryContainer = FlujoSecondaryCyanVariant,
-    onSecondaryContainer = FlujoSurfaceWhite,
+    onSecondaryContainer = FlujoSurfaceLight,
 
-    tertiary = FlujoPrimaryBlue, // Puedes ajustar o añadir un tercer color si es necesario
-    onTertiary = FlujoSurfaceWhite,
+    tertiary = FlujoPrimaryBlue,
+    onTertiary = FlujoSurfaceLight,
     tertiaryContainer = FlujoPrimaryBlueVariant,
-    onTertiaryContainer = FlujoSurfaceWhite,
+    onTertiaryContainer = FlujoSurfaceLight,
 
-    background = FlujoBackgroundLight,
+    background = FlujoBackgroundLight, // Fondo gris (EEEEEE)
     onBackground = FlujoTextDark,
 
-    surface = FlujoSurfaceWhite,
+    surface = FlujoSurfaceLight, // Superficie blanca (FFFFFF)
     onSurface = FlujoTextDark,
-    surfaceVariant = FlujoBackgroundLight, // Usamos el color de fondo para una variante de superficie sutil
+    surfaceVariant = FlujoSurfaceVariantLight, // Variante gris (E0E0E0)
     onSurfaceVariant = FlujoTextMedium,
 
-    error = FlujoErrorRed, // Usando el rojo oscuro para tema claro
-    onError = FlujoSurfaceWhite,
+    error = FlujoErrorRed,
+    onError = FlujoSurfaceLight,
     errorContainer = FlujoErrorRed,
-    onErrorContainer = FlujoSurfaceWhite,
+    onErrorContainer = FlujoSurfaceLight,
 
-    outline = FlujoTextLight, // Bordes o divisores
-    // Añadir otros colores si son necesarios para M3 como scrim, inversePrimary, etc.
+    outline = FlujoTextLight,
 )
 
 // --- Definición del esquema de color OSCURO (DarkColorScheme) ---
 private val DarkColorScheme = darkColorScheme(
-    primary = FlujoDarkPrimary, // Cian brillante como Primary en oscuro
-    onPrimary = FlujoDarkOnPrimary, // Texto oscuro sobre el primary oscuro
+    primary = FlujoDarkPrimary,
+    onPrimary = FlujoDarkOnPrimary,
     primaryContainer = FlujoDarkPrimaryContainer,
-    onPrimaryContainer = FlujoDarkTextPrimary, // Texto claro sobre el contenedor primario
+    onPrimaryContainer = FlujoDarkTextPrimary,
 
-    secondary = FlujoDarkSecondary, // Azul claro como Secondary en oscuro
-    onSecondary = FlujoDarkOnSecondary, // Texto oscuro sobre el secondary oscuro
+    secondary = FlujoDarkSecondary,
+    onSecondary = FlujoDarkOnSecondary,
     secondaryContainer = FlujoDarkSecondaryContainer,
-    onSecondaryContainer = FlujoDarkTextPrimary, // Texto claro sobre el contenedor secundario
+    onSecondaryContainer = FlujoDarkTextPrimary,
 
-    tertiary = FlujoDarkSecondary, // Puedes usar secondary o un tercer color si es necesario
+    tertiary = FlujoDarkSecondary,
     onTertiary = FlujoDarkOnSecondary,
     tertiaryContainer = FlujoDarkSecondaryContainer,
     onTertiaryContainer = FlujoDarkTextPrimary,
 
     background = FlujoDarkBackground,
-    onBackground = FlujoDarkTextPrimary, // Texto claro sobre el fondo oscuro
+    onBackground = FlujoDarkTextPrimary,
 
     surface = FlujoDarkSurface,
-    onSurface = FlujoDarkTextPrimary, // Texto claro sobre las superficies oscuras
-    surfaceVariant = FlujoDarkSurfaceVariant, // Variante de superficie ligeramente diferente
-    onSurfaceVariant = FlujoDarkTextSecondary, // Texto secundario sobre la variante de superficie
+    onSurface = FlujoDarkTextPrimary,
+    surfaceVariant = FlujoDarkSurfaceVariant,
+    onSurfaceVariant = FlujoDarkTextSecondary,
 
-    error = FlujoErrorRed, // El rojo de error ajustado para oscuro (definido en Color.kt)
-    onError = FlujoOnError, // Texto negro sobre el error rojo
+    error = FlujoErrorRed,
+    onError = FlujoOnError,
     errorContainer = FlujoErrorRed,
     onErrorContainer = FlujoOnError,
 
-    outline = FlujoDarkTextDisabled, // Bordes o divisores con un tono más suave
+    outline = FlujoDarkTextDisabled,
 )
 
 @Composable
@@ -136,35 +135,48 @@ fun FlujoAppTheme(
 
 private fun getLightColorScheme(contrastLevel: ContrastLevel): ColorScheme {
     return when (contrastLevel) {
-        ContrastLevel.STANDARD -> LightColorScheme
+        ContrastLevel.STANDARD -> LightColorScheme // Ya tiene más contraste
         ContrastLevel.MEDIUM -> LightColorScheme.copy(
-            primary = FlujoPrimaryBlueVariant,
-            onPrimary = FlujoSurfaceWhite,
-            surface = FlujoBackgroundLight
+            primary = FlujoPrimaryBlueVariant, // Primario más oscuro
+            onPrimary = FlujoWhite,
+            surfaceVariant = Color(0xFFBDBDBD) // Gris de tarjetas más oscuro
         )
         ContrastLevel.HIGH -> LightColorScheme.copy(
-            primary = FlujoPrimaryBlueVariant,
-            onPrimary = FlujoSurfaceWhite,
-            surface = FlujoSurfaceWhite,
-            onSurface = FlujoTextDark,
-            outline = FlujoTextDark
+            primary = FlujoBlack,
+            onPrimary = FlujoWhite,
+            background = FlujoWhite,
+            onBackground = FlujoBlack,
+            surface = FlujoWhite,
+            onSurface = FlujoBlack,
+            onSurfaceVariant = FlujoBlack,
+            outline = FlujoBlack
         )
     }
 }
 
+// --- LÓGICA DE CONTRASTE TEMA OSCURO ---
 private fun getDarkColorScheme(contrastLevel: ContrastLevel): ColorScheme {
     return when (contrastLevel) {
+        // Estándar: Fondo gris oscuro, Primario cian brillante
         ContrastLevel.STANDARD -> DarkColorScheme
+
+        // Medio: Fondo negro puro, Primario azul oscuro (más contraste)
         ContrastLevel.MEDIUM -> DarkColorScheme.copy(
-            primary = FlujoDarkPrimary,
-            onPrimary = FlujoDarkOnPrimary
+            primary = FlujoDarkPrimaryMedium, // Azul oscuro
+            onPrimary = FlujoDarkOnPrimaryMedium, // Texto blanco
+            background = FlujoBlack // Fondo negro
         )
+
+        // Alto: Fondo negro puro, Primario blanco puro
         ContrastLevel.HIGH -> DarkColorScheme.copy(
-            primary = FlujoDarkPrimary,
-            onPrimary = FlujoDarkBackground,
-            surface = FlujoDarkBackground,
-            onSurface = FlujoDarkTextPrimary,
-            outline = FlujoDarkTextPrimary
+            primary = FlujoWhite,
+            onPrimary = FlujoBlack,
+            background = FlujoBlack,
+            onBackground = FlujoWhite,
+            surface = FlujoBlack,
+            onSurface = FlujoWhite,
+            onSurfaceVariant = FlujoWhite,
+            outline = FlujoWhite
         )
     }
 }

@@ -69,6 +69,7 @@ dependencies {
     implementation(libs.bundles.firebase)
     implementation(libs.google.auth) // Google Sign-In se maneja fuera de la BoM
     implementation(libs.firebase.ui.auth)
+    implementation(libs.firebase.functions)
 
     // Core & Seguridad
     implementation(libs.androidx.core.ktx)
