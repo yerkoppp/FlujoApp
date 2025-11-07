@@ -64,12 +64,11 @@ class MaterialRequestViewModel @Inject constructor(
      * @param requestId El ID de la solicitud a modificar.
      * @param newStatus El nuevo estado (APROBADO o RECHAZADO).
      */
-    fun updateRequestStatus(requestId: String, newStatus: RequestStatus) {
+    fun updateRequestStatus(requestId: String, newStatus: RequestStatus, adminNotes: String? = null) {
         viewModelScope.launch {
             // Podríamos añadir un StateFlow para el estado de la actualización si queremos mostrar un loader
-            inventoryRepository.updateRequestStatus(requestId, newStatus)
-            // No necesitamos hacer nada con el resultado aquí, porque gracias a nuestro listener en tiempo real,
-            // la lista se actualizará automáticamente en la UI en cuanto el cambio se guarde en Firestore.
+            inventoryRepository.updateRequestStatus(requestId, newStatus, adminNotes)
+
         }
     }
 

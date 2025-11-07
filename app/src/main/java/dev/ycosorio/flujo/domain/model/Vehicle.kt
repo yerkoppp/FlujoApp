@@ -7,5 +7,6 @@ data class Vehicle(
     val plate: String = "",
     val description: String = "",
     val userIds: List<String> = emptyList(), // Lista de UIDs de los usuarios asignados
-    val maxUsers: Int = 6
+    val maxUsers: Int = 6,
+    val assignedWarehouseId: String? = null
 )

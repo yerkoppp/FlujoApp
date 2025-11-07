@@ -74,7 +74,10 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideAuthRepository(firebaseAuth: FirebaseAuth): AuthRepository {
+    fun provideAuthRepository(
+        firebaseAuth: FirebaseAuth,
+       // firestore: FirebaseFirestore
+    ): AuthRepository {
         return AuthRepositoryImpl(firebaseAuth)
     }
 
@@ -82,5 +85,6 @@ object AppModule {
     @Singleton
     fun provideVehicleRepository(firestore: FirebaseFirestore): VehicleRepository =
         VehicleRepositoryImpl(firestore)
+
 
 }

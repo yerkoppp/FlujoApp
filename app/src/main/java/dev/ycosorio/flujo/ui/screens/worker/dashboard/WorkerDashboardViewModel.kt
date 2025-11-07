@@ -55,7 +55,7 @@ class WorkerDashboardViewModel @Inject constructor(
 
                     WorkerDashboardUiState(
                         // Filtramos solo los documentos que el trabajador NO ha firmado
-                        pendingDocuments = documents.filter { !it.isSigned },
+                        pendingDocuments = documents.filter { it.status.name == RequestStatus.PENDIENTE.name },
                         // Tomamos solo las 5 solicitudes más recientes
                         recentRequests = requests.sortedByDescending { it.requestDate }.take(5),
                         isLoading = isLoading,

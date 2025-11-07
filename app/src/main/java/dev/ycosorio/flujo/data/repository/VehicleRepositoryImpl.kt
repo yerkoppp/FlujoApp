@@ -21,11 +21,11 @@ class VehicleRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore
 ) : VehicleRepository {
 
-    private val vehiclesCol = firestore.collection(VEHICLES_COLLECTION)
-    private val usersCol = firestore.collection(USERS_COLLECTION)
+    private val vehiclesCollection = firestore.collection(VEHICLES_COLLECTION)
+    private val usersCollection = firestore.collection(USERS_COLLECTION)
 
     override fun getVehicles(): Flow<Resource<List<Vehicle>>> {
-        return vehiclesCol.snapshots().map { snapshot ->
+        return vehiclesCollection.snapshots().map { snapshot ->
             try {
                 val vehicles = snapshot.documents.mapNotNull {
                     it.toObject<Vehicle>()
@@ -39,7 +39,7 @@ class VehicleRepositoryImpl @Inject constructor(
 
     override suspend fun createVehicle(plate: String, description: String): Resource<Unit> {
         return try {
-            val newVehicleRef = vehiclesCol.document()
+            val newVehicleRef = vehiclesCollection.document()
             val newVehicle = Vehicle(
                 id = newVehicleRef.id,
                 plate = plate,
@@ -58,14 +58,14 @@ class VehicleRepositoryImpl @Inject constructor(
         return try {
             // Transacción para asegurar que desasignamos a los usuarios antes de borrar
             firestore.runTransaction { transaction ->
-                val vehicleRef = vehiclesCol.document(vehicleId)
+                val vehicleRef = vehiclesCollection.document(vehicleId)
                 val vehicleDoc = transaction.get(vehicleRef)
                 val vehicle = vehicleDoc.toObject<Vehicle>()
 
                 if (vehicle != null) {
                     // 1. Desasignar a todos los usuarios de este vehículo
                     vehicle.userIds.forEach { userId ->
-                        val userRef = usersCol.document(userId)
+                        val userRef = usersCollection.document(userId)
                         transaction.update(userRef, "vehicleId", null)
                     }
                 }
@@ -82,8 +82,8 @@ class VehicleRepositoryImpl @Inject constructor(
     override suspend fun assignUserToVehicle(userId: String, vehicleId: String): Resource<Unit> {
         return try {
             firestore.runTransaction { transaction ->
-                val vehicleRef = vehiclesCol.document(vehicleId)
-                val userRef = usersCol.document(userId)
+                val vehicleRef = vehiclesCollection.document(vehicleId)
+                val userRef = usersCollection.document(userId)
 
                 val vehicleDoc = transaction.get(vehicleRef)
                 val vehicle = vehicleDoc.toObject<Vehicle>()
@@ -111,8 +111,8 @@ class VehicleRepositoryImpl @Inject constructor(
     override suspend fun removeUserFromVehicle(userId: String, vehicleId: String): Resource<Unit> {
         return try {
             firestore.runTransaction { transaction ->
-                val vehicleRef = vehiclesCol.document(vehicleId)
-                val userRef = usersCol.document(userId)
+                val vehicleRef = vehiclesCollection.document(vehicleId)
+                val userRef = usersCollection.document(userId)
 
                 // 1. Actualizar el vehículo (quitar userId de la lista)
                 transaction.update(vehicleRef, "userIds", FieldValue.arrayRemove(userId))
@@ -125,6 +125,26 @@ class VehicleRepositoryImpl @Inject constructor(
             Resource.Success(Unit)
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Error al remover usuario")
+        }
+    }
+
+    override suspend fun transferVehicleToWarehouse(vehicleId: String, warehouseId: String): Resource<Unit> {
+
+        return try {
+            val vehicleRef = vehiclesCollection.document(vehicleId)
+            vehicleRef.update("assignedWarehouseId", warehouseId).await()
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Error al transferir vehículo")
+        }
+    }
+    override suspend fun getVehicle(vehicleId: String): Resource<Vehicle?> {
+        return try {
+            val vehicleDoc = vehiclesCollection.document(vehicleId).get().await()
+            val vehicle = vehicleDoc.toObject<Vehicle>()
+            Resource.Success(vehicle)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Error al obtener el vehículo")
         }
     }
 }

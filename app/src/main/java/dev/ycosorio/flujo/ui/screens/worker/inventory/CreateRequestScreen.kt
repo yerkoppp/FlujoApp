@@ -4,7 +4,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -43,7 +42,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import dev.ycosorio.flujo.domain.model.InventoryItem
+import dev.ycosorio.flujo.domain.model.Material
+import dev.ycosorio.flujo.domain.model.StockItem
 import dev.ycosorio.flujo.utils.Resource
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -61,7 +61,7 @@ fun CreateRequestScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Estado para controlar qué item estamos solicitando (para el diálogo)
-    var itemToRequest by remember { mutableStateOf<InventoryItem?>(null) }
+    var itemToRequest by remember { mutableStateOf<StockItem?>(null) }
 
     // Efecto para mostrar Snackbars de éxito o error al crear
     LaunchedEffect(createRequestState) {
@@ -121,7 +121,7 @@ fun CreateRequestScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // --- LISTA DE RESULTADOS ---
-                if (uiState.isLoadingMaterials) {
+                if (uiState.isLoadingStock) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
                     }
@@ -172,7 +172,7 @@ fun CreateRequestScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MaterialSearchResultItem(
-    item: InventoryItem,
+    item: StockItem,
     onClick: () -> Unit
 ) {
     Card(
@@ -181,15 +181,15 @@ private fun MaterialSearchResultItem(
             .clickable { onClick() }
     ) {
         ListItem(
-            headlineContent = { Text(item.name) },
-            supportingContent = { Text("Disponible: ${item.quantity}") }
+            headlineContent = { Text(item.materialName) },
+            supportingContent = { Text("Cantidad disponible: " + item.quantity) }
         )
     }
 }
 
 @Composable
 private fun RequestQuantityDialog(
-    item: InventoryItem,
+    item: StockItem,
     onDismiss: () -> Unit,
     onConfirm: (quantity: Int) -> Unit
 ) {
@@ -198,11 +198,11 @@ private fun RequestQuantityDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Solicitar: ${item.name}") },
+        title = { Text("Solicitar: ${item.materialName}") },
         text = {
             Column {
-                Text("Cantidad disponible: ${item.quantity}")
-                Spacer(modifier = Modifier.height(16.dp))
+                //Text("Cantidad disponible: ${item.quantity}")
+                //Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
                     value = quantity,
                     onValueChange = {

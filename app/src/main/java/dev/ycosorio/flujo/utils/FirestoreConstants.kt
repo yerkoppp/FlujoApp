@@ -8,6 +8,10 @@ object FirestoreConstants {
     const val DOCUMENT_TEMPLATES_COLLECTION = "document_templates"
     const val DOCUMENT_ASSIGNMENTS_COLLECTION = "document_assignments"
     const val VEHICLES_COLLECTION = "vehicles"
+    const val WAREHOUSES_COLLECTION = "warehouses"
+    const val MATERIALS_COLLECTION = "materials"
+    const val STOCK_SUBCOLLECTION = "stock"
+
 
     // Campos comunes
     const val FIELD_ID = "id"
