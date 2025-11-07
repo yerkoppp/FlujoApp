@@ -6,6 +6,8 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.toObjects
+import com.google.firebase.firestore.snapshots
 import com.google.firebase.storage.FirebaseStorage
 import dev.ycosorio.flujo.domain.model.DocumentAssignment
 import dev.ycosorio.flujo.domain.model.DocumentStatus
@@ -15,6 +17,7 @@ import dev.ycosorio.flujo.utils.Resource
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 import java.util.Date
 import java.util.UUID
@@ -27,6 +30,8 @@ class DocumentRepositoryImpl @Inject constructor(
 
     private val templatesCollection = firestore.collection("document_templates")
     private val assignmentsCollection = firestore.collection("document_assignments")
+
+    private val storageReference = storage.reference
 
     override suspend fun uploadTemplate(title: String, fileUri: Uri): Resource<Unit> {
         return try {
@@ -170,6 +175,22 @@ class DocumentRepositoryImpl @Inject constructor(
             }
         }
         awaitClose { subscription.remove() }
+    }
+
+    override fun getAssignedDocumentsForUser(userId: String): Flow<Resource<List<DocumentAssignment>>> {
+        // Consultamos en la colección de asignaciones
+        return assignmentsCollection
+            .whereEqualTo("userId", userId) // Esta es la consulta clave que filtra por usuario
+            .snapshots() // Escucha cambios en tiempo real
+            .map { snapshot ->
+                try {
+                    // Convierte los documentos de Firestore a tu data class
+                    val assignments = snapshot.toObjects<DocumentAssignment>()
+                    Resource.Success(assignments)
+                } catch (e: Exception) {
+                    Resource.Error(e.message ?: "Error al obtener documentos asignados")
+                }
+            }
     }
 }
 

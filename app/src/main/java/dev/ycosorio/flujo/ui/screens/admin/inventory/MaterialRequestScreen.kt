@@ -8,6 +8,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.ycosorio.flujo.domain.model.RequestStatus
 import dev.ycosorio.flujo.domain.model.Role
 import dev.ycosorio.flujo.ui.components.MaterialRequestItem
@@ -19,7 +20,15 @@ fun MaterialRequestScreen(
     viewModel: MaterialRequestViewModel
 ) {
     val uiState by viewModel.requestsState.collectAsState()
-    val statusFilter by viewModel.statusFilter.collectAsState()
+    //val statusFilter by viewModel.statusFilter.collectAsState()
+    val currentFilter by viewModel.statusFilter.collectAsStateWithLifecycle()
+    // --- Definimos las opciones para el filtro ---
+    val filterOptions = listOf(
+        null to "Todos",
+        RequestStatus.PENDIENTE to "Pendientes",
+        RequestStatus.APROBADO to "Aprobadas",
+        RequestStatus.RECHAZADO to "Rechazadas"
+    )
 
     Scaffold(
         topBar = {
@@ -32,12 +41,30 @@ fun MaterialRequestScreen(
                 .padding(paddingValues)
         ) {
             // --- Barra de Filtros ---
-            FilterBar(
+         /*   FilterBar(
                 selectedStatus = statusFilter,
                 onFilterChanged = { newStatus ->
                     viewModel.onStatusFilterChanged(newStatus)
                 }
-            )
+            )*/
+
+            SingleChoiceSegmentedButtonRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                filterOptions.forEachIndexed { index, (status, label) ->
+                    SegmentedButton(
+                        selected = currentFilter == status,
+                        onClick = { viewModel.onStatusFilterChanged(status) },
+                        shape = SegmentedButtonDefaults.itemShape(
+                            index = index,
+                            count = filterOptions.size
+                        ),
+                        label = { Text(label) }
+                    )
+                }
+            }
 
             // --- Contenido Principal ---
             Box(

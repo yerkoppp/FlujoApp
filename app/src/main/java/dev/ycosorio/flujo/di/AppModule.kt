@@ -22,7 +22,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.ycosorio.flujo.BuildConfig
 import dev.ycosorio.flujo.data.preferences.UserPreferencesRepository
 import dev.ycosorio.flujo.data.repository.AuthRepositoryImpl
+import dev.ycosorio.flujo.data.repository.VehicleRepositoryImpl
 import dev.ycosorio.flujo.domain.repository.AuthRepository
+import dev.ycosorio.flujo.domain.repository.VehicleRepository
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -45,8 +47,6 @@ object AppModule {
     @Provides
     @Singleton
     fun provideUserRepository(firestore: FirebaseFirestore): UserRepository {
-        // Hilt sabe cómo crear 'firestore' gracias a la función de arriba,
-        // así que la inyecta aquí automáticamente.
         return UserRepositoryImpl(firestore)
     }
 
@@ -78,9 +78,17 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideAuthRepository(firebaseAuth: FirebaseAuth): AuthRepository {
+    fun provideAuthRepository(
+        firebaseAuth: FirebaseAuth,
+       // firestore: FirebaseFirestore
+    ): AuthRepository {
         return AuthRepositoryImpl(firebaseAuth)
     }
+
+    @Provides
+    @Singleton
+    fun provideVehicleRepository(firestore: FirebaseFirestore): VehicleRepository =
+        VehicleRepositoryImpl(firestore)
 
     @Provides
     @Singleton

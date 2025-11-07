@@ -20,6 +20,7 @@ data class MaterialRequest(
     val id: String,
     val workerId: String,
     val workerName: String,
+    val warehouseId: String,
     val materialId: String,
     val materialName: String,
     val quantity: Int,

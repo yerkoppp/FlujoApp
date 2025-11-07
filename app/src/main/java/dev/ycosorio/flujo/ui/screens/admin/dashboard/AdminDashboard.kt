@@ -6,11 +6,14 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Message
+import androidx.compose.material.icons.filled.Inventory
+import androidx.compose.material.icons.filled.NoCrash
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import dev.ycosorio.flujo.ui.navigation.Routes
 
 
 @Composable
@@ -20,9 +23,19 @@ fun AdminDashboard(
 ) {
     val adminActions = listOf(
         AdminAction(
-            title = "Gestión de Usuarios",
+            title = "Gestionar de Usuarios",
             icon = Icons.Default.Person,
-            onClick = onNavigateToUserManagement // <--- Conectado
+            onClick = onNavigateToUserManagement
+        ),
+        AdminAction(
+            title = "Gestionar Vehículos",
+            icon = Icons.Default.NoCrash,
+            onClick = { navController.navigate(Routes.VehicleManagement.route) }
+        ),
+        AdminAction(
+            title = "Gestionar Materiales",
+            icon = Icons.Default.Inventory,
+            onClick = { navController.navigate(Routes.MaterialManagement.route) }
         ),
         AdminAction(
             title = "Notificaciones",

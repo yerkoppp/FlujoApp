@@ -2,9 +2,14 @@ package dev.ycosorio.flujo.domain.repository
 
 import dev.ycosorio.flujo.domain.model.MaterialRequest
 import dev.ycosorio.flujo.domain.model.RequestStatus
+import dev.ycosorio.flujo.domain.model.InventoryItem
 import dev.ycosorio.flujo.utils.Resource
 import kotlinx.coroutines.flow.Flow
 import com.google.firebase.firestore.Query
+import dev.ycosorio.flujo.domain.model.Material
+import dev.ycosorio.flujo.domain.model.StockItem
+import dev.ycosorio.flujo.domain.model.Warehouse
+import dev.ycosorio.flujo.domain.model.WarehouseType
 
 /**
  * Define el contrato para las operaciones de datos relacionadas con el inventario.
@@ -40,4 +45,80 @@ interface InventoryRepository {
      * @param workerId El ID del trabajador del que se quieren obtener las solicitudes.
      */
     fun getRequestsForWorker(workerId: String): Flow<Resource<List<MaterialRequest>>>
+
+    // --- Funciones de Gestión de Admin ---
+
+    fun getAllRequests(): Flow<Resource<List<MaterialRequest>>>
+    /**
+     * Esta es la función que faltaba. La necesitamos para que el admin
+     * vea la lista de materiales y para que el trabajador pueda buscar.
+     */
+    fun getAvailableMaterials(): Flow<Resource<List<InventoryItem>>>
+
+    /**
+     * Función para que el Admin añada más cantidad a un material existente.
+     */
+    suspend fun addStockToMaterial(itemId: String, amountToAdd: Int): Resource<Unit>
+
+
+    /**
+     * Función para que el Admin cree un nuevo material.
+     * Usa 'initialQuantity'
+     */
+    suspend fun createMaterial(name: String, initialQuantity: Int): Resource<Unit>
+
+    suspend fun updateRequestStatus(
+        requestId: String,
+        status: RequestStatus,
+        adminNotes: String?
+    ): Resource<Unit>
+
+    /**
+     * Obtiene una lista (en tiempo real) de todas las bodegas.
+     */
+    fun getWarehouses(): Flow<Resource<List<Warehouse>>>
+
+    /**
+     * Crea una nueva bodega (fija o móvil).
+     */
+    suspend fun createWarehouse(name: String, type: WarehouseType): Resource<Unit>
+
+
+    // --- FUNCIONES DE GESTIÓN DE MATERIALES (Definiciones) ---
+
+    /**
+     * Obtiene la lista maestra (en tiempo real) de todas las definiciones de materiales.
+     */
+    fun getMaterials(): Flow<Resource<List<Material>>>
+
+    /**
+     * Crea una nueva definición de material en la colección 'materials'.
+     */
+    suspend fun createMaterialDefinition(name: String, description: String): Resource<Unit>
+
+
+    // --- FUNCIONES DE GESTIÓN DE STOCK (StockItem) ---
+
+    /**
+     * Obtiene el inventario (en tiempo real) de una bodega específica.
+     * @param warehouseId El ID de la bodega (fija o móvil) a consultar.
+     */
+    fun getStockForWarehouse(warehouseId: String): Flow<Resource<List<StockItem>>>
+
+    /**
+     * Transfiere una cantidad de un material de una bodega a otra.
+     * Esta función debe ser transaccional.
+     *
+     * @param fromWarehouseId Bodega de origen (ej. BODEGA_CENTRAL).
+     * @param toWarehouseId Bodega de destino (ej. el ID de una bodega móvil).
+     * @param material Objeto Material completo, necesario para crear el StockItem
+     * en la bodega de destino si no existe.
+     * @param quantityToTransfer La cantidad a mover.
+     */
+    suspend fun transferStock(
+        fromWarehouseId: String,
+        toWarehouseId: String,
+        material: Material,
+        quantityToTransfer: Int
+    ): Resource<Unit>
 }

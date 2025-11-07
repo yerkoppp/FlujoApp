@@ -49,4 +49,8 @@ interface DocumentRepository {
      * Podríamos añadir filtros y ordenamiento como hicimos con el inventario.
      */
     fun getAllAssignments(): Flow<Resource<List<DocumentAssignment>>>
+    /**
+     * Obtiene una lista (en tiempo real) de todos los documentos asignados a un usuario específico.
+     */
+    fun getAssignedDocumentsForUser(userId: String): Flow<Resource<List<DocumentAssignment>>>
 }
