@@ -1,0 +1,111 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ====================================
+    // FUNCIONES AUXILIARES
+    // ====================================
+
+    // Verifica si el usuario está autenticado
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Verifica si el usuario es administrador
+    function isAdmin() {
+      return isAuthenticated() &&
+             firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'ADMINISTRADOR';
+    }
+
+    // Verifica si el usuario es el propietario del archivo
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Validaciones de archivo
+    function isValidImageSize() {
+      return request.resource.size < 5 * 1024 * 1024; // 5 MB
+    }
+
+    function isValidImageType() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    // ====================================
+    // PATH: signatures/{userId}/{fileName}
+    // ====================================
+    // Firmas de documentos por usuario
+    match /signatures/{userId}/{fileName} {
+      // Lectura: Admin puede ver todas, usuario solo sus propias firmas
+      allow read: if isAuthenticated() && (isAdmin() || isOwner(userId));
+
+      // Escritura: Solo el propietario puede subir su firma
+      allow create: if isAuthenticated() &&
+                      isOwner(userId) &&
+                      isValidImageType() &&
+                      isValidImageSize();
+
+      // Actualización: Solo el propietario puede actualizar su firma
+      allow update: if isAuthenticated() &&
+                      isOwner(userId) &&
+                      isValidImageType() &&
+                      isValidImageSize();
+
+      // Eliminación: Admin puede eliminar cualquier firma, usuario solo la suya
+      allow delete: if isAuthenticated() && (isAdmin() || isOwner(userId));
+    }
+
+    // ====================================
+    // PATH: profile_photos/{userId}/{fileName}
+    // ====================================
+    // Fotos de perfil de usuarios
+    match /profile_photos/{userId}/{fileName} {
+      // Lectura: Todos los autenticados pueden ver fotos de perfil
+      allow read: if isAuthenticated();
+
+      // Escritura: Solo el propietario puede subir/actualizar su foto
+      allow create, update: if isAuthenticated() &&
+                              isOwner(userId) &&
+                              isValidImageType() &&
+                              isValidImageSize();
+
+      // Eliminación: Admin o el propio usuario
+      allow delete: if isAuthenticated() && (isAdmin() || isOwner(userId));
+    }
+
+    // ====================================
+    // PATH: document_templates/{templateId}/{fileName}
+    // ====================================
+    // Plantillas de documentos
+    match /document_templates/{templateId}/{fileName} {
+      // Lectura: Todos los autenticados pueden ver plantillas
+      allow read: if isAuthenticated();
+
+      // Escritura: Solo admins pueden subir/modificar/eliminar plantillas
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ====================================
+    // PATH: vehicle_photos/{vehicleId}/{fileName}
+    // ====================================
+    // Fotos de vehículos
+    match /vehicle_photos/{vehicleId}/{fileName} {
+      // Lectura: Todos los autenticados pueden ver fotos de vehículos
+      allow read: if isAuthenticated();
+
+      // Escritura: Solo admins
+      allow create, update, delete: if isAdmin() &&
+                                       isValidImageType() &&
+                                       request.resource.size < 10 * 1024 * 1024; // 10 MB para fotos de vehículos
+    }
+
+    // ====================================
+    // DENEGAR TODO LO DEMÁS
+    // ====================================
+    // Cualquier path no especificado es denegado por defecto
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

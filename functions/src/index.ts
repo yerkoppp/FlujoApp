@@ -10,6 +10,53 @@ admin.initializeApp();
 // Define la región globalmente para todas las funciones
 setGlobalOptions({region: "southamerica-west1"});
 
+// --- FUNCIONES DE VALIDACIÓN ---
+
+/**
+ * Valida que un email tenga formato correcto
+ */
+function isValidEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+/**
+ * Valida que un string tenga longitud válida
+ */
+function isValidStringLength(
+  str: string,
+  minLength: number,
+  maxLength: number
+): boolean {
+  return str.length >= minLength && str.length <= maxLength;
+}
+
+/**
+ * Valida que una fecha tenga formato válido (YYYY-MM-DD)
+ */
+function isValidDateFormat(dateStr: string): boolean {
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dateRegex.test(dateStr)) return false;
+
+  const date = new Date(dateStr);
+  return !isNaN(date.getTime());
+}
+
+/**
+ * Sanitiza un mensaje de error para evitar exponer información sensible
+ */
+function sanitizeErrorMessage(error: any): string {
+  // Si es un HttpsError, retornar su mensaje (ya es seguro)
+  if (error instanceof HttpsError) {
+    return error.message;
+  }
+
+  // Para otros errores, retornar mensaje genérico
+  // y loguear el error real para debugging
+  console.error("Error interno:", error);
+  return "Ocurrió un error interno. Por favor, contacta al soporte.";
+}
+
 // --- INTERFACES DE DATOS ---
 
 /**
@@ -80,18 +127,55 @@ export const createWorker = onCall(async (request) => {
   }
 
   // 3. Validar datos recibidos
-  // TypeScript no conoce el tipo de request.data, así que lo "casteamos"
   const data = request.data as CreateWorkerData;
   const {email, name, position, area, contractStartDate} = data;
 
+  // Validar que existan todos los campos obligatorios
   if (!email || !name || !position || !area || !contractStartDate) {
     throw new HttpsError(
       "invalid-argument",
-      "Faltan datos obligatorios"
+      "Faltan datos obligatorios: email, name, position, area y contractStartDate"
     );
   }
 
+  // Validar formato de email
   const normalizedEmail = email.toLowerCase().trim();
+  if (!isValidEmail(normalizedEmail)) {
+    throw new HttpsError(
+      "invalid-argument",
+      "El formato del email no es válido"
+    );
+  }
+
+  // Validar longitud de campos
+  if (!isValidStringLength(name, 2, 100)) {
+    throw new HttpsError(
+      "invalid-argument",
+      "El nombre debe tener entre 2 y 100 caracteres"
+    );
+  }
+
+  if (!isValidStringLength(position, 2, 100)) {
+    throw new HttpsError(
+      "invalid-argument",
+      "El cargo debe tener entre 2 y 100 caracteres"
+    );
+  }
+
+  if (!isValidStringLength(area, 2, 100)) {
+    throw new HttpsError(
+      "invalid-argument",
+      "El área debe tener entre 2 y 100 caracteres"
+    );
+  }
+
+  // Validar formato de fecha
+  if (!isValidDateFormat(contractStartDate)) {
+    throw new HttpsError(
+      "invalid-argument",
+      "La fecha de contrato debe tener formato YYYY-MM-DD"
+    );
+  }
 
   // 4. Verificar si el email ya existe en 'users' O en 'invitations'
   try {
@@ -114,7 +198,7 @@ export const createWorker = onCall(async (request) => {
   } catch (error: any) {
     if (error instanceof HttpsError) throw error;
     console.error("Error al verificar email:", error);
-    throw new HttpsError("internal", error.message);
+    throw new HttpsError("internal", sanitizeErrorMessage(error));
   }
 
   // Ya no se crea el usuario en Authentication.
@@ -141,10 +225,7 @@ export const createWorker = onCall(async (request) => {
     };
   } catch (error: any) {
     console.error("Error al crear invitación:", error);
-    throw new HttpsError(
-      "internal",
-      error.message || "Error interno al crear la invitación"
-    );
+    throw new HttpsError("internal", sanitizeErrorMessage(error));
   }
 });
 
@@ -236,7 +317,7 @@ export const provisionUserAccount = onCall(async (request) => {
     if (error instanceof HttpsError) {
       throw error; // Relanzar errores Https (ej: 'not-found')
     }
-    throw new HttpsError("internal", error.message || "Error interno al provisionar la cuenta");
+    throw new HttpsError("internal", sanitizeErrorMessage(error));
   }
 });
 
@@ -266,8 +347,18 @@ export const deleteWorker = onCall(async (request) => { // CAMBIO: onCall y requ
   const data = request.data as DeleteWorkerData;
   const {userId} = data;
 
-  if (!userId) {
-    throw new HttpsError("invalid-argument", "Falta el userId");
+  if (!userId || typeof userId !== "string") {
+    throw new HttpsError("invalid-argument", "El userId es obligatorio y debe ser un string");
+  }
+
+  // Validar que el userId no esté vacío después de trim
+  if (userId.trim().length === 0) {
+    throw new HttpsError("invalid-argument", "El userId no puede estar vacío");
+  }
+
+  // Validar longitud razonable del UID (Firebase UIDs tienen ~28 caracteres)
+  if (!isValidStringLength(userId, 10, 128)) {
+    throw new HttpsError("invalid-argument", "El userId tiene un formato inválido");
   }
 
   try {
@@ -320,6 +411,6 @@ export const deleteWorker = onCall(async (request) => { // CAMBIO: onCall y requ
       throw new HttpsError("not-found", "El usuario a eliminar no existe en Authentication");
     }
 
-    throw new HttpsError("internal", error.message || "Error interno al eliminar usuario");
+    throw new HttpsError("internal", sanitizeErrorMessage(error));
   }
 });
