@@ -11,7 +11,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
@@ -47,12 +49,16 @@ class AddUserViewModel @Inject constructor(
             try {
                 Log.d("AddUserViewModel", "📤 Llamando a Cloud Function...")
 
+                // Formatear fecha en ISO 8601 para compatibilidad con backend
+                val dateFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                val contractStartDate = dateFormatter.format(Date())
+
                 val data = hashMapOf(
                     "email" to email.trim().lowercase(),
                     "name" to name,
                     "position" to position,
                     "area" to area,
-                    "contractStartDate" to Date().time
+                    "contractStartDate" to contractStartDate
                 )
 
                 val result = functions
