@@ -66,7 +66,7 @@ class VehicleRepositoryImpl @Inject constructor(
                     // 1. Desasignar a todos los usuarios de este vehículo
                     vehicle.userIds.forEach { userId ->
                         val userRef = usersCollection.document(userId)
-                        transaction.update(userRef, "vehicleId", null)
+                        transaction.update(userRef, "assignedVehicleId", null)
                     }
                 }
                 // 2. Borrar el vehículo

@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.ycosorio.flujo.domain.model.DocumentAssignment
 import dev.ycosorio.flujo.domain.model.DocumentTemplate
-import dev.ycosorio.flujo.utils.SimulationAuth
 import dev.ycosorio.flujo.domain.model.Role
 import dev.ycosorio.flujo.domain.model.User
 import dev.ycosorio.flujo.domain.repository.AuthRepository
@@ -51,16 +50,10 @@ class DocumentViewModel @Inject constructor(
     private val _uploadState = MutableStateFlow<Resource<Unit>>(Resource.Idle())
     val uploadState = _uploadState.asStateFlow()
 
-    // ID de usuario (cambio de role)
-    private val _currentUserId = SimulationAuth.currentUserId
-
     init {
         viewModelScope.launch {
-           /* _currentUserId.collect { userId ->
-                loadCurrentUser(userId)
-            }*/
 
-            authRepository.currentUser.collect { authUser -> // <-- CAMBIAR
+            authRepository.currentUser.collect { authUser ->
                 authUser?.let { loadCurrentUser(it.uid) }
             }
         }

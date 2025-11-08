@@ -1,33 +1,30 @@
 package dev.ycosorio.flujo.data.repository
 
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
+import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.snapshots
+import com.google.firebase.firestore.toObjects
+import dev.ycosorio.flujo.domain.model.Material
 import dev.ycosorio.flujo.domain.model.MaterialRequest
 import dev.ycosorio.flujo.domain.model.RequestStatus
-import dev.ycosorio.flujo.domain.model.InventoryItem
+import dev.ycosorio.flujo.domain.model.StockItem
 import dev.ycosorio.flujo.domain.model.Warehouse
 import dev.ycosorio.flujo.domain.model.WarehouseType
-import dev.ycosorio.flujo.domain.model.Material
-import dev.ycosorio.flujo.domain.model.StockItem
 import dev.ycosorio.flujo.domain.repository.InventoryRepository
-import dev.ycosorio.flujo.utils.Resource
-import kotlinx.coroutines.flow.Flow
-import com.google.firebase.firestore.Query
-import com.google.firebase.firestore.toObjects
-import javax.inject.Inject
-import kotlinx.coroutines.tasks.await
-import com.google.firebase.firestore.snapshots
-import kotlinx.coroutines.flow.map
-import com.google.firebase.firestore.FirebaseFirestoreException
-import com.google.firebase.firestore.DocumentSnapshot
-import com.google.firebase.firestore.FieldValue
-import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.channels.awaitClose
-import dev.ycosorio.flujo.utils.FirestoreConstants.INVENTORY_COLLECTION
-import dev.ycosorio.flujo.utils.FirestoreConstants.MATERIAL_REQUESTS_COLLECTION
 import dev.ycosorio.flujo.utils.FirestoreConstants.MATERIALS_COLLECTION
-import dev.ycosorio.flujo.utils.FirestoreConstants.WAREHOUSES_COLLECTION
+import dev.ycosorio.flujo.utils.FirestoreConstants.MATERIAL_REQUESTS_COLLECTION
 import dev.ycosorio.flujo.utils.FirestoreConstants.STOCK_SUBCOLLECTION
+import dev.ycosorio.flujo.utils.FirestoreConstants.WAREHOUSES_COLLECTION
+import dev.ycosorio.flujo.utils.Resource
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.tasks.await
 import java.util.Date
+import javax.inject.Inject
 
 /**
  * Implementación del InventoryRepository que se comunica con Firebase Firestore.
@@ -38,7 +35,6 @@ class InventoryRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore
 ) : InventoryRepository {
 
-    private val inventoryCollection = firestore.collection(INVENTORY_COLLECTION)
     private val requestsCollection = firestore.collection(MATERIAL_REQUESTS_COLLECTION)
 
     private val warehousesCol = firestore.collection(WAREHOUSES_COLLECTION)
@@ -61,11 +57,11 @@ class InventoryRepositoryImpl @Inject constructor(
 
         val subscription = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
-                // Manejar PERMISSION_DENIED sin propagar el error (ocurre al cerrar sesión)
+                // Si el error es de permisos (usuario no autenticado), no crashear
                 if (error is FirebaseFirestoreException &&
                     error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
                     trySend(Resource.Error("Sesión finalizada"))
-                    close()  // Cerrar sin propagar el error
+                    close()  // ✅ Cerrar sin error
                 } else {
                     trySend(Resource.Error(error.localizedMessage ?: "Error al escuchar las solicitudes."))
                     close(error)
@@ -95,6 +91,10 @@ class InventoryRepositoryImpl @Inject constructor(
         }
     }
 
+    /**
+     * Actualiza el estado de una solicitud existente con notas del administrador.
+     * Usado por el administrador para aprobar o rechazar.
+     */
     override suspend fun updateRequestStatus(
         requestId: String,
         status: RequestStatus,
@@ -120,12 +120,17 @@ class InventoryRepositoryImpl @Inject constructor(
             Resource.Error(e.message ?: "Error al actualizar la solicitud")
         }
     }
+    /**
+     * Versión simplificada de updateRequestStatus sin notas del administrador.
+     */
+    override suspend fun updateRequestStatus(requestId: String, newStatus: RequestStatus): Resource<Unit> {
+        // Delegar a la versión existente que acepta adminNotes (sin notas por defecto)
+        return updateRequestStatus(requestId, status = newStatus, adminNotes = null)
+    }
 
- override suspend fun updateRequestStatus(requestId: String, newStatus: RequestStatus): Resource<Unit> {
-     // Delegar a la versión existente que acepta adminNotes (sin notas por defecto)
-     return updateRequestStatus(requestId, status = newStatus, adminNotes = null)
- }
-
+    /**
+     * Obtiene las solicitudes de materiales para un trabajador específico en tiempo real.
+     */
     override fun getRequestsForWorker(workerId: String): Flow<Resource<List<MaterialRequest>>> = callbackFlow {
         val query = requestsCollection
             .whereEqualTo("workerId", workerId)
@@ -133,11 +138,10 @@ class InventoryRepositoryImpl @Inject constructor(
 
         val subscription = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
-                // Manejar PERMISSION_DENIED sin propagar el error (ocurre al cerrar sesión)
                 if (error is FirebaseFirestoreException &&
                     error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
                     trySend(Resource.Error("Sesión finalizada"))
-                    close()  // Cerrar sin propagar el error
+                    close()  // ✅ Cerrar sin error
                 } else {
                     trySend(Resource.Error(error.localizedMessage ?: "Error al obtener tus solicitudes."))
                     close(error)
@@ -166,54 +170,8 @@ class InventoryRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Implementación de la función que faltaba.
-     * Escucha en tiempo real los cambios en la colección "inventory".
+     * Obtiene la lista de todas las bodegas en tiempo real.
      */
-    override fun getAvailableMaterials(): Flow<Resource<List<InventoryItem>>> {
-        return inventoryCollection.snapshots().map { snapshot ->
-            try {
-                // Convierte los documentos a objetos InventoryItem
-                // (esto funciona si tu data class tiene @DocumentId val id: String)
-                val materials = snapshot.documents.mapNotNull { it.toObject(InventoryItem::class.java) }
-                Resource.Success(materials)
-            } catch (e: Exception) {
-                Resource.Error(e.message ?: "Error al obtener materiales")
-            }
-        }
-    }
-
-    override suspend fun createMaterial(name: String, initialQuantity: Int): Resource<Unit> {
-        return try {
-            // Creamos el nuevo item
-            val newItem = InventoryItem(
-                id = "", // El ID será asignado por Firestore
-                name = name,
-                quantity = initialQuantity,
-                locationId = "almacen_central" // Ubicación por defecto
-
-            )
-            // Dejamos que Firestore asigne el ID
-            inventoryCollection.add(newItem).await()
-            Resource.Success(Unit)
-        } catch (e: Exception) {
-            Resource.Error(e.message ?: "Error al crear el material")
-        }
-    }
-
-    override suspend fun addStockToMaterial(itemId: String, amountToAdd: Int): Resource<Unit> {
-        if (amountToAdd <= 0) {
-            return Resource.Error("La cantidad debe ser positiva")
-        }
-        return try {
-            val itemRef = inventoryCollection.document(itemId)
-            // Usamos FieldValue.increment para añadir stock de forma segura (atómica)
-            itemRef.update("stock", FieldValue.increment(amountToAdd.toLong())).await()
-            Resource.Success(Unit)
-        } catch (e: Exception) {
-            Resource.Error(e.message ?: "Error al actualizar stock")
-        }
-    }
-
     override fun getWarehouses(): Flow<Resource<List<Warehouse>>> {
         return warehousesCol.snapshots().map { snapshot ->
             try {
@@ -225,6 +183,9 @@ class InventoryRepositoryImpl @Inject constructor(
         }
     }
 
+    /**
+     * Crea una nueva bodega (fija o móvil).
+     */
     override suspend fun createWarehouse(name: String, type: WarehouseType): Resource<Unit> {
         return try {
             val newWarehouse = Warehouse(
@@ -432,54 +393,93 @@ class InventoryRepositoryImpl @Inject constructor(
             Resource.Error(e.message ?: "Error al entregar el material")
         }
     }
-}
 
-/**
- * Función de extensión privada para convertir un MaterialRequest en un Map
- * que Firestore pueda entender y almacenar.
- */
-private fun MaterialRequest.toFirestoreMap(): Map<String, Any?> {
-    return mapOf(
-        "id" to id,
-        "workerId" to workerId,
-        "workerName" to workerName,
-        "warehouseId" to warehouseId,
-        "materialId" to materialId,
-        "materialName" to materialName,
-        "quantity" to quantity,
-        "status" to status.name, // Guardamos el enum como un String
-        "requestDate" to requestDate,
-        "approvalDate" to approvalDate,
-        "rejectionDate" to rejectionDate,
-        "deliveryDate" to deliveryDate,
-        "adminNotes" to adminNotes
-    )
-}
+    override suspend fun addStockToWarehouse(
+        warehouseId: String,
+        material: Material,
+        quantity: Int
+    ): Resource<Unit> {
+        if (quantity <= 0) {
+            return Resource.Error("La cantidad debe ser positiva")
+        }
 
-/**
- * Función de extensión para convertir un DocumentSnapshot de Firestore
- * en nuestro objeto de dominio MaterialRequest.
- */
-private fun DocumentSnapshot.toMaterialRequest(): MaterialRequest? {
-    return try {
-        MaterialRequest(
-            id = getString("id")!!,
-            workerId = getString("workerId")!!,
-            workerName = getString("workerName")!!,
-            warehouseId = getString("warehouseId")!!,
-            materialId = getString("materialId")!!,
-            materialName = getString("materialName")!!,
-            quantity = getLong("quantity")?.toInt() ?: 0,
-            status = RequestStatus.valueOf(getString("status")!!),
-            requestDate = getDate("requestDate")!!,
-            approvalDate = getDate("approvalDate"),
-            rejectionDate = getDate("rejectionDate"),
-            deliveryDate = getDate("deliveryDate"),
-            adminNotes = getString("adminNotes")
+        return try {
+            val stockRef = warehousesCol.document(warehouseId)
+                .collection(STOCK_SUBCOLLECTION)
+                .document(material.id)
 
+            firestore.runTransaction { transaction ->
+                val stockDoc = transaction.get(stockRef)
+
+                if (stockDoc.exists()) {
+                    // Ya existe, incrementar
+                    val currentQty = stockDoc.getLong("quantity")?.toInt() ?: 0
+                    transaction.update(stockRef, "quantity", currentQty + quantity)
+                } else {
+                    // No existe, crear
+                    val newStock = StockItem(
+                        id = material.id,
+                        materialId = material.id,
+                        materialName = material.name,
+                        quantity = quantity
+                    )
+                    transaction.set(stockRef, newStock)
+                }
+            }.await()
+
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Error al agregar stock")
+        }
+    }
+
+    /**
+     * Función de extensión privada para convertir un MaterialRequest en un Map
+     * que Firestore pueda entender y almacenar.
+     */
+    private fun MaterialRequest.toFirestoreMap(): Map<String, Any?> {
+        return mapOf(
+            "id" to id,
+            "workerId" to workerId,
+            "workerName" to workerName,
+            "warehouseId" to warehouseId,
+            "materialId" to materialId,
+            "materialName" to materialName,
+            "quantity" to quantity,
+            "status" to status.name, // Guardamos el enum como un String
+            "requestDate" to requestDate,
+            "approvalDate" to approvalDate,
+            "rejectionDate" to rejectionDate,
+            "deliveryDate" to deliveryDate,
+            "adminNotes" to adminNotes
         )
-    } catch (e: Exception) {
-        // Si algún campo falta o es incorrecto, no incluimos la solicitud en la lista.
-        null
+    }
+
+    /**
+     * Función de extensión para convertir un DocumentSnapshot de Firestore
+     * en nuestro objeto de dominio MaterialRequest.
+     */
+    private fun DocumentSnapshot.toMaterialRequest(): MaterialRequest? {
+        return try {
+            MaterialRequest(
+                id = getString("id")!!,
+                workerId = getString("workerId")!!,
+                workerName = getString("workerName")!!,
+                warehouseId = getString("warehouseId")!!,
+                materialId = getString("materialId")!!,
+                materialName = getString("materialName")!!,
+                quantity = getLong("quantity")?.toInt() ?: 0,
+                status = RequestStatus.valueOf(getString("status")!!),
+                requestDate = getDate("requestDate")!!,
+                approvalDate = getDate("approvalDate"),
+                rejectionDate = getDate("rejectionDate"),
+                deliveryDate = getDate("deliveryDate"),
+                adminNotes = getString("adminNotes")
+
+            )
+        } catch (e: Exception) {
+            // Si algún campo falta o es incorrecto, no incluimos la solicitud en la lista.
+            null
+        }
     }
 }

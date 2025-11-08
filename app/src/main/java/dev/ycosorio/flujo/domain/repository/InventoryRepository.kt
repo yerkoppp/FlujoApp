@@ -2,7 +2,6 @@ package dev.ycosorio.flujo.domain.repository
 
 import dev.ycosorio.flujo.domain.model.MaterialRequest
 import dev.ycosorio.flujo.domain.model.RequestStatus
-import dev.ycosorio.flujo.domain.model.InventoryItem
 import dev.ycosorio.flujo.utils.Resource
 import kotlinx.coroutines.flow.Flow
 import com.google.firebase.firestore.Query
@@ -38,7 +37,10 @@ interface InventoryRepository {
      * Actualiza el estado de una solicitud existente.
      * Usado por el administrador para aprobar o rechazar.
      */
-    suspend fun updateRequestStatus(requestId: String, newStatus: RequestStatus): Resource<Unit>
+    suspend fun updateRequestStatus(
+        requestId: String,
+        newStatus: RequestStatus
+    ): Resource<Unit>
 
     /**
      * Obtiene las solicitudes de materiales para un trabajador específico en tiempo real.
@@ -47,31 +49,22 @@ interface InventoryRepository {
     fun getRequestsForWorker(workerId: String): Flow<Resource<List<MaterialRequest>>>
 
     // --- Funciones de Gestión de Admin ---
-
+    /**
+     * Obtiene todas las solicitudes de materiales en tiempo real (sin filtrar por trabajador).
+     */
     fun getAllRequests(): Flow<Resource<List<MaterialRequest>>>
-    /**
-     * Esta es la función que faltaba. La necesitamos para que el admin
-     * vea la lista de materiales y para que el trabajador pueda buscar.
-     */
-    fun getAvailableMaterials(): Flow<Resource<List<InventoryItem>>>
 
     /**
-     * Función para que el Admin añada más cantidad a un material existente.
+     * Actualiza el estado de una solicitud existente con notas del administrador.
+     * Usado por el administrador para aprobar o rechazar.
      */
-    suspend fun addStockToMaterial(itemId: String, amountToAdd: Int): Resource<Unit>
-
-
-    /**
-     * Función para que el Admin cree un nuevo material.
-     * Usa 'initialQuantity'
-     */
-    suspend fun createMaterial(name: String, initialQuantity: Int): Resource<Unit>
-
     suspend fun updateRequestStatus(
         requestId: String,
         status: RequestStatus,
         adminNotes: String?
     ): Resource<Unit>
+
+    // --- FUNCIONES DE GESTIÓN DE BODEGAS ---
 
     /**
      * Obtiene una lista (en tiempo real) de todas las bodegas.
@@ -104,6 +97,17 @@ interface InventoryRepository {
      * @param warehouseId El ID de la bodega (fija o móvil) a consultar.
      */
     fun getStockForWarehouse(warehouseId: String): Flow<Resource<List<StockItem>>>
+
+    /**
+     * Agrega stock a una bodega específica.
+     * Si el material no existe en esa bodega, lo crea.
+     * Si ya existe, incrementa la cantidad.
+     */
+    suspend fun addStockToWarehouse(
+        warehouseId: String,
+        material: Material,
+        quantity: Int
+    ): Resource<Unit>
 
     /**
      * Transfiere una cantidad de un material de una bodega a otra.

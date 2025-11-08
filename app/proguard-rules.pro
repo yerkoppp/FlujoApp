@@ -28,11 +28,5 @@
 -keepnames class com.google.android.gms.common.api.CommonStatusCodes
 -keepnames class com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes
 -keepnames class com.google.firebase.auth.FirebaseAuthException
-
-# ====================================
-# SEGURIDAD: Eliminar código de simulación en producción
-# ====================================
-# Eliminar SimulationAuth completamente en builds de release
--assumenosideeffects class dev.ycosorio.flujo.utils.SimulationAuth {
-    *;
-}
+-keepnames class com.google.firebase.firestore.FirebaseFirestoreException
+-keepnames class com.google.firebase.storage.StorageException

@@ -1,9 +1,12 @@
 package dev.ycosorio.flujo.utils
 
 object FirestoreConstants {
+
+    // IDs especiales
+    const val CENTRAL_WAREHOUSE_ID = "GRHtu0Bna0g5intWCYNJ"
+
     // Colecciones
     const val USERS_COLLECTION = "users"
-    const val INVENTORY_COLLECTION = "inventory_items"
     const val MATERIAL_REQUESTS_COLLECTION = "material_requests"
     const val DOCUMENT_TEMPLATES_COLLECTION = "document_templates"
     const val DOCUMENT_ASSIGNMENTS_COLLECTION = "document_assignments"

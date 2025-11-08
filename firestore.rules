@@ -1,175 +1,142 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // ====================================
-    // FUNCIONES AUXILIARES
-    // ====================================
-
-    // Verifica si el usuario está autenticado
-    function isAuthenticated() {
+  
+    // --- Funciones de Ayuda ---
+    
+    function isAuth() {
       return request.auth != null;
     }
-
-    // Verifica si el usuario es administrador
+    
+    function isUser(userId) {
+      return isAuth() && request.auth.uid == userId;
+    }
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
     function isAdmin() {
-      return isAuthenticated() &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMINISTRADOR';
+      return isAuth() && getUserData().role == 'ADMINISTRADOR';
     }
-
-    // Verifica si el usuario es el propietario del documento
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+    
+    function isWorker() {
+       return isAuth() && getUserData().role == 'TRABAJADOR';
     }
-
-    // Verifica si es el trabajador asociado a un documento
-    function isWorker(workerId) {
-      return isAuthenticated() && request.auth.uid == workerId;
-    }
-
-    // ====================================
-    // COLECCIÓN: users
-    // ====================================
+    
+    // --- Reglas por Colección ---
+    
     match /users/{userId} {
-      // Lectura: Usuario autenticado puede leer su propio perfil o admin puede leer todos
-      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
-
-      // Creación: Solo admins pueden crear usuarios (o vía Cloud Function)
+      allow read: if isAuth();
+      allow get: if isUser(userId) || isAdmin();
+      allow list: if isAdmin();
       allow create: if isAdmin();
-
-      // Actualización: Solo el admin puede actualizar usuarios
-      allow update: if isAdmin();
-
-      // Eliminación: Solo el admin puede eliminar usuarios
+      allow update: if isAdmin() || isUser(userId);
+      //allow update: if request.auth != null && request.auth.uid == userId;
       allow delete: if isAdmin();
+      //allow delete: if request.auth != null && 
+                   //   get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMINISTRADOR';
     }
-
-    // ====================================
-    // COLECCIÓN: invitations
-    // ====================================
-    match /invitations/{email} {
-      // Solo admins pueden leer, crear y eliminar invitaciones
-      allow read, create, delete: if isAdmin();
-
-      // Nadie puede actualizar invitaciones directamente
-      allow update: if false;
-    }
-
-    // ====================================
-    // COLECCIÓN: material_requests
-    // ====================================
+    
     match /material_requests/{requestId} {
-      // Lectura: Admins ven todo, trabajadores solo ven sus propias solicitudes
-      allow read: if isAuthenticated() &&
-                    (isAdmin() || isWorker(resource.data.workerId));
-
-      // Creación: Solo trabajadores autenticados pueden crear sus propias solicitudes
-      allow create: if isAuthenticated() &&
-                      request.resource.data.workerId == request.auth.uid &&
-                      request.resource.data.status == 'PENDIENTE' &&
-                      request.resource.data.requestDate == request.time &&
-                      request.resource.data.quantity > 0;
-
-      // Actualización: Solo admins pueden actualizar (aprobar/rechazar)
-      allow update: if isAdmin();
-
-      // Eliminación: Solo admins pueden eliminar solicitudes
+      //allow read: if request.auth != null;
+      //allow create: if request.auth != null;
+      //allow update: if request.auth != null;
+      
+      //Lectura: Admin todas, Trabajador solo las suyas
+      allow read: if isAdmin() || 
+                     (isWorker() && resource.data.workerId == request.auth.uid);
+      
+      allow list: if isAuth();
+      
+      // Crear: Solo Trabajador puede crear solicitudes a su nombre
+      allow create: if isWorker() && 
+                       request.resource.data.workerId == request.auth.uid &&
+                       request.resource.data.status == 'PENDIENTE' &&
+                       request.resource.data.quantity is int &&
+                       request.resource.data.quantity > 0 &&
+                       request.resource.data.warehouseId is string &&
+                       request.resource.data.materialId is string;
+       
+      // Actualizar: 
+      // - Admin puede cambiar status a APROBADO, RECHAZADO, ENTREGADO
+      // - Trabajador solo puede cambiar a CANCELADO si está PENDIENTE
+      allow update: if (isAdmin() &&
+                         // Admin no puede cambiar estos campos inmutables
+                         request.resource.data.workerId == resource.data.workerId &&
+                         request.resource.data.materialId == resource.data.materialId &&
+                         request.resource.data.warehouseId == resource.data.warehouseId &&
+                         request.resource.data.quantity == resource.data.quantity)
+                       ||
+                       (isWorker() &&
+                         resource.data.workerId == request.auth.uid &&
+                         resource.data.status == 'PENDIENTE' &&
+                         request.resource.data.status == 'CANCELADO' &&
+                         // El trabajador solo puede cambiar el status
+                         request.resource.data.diff(resource.data).affectedKeys()
+                           .hasOnly(['status']));
+      
+      // Borrar: Nadie
+      allow delete: if false;
+    }
+    
+    match /document_assignments/{assignmentId} {
+      // Lectura: Admin todas, Trabajador solo las suyas
+      allow read: if request.auth != null;
+      allow read: if isAdmin() || 
+                     (isWorker() && resource.data.workerId == request.auth.uid);
+      allow list: if isAuth();
+      // Crear: Solo Admin
+      allow create: if isAdmin();
+      
+      // Actualizar: Admin todo, Trabajador solo puede firmar
+      allow update: if isAdmin() || 
+                       (isWorker() && 
+                        resource.data.workerId == request.auth.uid &&
+                        resource.data.status == 'PENDIENTE' &&
+                        request.resource.data.status == 'FIRMADO' &&
+                        request.resource.data.diff(resource.data).affectedKeys()
+                          .hasOnly(['status', 'signedDate', 'signatureUrl']));
+      
       allow delete: if isAdmin();
     }
-
-    // ====================================
-    // COLECCIÓN: materials
-    // ====================================
-    match /materials/{materialId} {
-      // Lectura: Todos los usuarios autenticados pueden ver materiales
-      allow read: if isAuthenticated();
-
-      // Escritura: Solo admins pueden crear, actualizar o eliminar materiales
-      allow create, update, delete: if isAdmin();
-
-      // Subcolección: stock (inventario por bodega)
-      match /stock/{warehouseId} {
-        // Lectura: Todos los autenticados pueden ver stock
-        allow read: if isAuthenticated();
-
-        // Escritura: Solo admins
+    
+    match /document_templates/{templateId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+    
+    // --- COLECCIÓN: vehicles ---
+    match /vehicles/{vehicleId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+    
+    // --- COLECCIÓN: warehouses ---
+    match /warehouses/{warehouseId} {
+      allow read: if isAuth();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin();
+      
+      // --- SUBCOLECCIÓN: stock ---
+      match /stock/{stockItemId} {
+        allow read: if isAuth();
         allow write: if isAdmin();
       }
     }
-
-    // ====================================
-    // COLECCIÓN: warehouses (bodegas)
-    // ====================================
-    match /warehouses/{warehouseId} {
-      // Lectura: Todos los autenticados pueden ver bodegas
-      allow read: if isAuthenticated();
-
-      // Escritura: Solo admins
-      allow create, update, delete: if isAdmin();
-    }
-
-    // ====================================
-    // COLECCIÓN: vehicles
-    // ====================================
-    match /vehicles/{vehicleId} {
-      // Lectura: Todos los autenticados pueden ver vehículos
-      allow read: if isAuthenticated();
-
-      // Escritura: Solo admins
-      allow create, update, delete: if isAdmin();
-    }
-
-    // ====================================
-    // COLECCIÓN: inventory_items (legacy)
-    // ====================================
-    match /inventory_items/{itemId} {
-      // Lectura: Todos los autenticados
-      allow read: if isAuthenticated();
-
-      // Escritura: Solo admins
+    
+    // --- COLECCIÓN: materials ---
+    match /materials/{materialId} {
+      allow read: if isAuth();
       allow write: if isAdmin();
     }
-
-    // ====================================
-    // COLECCIÓN: document_templates
-    // ====================================
-    match /document_templates/{templateId} {
-      // Lectura: Todos los autenticados pueden ver plantillas
-      allow read: if isAuthenticated();
-
-      // Escritura: Solo admins
-      allow create, update, delete: if isAdmin();
+    
+    // --- COLECCIÓN: inventory_items (Deprecada, solo si aún se usa) ---
+    match /inventory_items/{itemId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
     }
-
-    // ====================================
-    // COLECCIÓN: document_assignments
-    // ====================================
-    match /document_assignments/{assignmentId} {
-      // Lectura: Admins ven todo, trabajadores solo ven sus asignaciones
-      allow read: if isAuthenticated() &&
-                    (isAdmin() || isWorker(resource.data.workerId));
-
-      // Creación: Solo admins pueden asignar documentos
-      allow create: if isAdmin();
-
-      // Actualización: Admin puede actualizar todo, trabajador solo puede firmar su documento
-      allow update: if isAdmin() ||
-                      (isAuthenticated() &&
-                       isWorker(resource.data.workerId) &&
-                       request.resource.data.status == 'FIRMADO' &&
-                       request.resource.data.signatureUrl != null);
-
-      // Eliminación: Solo admins
-      allow delete: if isAdmin();
-    }
-
-    // ====================================
-    // DENEGAR TODO LO DEMÁS
-    // ====================================
-    // Cualquier colección no especificada es denegada por defecto
-    match /{document=**} {
-      allow read, write: if false;
-    }
+    
+    // 🔒 Por defecto TODO se deniega si no coincide con las reglas anteriores
   }
 }

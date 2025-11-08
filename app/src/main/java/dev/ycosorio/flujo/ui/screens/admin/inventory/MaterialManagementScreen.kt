@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,11 +22,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Warehouse
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -50,10 +56,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import dev.ycosorio.flujo.domain.model.InventoryItem
+import dev.ycosorio.flujo.domain.model.Material
+import dev.ycosorio.flujo.domain.model.StockItem
+import dev.ycosorio.flujo.domain.model.Warehouse
+import dev.ycosorio.flujo.domain.model.WarehouseType
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,8 +74,8 @@ fun MaterialManagementScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Estados para diálogos
-    var showCreateDialog by rememberSaveable { mutableStateOf(false) }
-    var showAddStockDialog by remember { mutableStateOf<InventoryItem?>(null) }
+    var showCreateMaterialDialog by rememberSaveable { mutableStateOf(false) }
+    var showAddStockDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.eventFlow.collect { event ->
@@ -82,7 +91,7 @@ fun MaterialManagementScreen(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Gestionar Materiales") },
+                title = { Text("Gestionar Inventario") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
@@ -91,8 +100,14 @@ fun MaterialManagementScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showCreateDialog = true }) {
-                Icon(Icons.Default.Add, contentDescription = "Crear Material")
+            Column(horizontalAlignment = Alignment.End) {
+                // Botón para crear nueva definición de material
+                FloatingActionButton(
+                    onClick = { showCreateMaterialDialog = true },
+                    modifier = Modifier.padding(bottom = 8.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Crear Material")
+                }
             }
         }
     ) { paddingValues ->
@@ -102,15 +117,43 @@ fun MaterialManagementScreen(
                 .padding(paddingValues),
             contentAlignment = Alignment.Center
         ) {
-            MaterialListContent(
-                state = uiState,
-                onAddStockClick = { item -> showAddStockDialog = item }
-            )
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Selector de Bodega
+                WarehouseSelector(
+                    warehouses = uiState.warehouses,
+                    selectedWarehouse = uiState.selectedWarehouse,
+                    onWarehouseSelected = { viewModel.selectWarehouse(it) },
+                    modifier = Modifier.padding(16.dp)
+                )
 
+                // Botón para agregar stock a bodega seleccionada
+                if (uiState.selectedWarehouse != null && uiState.materials.isNotEmpty()) {
+                    OutlinedButton(
+                        onClick = { showAddStockDialog = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Agregar Stock a ${uiState.selectedWarehouse?.name}")
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                // Lista de stock de la bodega seleccionada
+                StockListContent(
+                    state = uiState,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            // Loading indicator
             AnimatedVisibility(
                 visible = uiState.isLoading,
                 enter = fadeIn(),
-                exit = fadeOut()
+                exit = fadeOut(),
+                modifier = Modifier.align(Alignment.Center)
             ) {
                 CircularProgressIndicator(modifier = Modifier.size(64.dp))
             }
@@ -119,49 +162,94 @@ fun MaterialManagementScreen(
 
     // --- DIÁLOGOS ---
 
-    if (showCreateDialog) {
+    if (showCreateMaterialDialog) {
         CreateMaterialDialog(
-            onDismiss = { showCreateDialog = false },
-            onCreate = { name, stock ->
-                viewModel.createMaterial(name, stock)
-                showCreateDialog = false
+            onDismiss = { showCreateMaterialDialog = false },
+            onCreate = { name, description ->
+                viewModel.createMaterialDefinition(name, description)
+                showCreateMaterialDialog = false
             }
         )
     }
 
-    showAddStockDialog?.let { item ->
-        AddQuantityDialog(
-            item = item,
-            onDismiss = { showAddStockDialog = null },
-            onConfirm = { amount ->
-                viewModel.addStock(item.id, amount)
-                showAddStockDialog = null
+    if (showAddStockDialog) {
+        AddStockToWarehouseDialog(
+            materials = uiState.materials,
+            warehouseName = uiState.selectedWarehouse?.name ?: "",
+            onDismiss = { showAddStockDialog = false },
+            onConfirm = { material, quantity ->
+                viewModel.addStockToSelectedWarehouse(material, quantity)
+                showAddStockDialog = false
             }
         )
     }
 }
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MaterialListContent(
-    state: MaterialManagementUiState,
-    onAddStockClick: (InventoryItem) -> Unit
+private fun WarehouseSelector(
+    warehouses: List<Warehouse>,
+    selectedWarehouse: Warehouse?,
+    onWarehouseSelected: (Warehouse) -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    if (state.materials.isEmpty() && !state.isLoading) {
-        Text(
-            text = "No hay materiales creados.\nPresiona (+) para añadir.",
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(16.dp)
-        )
-    } else {
-        LazyColumn(
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxSize()
+    var expanded by remember { mutableStateOf(false) }
+
+    if (warehouses.isEmpty()) {
+        Card(
+            modifier = modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.errorContainer
+            )
         ) {
-            items(state.materials, key = { it.id }) { item ->
-                MaterialItemCard(
-                    item = item,
-                    onAddStockClick = { onAddStockClick(item) }
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Warehouse, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("No hay bodegas creadas")
+            }
+        }
+        return
+    }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded },
+        modifier = modifier
+    ) {
+        OutlinedTextField(
+            value = selectedWarehouse?.name ?: "Selecciona una bodega",
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Bodega") },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+            modifier = Modifier
+                .menuAnchor()
+                .fillMaxWidth()
+        )
+
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            warehouses.forEach { warehouse ->
+                DropdownMenuItem(
+                    text = {
+                        Column {
+                            Text(warehouse.name, fontWeight = FontWeight.Bold)
+                            Text(
+                                text = if (warehouse.type == WarehouseType.FIXED) "Fija" else "Móvil",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
+                    onClick = {
+                        onWarehouseSelected(warehouse)
+                        expanded = false
+                    }
                 )
             }
         }
@@ -169,10 +257,50 @@ private fun MaterialListContent(
 }
 
 @Composable
-private fun MaterialItemCard(
-    item: InventoryItem,
-    onAddStockClick: () -> Unit
+private fun StockListContent(
+    state: MaterialManagementUiState,
+    modifier: Modifier = Modifier
 ) {
+    if (state.selectedWarehouse == null) {
+        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                text = "Selecciona una bodega para ver su inventario",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        return
+    }
+
+    if (state.stockItems.isEmpty() && !state.isLoading) {
+        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "Esta bodega no tiene stock",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Text(
+                    text = "Presiona 'Agregar Stock' para añadir",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    } else {
+        LazyColumn(
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = modifier
+        ) {
+            items(state.stockItems, key = { it.id }) { stockItem ->
+                StockItemCard(stockItem = stockItem)
+            }
+        }
+    }
+}
+
+@Composable
+private fun StockItemCard(stockItem: StockItem) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
@@ -183,18 +311,19 @@ private fun MaterialItemCard(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = item.name,
+                    text = stockItem.materialName,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "Stock: ${item.quantity}",
-                    style = MaterialTheme.typography.bodyMedium
+                    text = "Cantidad: ${stockItem.quantity}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (stockItem.quantity > 0) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.error
+                    }
                 )
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            OutlinedButton(onClick = onAddStockClick) {
-                Text("Añadir Stock")
             }
         }
     }
@@ -203,18 +332,22 @@ private fun MaterialItemCard(
 @Composable
 private fun CreateMaterialDialog(
     onDismiss: () -> Unit,
-    onCreate: (name: String, stock: Int) -> Unit
+    onCreate: (name: String, description: String) -> Unit
 ) {
     var name by rememberSaveable { mutableStateOf("") }
-    var stock by rememberSaveable { mutableStateOf("0") }
+    var description by rememberSaveable { mutableStateOf("") }
     var nameError by rememberSaveable { mutableStateOf<String?>(null) }
-    var stockError by rememberSaveable { mutableStateOf<String?>(null) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Crear Nuevo Material") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "Esto creará la definición del material. El stock se agrega después.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 OutlinedTextField(
                     value = name,
                     onValueChange = {
@@ -222,39 +355,30 @@ private fun CreateMaterialDialog(
                         nameError = null
                     },
                     label = { Text("Nombre del material") },
+                    placeholder = { Text("Ej: Cable UTP Cat6") },
                     isError = nameError != null,
                     supportingText = { if (nameError != null) Text(nameError!!) },
-                    singleLine = true
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
-                    value = stock,
-                    onValueChange = {
-                        stock = it.filter { char -> char.isDigit() }
-                        stockError = null
-                    },
-                    label = { Text("Stock Inicial") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    isError = stockError != null,
-                    supportingText = { if (stockError != null) Text(stockError!!) },
-                    singleLine = true
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Descripción (opcional)") },
+                    placeholder = { Text("Ej: Cable de red categoría 6") },
+                    singleLine = false,
+                    maxLines = 3,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         },
         confirmButton = {
             Button(
                 onClick = {
-                    val stockInt = stock.toIntOrNull()
-                    var hasError = false
                     if (name.isBlank()) {
                         nameError = "El nombre es obligatorio"
-                        hasError = true
-                    }
-                    if (stockInt == null || stockInt < 0) {
-                        stockError = "Stock inválido"
-                        hasError = true
-                    }
-                    if (!hasError) {
-                        onCreate(name, stockInt!!)
+                    } else {
+                        onCreate(name.trim(), description.trim())
                     }
                 }
             ) {
@@ -269,47 +393,96 @@ private fun CreateMaterialDialog(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AddQuantityDialog(
-    item: InventoryItem,
+private fun AddStockToWarehouseDialog(
+    materials: List<Material>,
+    warehouseName: String,
     onDismiss: () -> Unit,
-    onConfirm: (amount: Int) -> Unit
+    onConfirm: (material: Material, quantity: Int) -> Unit
 ) {
-    var amount by rememberSaveable { mutableStateOf("") }
-    var amountError by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedMaterial by remember { mutableStateOf<Material?>(null) }
+    var quantity by rememberSaveable { mutableStateOf("") }
+    var quantityError by rememberSaveable { mutableStateOf<String?>(null) }
+    var expanded by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Añadir cantidad a ${item.name}") },
+        title = { Text("Agregar Stock a $warehouseName") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Stock actual: ${item.quantity}")
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Selector de Material
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded }
+                ) {
+                    OutlinedTextField(
+                        value = selectedMaterial?.name ?: "",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Material") },
+                        placeholder = { Text("Selecciona un material") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth()
+                    )
+
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        materials.forEach { material ->
+                            DropdownMenuItem(
+                                text = { Text(material.name) },
+                                onClick = {
+                                    selectedMaterial = material
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // Input de Cantidad
                 OutlinedTextField(
-                    value = amount,
+                    value = quantity,
                     onValueChange = {
-                        amount = it.filter { char -> char.isDigit() }
-                        amountError = null
+                        quantity = it.filter { char -> char.isDigit() }
+                        quantityError = null
                     },
-                    label = { Text("Cantidad a añadir") },
+                    label = { Text("Cantidad") },
+                    placeholder = { Text("0") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    isError = amountError != null,
-                    supportingText = { if (amountError != null) Text(amountError!!) },
-                    singleLine = true
+                    isError = quantityError != null,
+                    supportingText = { if (quantityError != null) Text(quantityError!!) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         },
         confirmButton = {
             Button(
                 onClick = {
-                    val amountInt = amount.toIntOrNull()
-                    if (amountInt == null || amountInt <= 0) {
-                        amountError = "Debe ser un número positivo"
-                    } else {
-                        onConfirm(amountInt)
+                    val material = selectedMaterial
+                    val qty = quantity.toIntOrNull()
+
+                    when {
+                        material == null -> {
+                            // No hacer nada, el usuario debe seleccionar
+                        }
+                        qty == null || qty <= 0 -> {
+                            quantityError = "Debe ser un número positivo"
+                        }
+                        else -> {
+                            onConfirm(material, qty)
+                        }
                     }
-                }
+                },
+                enabled = selectedMaterial != null
             ) {
-                Text("Confirmar")
+                Text("Agregar")
             }
         },
         dismissButton = {

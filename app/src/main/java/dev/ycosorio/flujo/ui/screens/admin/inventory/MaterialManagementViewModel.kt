@@ -3,7 +3,9 @@ package dev.ycosorio.flujo.ui.screens.admin.inventory
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dev.ycosorio.flujo.domain.model.InventoryItem
+import dev.ycosorio.flujo.domain.model.Material
+import dev.ycosorio.flujo.domain.model.StockItem
+import dev.ycosorio.flujo.domain.model.Warehouse
 import dev.ycosorio.flujo.domain.repository.InventoryRepository
 import dev.ycosorio.flujo.utils.Resource
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -18,8 +20,11 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class MaterialManagementUiState(
+    val materials: List<Material> = emptyList(),
+    val warehouses: List<Warehouse> = emptyList(),
+    val selectedWarehouse: Warehouse? = null,
+    val stockItems: List<StockItem> = emptyList(),
     val isLoading: Boolean = false,
-    val materials: List<InventoryItem> = emptyList(),
     val error: String? = null
 )
 
@@ -40,10 +45,11 @@ class MaterialManagementViewModel @Inject constructor(
 
     init {
         loadMaterials()
+        loadWarehouses()
     }
 
     private fun loadMaterials() {
-        inventoryRepository.getAvailableMaterials().onEach { result ->
+        inventoryRepository.getMaterials().onEach { result ->
             when (result) {
                 is Resource.Loading -> _uiState.update { it.copy(isLoading = true) }
                 is Resource.Success -> {
@@ -68,10 +74,63 @@ class MaterialManagementViewModel @Inject constructor(
         }.launchIn(viewModelScope)
     }
 
-    fun createMaterial(name: String, initianQuantity: Int) {
+    private fun loadWarehouses() {
+        inventoryRepository.getWarehouses().onEach { result ->
+            when (result) {
+                is Resource.Success -> {
+                    val warehouses = result.data ?: emptyList()
+                    _uiState.update { it.copy(warehouses = warehouses) }
+
+                    // Auto-seleccionar la primera bodega si no hay ninguna seleccionada
+                    if (_uiState.value.selectedWarehouse == null && warehouses.isNotEmpty()) {
+                        selectWarehouse(warehouses.first())
+                    }
+                }
+                is Resource.Error -> {
+                    _uiState.update { it.copy(error = result.message) }
+                }
+                else -> Unit
+            }
+        }.launchIn(viewModelScope)
+    }
+
+    fun selectWarehouse(warehouse: Warehouse) {
+        _uiState.update { it.copy(selectedWarehouse = warehouse, isLoading = true) }
+        loadStockForWarehouse(warehouse.id)
+    }
+
+    private fun loadStockForWarehouse(warehouseId: String) {
+        inventoryRepository.getStockForWarehouse(warehouseId).onEach { result ->
+            when (result) {
+                is Resource.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            stockItems = result.data ?: emptyList()
+                        )
+                    }
+                }
+                is Resource.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = result.message
+                        )
+                    }
+                }
+                else -> Unit
+            }
+        }.launchIn(viewModelScope)
+    }
+
+    /**
+     * Crea una nueva definición de material en el catálogo.
+     * No agrega stock automáticamente.
+     */
+    fun createMaterialDefinition(name: String, description: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            val result = inventoryRepository.createMaterial(name, initianQuantity)
+            val result = inventoryRepository.createMaterialDefinition(name, description)
             when (result) {
                 is Resource.Success -> {
                     _eventFlow.emit(UiEvent.ShowSnackbar("Material creado con éxito"))
@@ -81,20 +140,30 @@ class MaterialManagementViewModel @Inject constructor(
                 }
                 else -> Unit
             }
-            // El 'isLoading' se quitará cuando el 'loadMaterials' emita la nueva lista
         }
     }
 
-    fun addStock(itemId: String, amount: Int) {
+    /**
+     * Agrega stock de un material a la bodega seleccionada actualmente.
+     */
+    fun addStockToSelectedWarehouse(material: Material, quantity: Int) {
+        val warehouse = _uiState.value.selectedWarehouse
+        if (warehouse == null) {
+            viewModelScope.launch {
+                _eventFlow.emit(UiEvent.ShowSnackbar("Selecciona una bodega primero"))
+            }
+            return
+        }
+
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            val result = inventoryRepository.addStockToMaterial(itemId, amount)
+            val result = inventoryRepository.addStockToWarehouse(warehouse.id, material, quantity)
             when (result) {
                 is Resource.Success -> {
-                    _eventFlow.emit(UiEvent.ShowSnackbar("Stock actualizado"))
+                    _eventFlow.emit(UiEvent.ShowSnackbar("Stock agregado con éxito a ${warehouse.name}"))
                 }
                 is Resource.Error -> {
-                    _eventFlow.emit(UiEvent.ShowSnackbar(result.message ?: "Error al añadir stock"))
+                    _eventFlow.emit(UiEvent.ShowSnackbar(result.message ?: "Error al agregar stock"))
                 }
                 else -> Unit
             }
