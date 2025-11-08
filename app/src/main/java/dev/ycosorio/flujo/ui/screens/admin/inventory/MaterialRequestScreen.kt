@@ -8,6 +8,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.ycosorio.flujo.domain.model.RequestStatus
 import dev.ycosorio.flujo.domain.model.Role
@@ -20,14 +21,15 @@ fun MaterialRequestScreen(
     viewModel: MaterialRequestViewModel
 ) {
     val uiState by viewModel.requestsState.collectAsState()
-    //val statusFilter by viewModel.statusFilter.collectAsState()
     val currentFilter by viewModel.statusFilter.collectAsStateWithLifecycle()
     // --- Definimos las opciones para el filtro ---
     val filterOptions = listOf(
         null to "Todos",
         RequestStatus.PENDIENTE to "Pendientes",
         RequestStatus.APROBADO to "Aprobadas",
-        RequestStatus.RECHAZADO to "Rechazadas"
+        RequestStatus.RECHAZADO to "Rechazadas",
+        RequestStatus.ENTREGADO to "Entregadas",
+        RequestStatus.CANCELADO to "Canceladas"
     )
 
     Scaffold(
@@ -41,12 +43,12 @@ fun MaterialRequestScreen(
                 .padding(paddingValues)
         ) {
             // --- Barra de Filtros ---
-         /*   FilterBar(
-                selectedStatus = statusFilter,
-                onFilterChanged = { newStatus ->
-                    viewModel.onStatusFilterChanged(newStatus)
-                }
-            )*/
+            /*   FilterBar(
+                   selectedStatus = statusFilter,
+                   onFilterChanged = { newStatus ->
+                       viewModel.onStatusFilterChanged(newStatus)
+                   }
+               )*/
 
             SingleChoiceSegmentedButtonRow(
                 modifier = Modifier
@@ -61,7 +63,7 @@ fun MaterialRequestScreen(
                             index = index,
                             count = filterOptions.size
                         ),
-                        label = { Text(label) }
+                        label = { Text(label, fontSize = 10.sp) }
                     )
                 }
             }
@@ -84,8 +86,21 @@ fun MaterialRequestScreen(
                                     MaterialRequestItem(
                                         role = Role.ADMINISTRADOR,
                                         request = request,
-                                        onApprove = { viewModel.updateRequestStatus(request.id, RequestStatus.APROBADO) },
-                                        onReject = { viewModel.updateRequestStatus(request.id, RequestStatus.RECHAZADO) }
+                                        onApprove = {
+                                            viewModel.updateRequestStatus(
+                                            request.id,
+                                            RequestStatus.APROBADO
+                                            )
+                                        },
+                                        onReject = {
+                                            viewModel.updateRequestStatus(
+                                            request.id,
+                                            RequestStatus.RECHAZADO
+                                            )
+                                        },
+                                        onDeliver = {
+                                            viewModel.markAsDelivered(request)
+                                        }
                                     )
                                 }
                             }

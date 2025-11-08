@@ -121,4 +121,19 @@ interface InventoryRepository {
         material: Material,
         quantityToTransfer: Int
     ): Resource<Unit>
+
+    /**
+     * Marca una solicitud como ENTREGADA y transfiere el stock automáticamente.
+     * Esta operación es atómica (todo o nada).
+     *
+     * @param requestId ID de la solicitud
+     * @param centralWarehouseId ID de la bodega central (origen)
+     * @param adminNotes Notas opcionales del administrador
+     * @return Resource indicando éxito o error
+     */
+    suspend fun deliverMaterialRequest(
+        requestId: String,
+        centralWarehouseId: String,
+        adminNotes: String? = null
+    ): Resource<Unit>
 }

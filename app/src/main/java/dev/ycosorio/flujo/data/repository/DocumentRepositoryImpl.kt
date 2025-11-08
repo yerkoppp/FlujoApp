@@ -20,7 +20,6 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 import java.util.Date
-import java.util.UUID
 import javax.inject.Inject
 
 class DocumentRepositoryImpl @Inject constructor(
@@ -177,10 +176,10 @@ class DocumentRepositoryImpl @Inject constructor(
         awaitClose { subscription.remove() }
     }
 
-    override fun getAssignedDocumentsForUser(userId: String): Flow<Resource<List<DocumentAssignment>>> {
+    override fun getAssignedDocumentsForUser(workerId: String): Flow<Resource<List<DocumentAssignment>>> {
         // Consultamos en la colección de asignaciones
         return assignmentsCollection
-            .whereEqualTo("userId", userId) // Esta es la consulta clave que filtra por usuario
+            .whereEqualTo("workerId", workerId) // Esta es la consulta clave que filtra por usuario
             .snapshots() // Escucha cambios en tiempo real
             .map { snapshot ->
                 try {
@@ -220,7 +219,7 @@ private fun DocumentSnapshot.toDocumentAssignment(): DocumentAssignment? {
             signedDate = getDate("signedDate"),
             signatureUrl = getString("signatureUrl")
         )
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         null
     }
 }

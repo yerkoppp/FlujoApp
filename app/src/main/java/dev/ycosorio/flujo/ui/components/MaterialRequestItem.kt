@@ -23,6 +23,8 @@ fun MaterialRequestItem(
     request: MaterialRequest,
     onApprove: () -> Unit,
     onReject: () -> Unit,
+    onDeliver: () -> Unit = {},
+    onCancel: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -44,39 +46,79 @@ fun MaterialRequestItem(
                 text = "Fecha: ${request.requestDate.toFormattedString()}",
                 style = MaterialTheme.typography.bodySmall
             )
-            StatusBadge(status = request.status)
 
-            // Mostramos los botones solo si la solicitud está pendiente
-            if (request.status == RequestStatus.PENDIENTE) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
-                ) {
-                    if(role == Role.ADMINISTRADOR) {
-                        Button(
-                            onClick = onReject,
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                        ) {
-                            Icon(Icons.Default.Cancel, contentDescription = "Rechazar")
-                            Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                            Text("Rechazar")
+            // Mostrar notas del admin si existen
+            if (!request.adminNotes.isNullOrBlank()) {
+                Text(
+                    text = "Notas: ${request.adminNotes}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            StatusBadge(status = request.status)
+            // ✅ BOTONES SEGÚN ROL Y ESTADO
+            when {
+                // --- ADMIN ---
+                role == Role.ADMINISTRADOR -> {
+                    when (request.status) {
+                        RequestStatus.PENDIENTE -> {
+                            // Admin puede Aprobar o Rechazar
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
+                            ) {
+                                Button(
+                                    onClick = onReject,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.error
+                                    )
+                                ) {
+                                    Icon(Icons.Default.Cancel, contentDescription = "Rechazar")
+                                    Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                                    Text("Rechazar")
+                                }
+                                Button(onClick = onApprove) {
+                                    Icon(Icons.Default.CheckCircle, contentDescription = "Aprobar")
+                                    Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                                    Text("Aprobar")
+                                }
+                            }
                         }
-                        Button(onClick = onApprove) {
-                            Icon(Icons.Default.CheckCircle, contentDescription = "Aprobar")
-                            Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                            Text("Aprobar")
+                        RequestStatus.APROBADO -> {
+                            // Admin puede marcar como Entregado
+                            Button(
+                                onClick = onDeliver,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Default.CheckCircle, contentDescription = "Entregar")
+                                Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                                Text("Marcar como Entregado")
+                            }
+                        }
+                        else -> {
+                            // Estados finales: RECHAZADO, ENTREGADO, CANCELADO
+                            // No hay acciones disponibles
                         }
                     }
-                    if(role == Role.TRABAJADOR) {
+                }
+
+                // --- TRABAJADOR ---
+                role == Role.TRABAJADOR -> {
+                    if (request.status == RequestStatus.PENDIENTE) {
+                        // Trabajador puede cancelar si está pendiente
                         Button(
-                            onClick = {},
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                            onClick = onCancel,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error
+                            ),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             Icon(Icons.Default.Cancel, contentDescription = "Cancelar")
                             Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                            Text("Cancelar")
+                            Text("Cancelar Solicitud")
                         }
                     }
+                    // Si no está pendiente, no hay acciones
                 }
             }
         }
@@ -85,17 +127,17 @@ fun MaterialRequestItem(
 
 @Composable
 private fun StatusBadge(status: RequestStatus) {
-    val backgroundColor = when (status) {
-        RequestStatus.PENDIENTE -> MaterialTheme.colorScheme.tertiaryContainer
-        RequestStatus.APROBADO -> Color(0xFFE8F5E9) // Verde claro
-        RequestStatus.RECHAZADO -> MaterialTheme.colorScheme.errorContainer
-        RequestStatus.RETIRADO -> Color(0xFFE1F5FE) // Azul claro
-    }
-    val contentColor = when (status) {
-        RequestStatus.PENDIENTE -> MaterialTheme.colorScheme.onTertiaryContainer
-        RequestStatus.APROBADO -> Color(0xFF1B5E20) // Verde oscuro
-        RequestStatus.RECHAZADO -> MaterialTheme.colorScheme.onErrorContainer
-        RequestStatus.RETIRADO -> Color(0xFF01579B) // Azul oscuro
+    val (backgroundColor, contentColor) = when (status) {
+        RequestStatus.PENDIENTE ->
+            MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onTertiaryContainer
+        RequestStatus.APROBADO ->
+            Color(0xFFE8F5E9) to Color(0xFF1B5E20) // Verde claro/oscuro
+        RequestStatus.RECHAZADO ->
+            MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.onErrorContainer
+        RequestStatus.ENTREGADO ->
+            Color(0xFFE1F5FE) to Color(0xFF01579B) // Azul claro/oscuro
+        RequestStatus.CANCELADO ->
+            Color(0xFFEEEEEE) to Color(0xFF616161) // Gris claro/oscuro
     }
 
     Surface(

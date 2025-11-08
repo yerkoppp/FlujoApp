@@ -13,7 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.ycosorio.flujo.domain.model.Role
-import dev.ycosorio.flujo.ui.components.MaterialRequestItem // Reutilizamos el componente del admin
+import dev.ycosorio.flujo.ui.components.MaterialRequestItem
 import dev.ycosorio.flujo.utils.Resource
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -50,12 +50,15 @@ fun WorkerRequestScreen(
                             contentPadding = PaddingValues(16.dp)
                         ) {
                             items(state.data) { request ->
-                                // Reutilizamos el mismo componente, pero sin los botones de acción
                                 MaterialRequestItem(
                                     role = Role.TRABAJADOR,
                                     request = request,
                                     onApprove = {}, // No hace nada en la vista del trabajador
-                                    onReject = {}   // No hace nada en la vista del trabajador
+                                    onReject = {}, // No hace nada en la vista del trabajador
+                                    onDeliver = {}, // No hace nada en la vista del trabajador
+                                    onCancel = {
+                                        viewModel.cancelRequest(request.id)
+                                    }
                                 )
                             }
                         }

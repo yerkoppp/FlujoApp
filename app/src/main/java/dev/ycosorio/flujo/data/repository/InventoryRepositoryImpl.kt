@@ -168,13 +168,13 @@ class InventoryRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun createMaterial(name: String, initialStock: Int): Resource<Unit> {
+    override suspend fun createMaterial(name: String, initialQuantity: Int): Resource<Unit> {
         return try {
             // Creamos el nuevo item
             val newItem = InventoryItem(
                 id = "", // El ID será asignado por Firestore
                 name = name,
-                quantity = initialStock,
+                quantity = initialQuantity,
                 locationId = "almacen_central" // Ubicación por defecto
 
             )
@@ -320,6 +320,104 @@ class InventoryRepositoryImpl @Inject constructor(
             Resource.Error(e.message ?: "Error durante la transferencia de stock")
         }
     }
+
+    override suspend fun deliverMaterialRequest(
+        requestId: String,
+        centralWarehouseId: String,
+        adminNotes: String?
+    ): Resource<Unit> {
+        return try {
+            // Usamos una transacción para garantizar atomicidad
+            firestore.runTransaction { transaction ->
+                // 1. Obtener la solicitud
+                val requestRef = requestsCollection.document(requestId)
+                val requestDoc = transaction.get(requestRef)
+
+                if (!requestDoc.exists()) {
+                    throw Exception("La solicitud no existe")
+                }
+
+                // Parseamos manualmente los campos necesarios
+                val status = requestDoc.getString("status")?.let { RequestStatus.valueOf(it) }
+                val warehouseId = requestDoc.getString("warehouseId")
+                val materialId = requestDoc.getString("materialId")
+                val materialName = requestDoc.getString("materialName")
+                val quantity = requestDoc.getLong("quantity")?.toInt()
+
+                // Validaciones
+                if (status != RequestStatus.APROBADO) {
+                    throw Exception("Solo se pueden entregar solicitudes APROBADAS. Estado actual: $status")
+                }
+
+                if (warehouseId == null || materialId == null || materialName == null || quantity == null) {
+                    throw Exception("Datos incompletos en la solicitud")
+                }
+
+                // 2. Verificar stock disponible en Bodega Central
+                val centralStockRef = warehousesCol.document(centralWarehouseId)
+                    .collection(STOCK_SUBCOLLECTION)
+                    .document(materialId)
+
+                val centralStockDoc = transaction.get(centralStockRef)
+
+                if (!centralStockDoc.exists()) {
+                    throw Exception("El material no existe en la Bodega Central")
+                }
+
+                val availableQuantity = centralStockDoc.getLong("quantity")?.toInt() ?: 0
+
+                if (availableQuantity < quantity) {
+                    throw Exception("Stock insuficiente en Bodega Central. Disponible: $availableQuantity, Solicitado: $quantity")
+                }
+
+                // 3. Restar stock de Bodega Central
+                val newCentralQuantity = availableQuantity - quantity
+                transaction.update(centralStockRef, "quantity", newCentralQuantity)
+
+                // 4. Sumar stock a Bodega Móvil (destino)
+                val mobileStockRef = warehousesCol.document(warehouseId)
+                    .collection(STOCK_SUBCOLLECTION)
+                    .document(materialId)
+
+                val mobileStockDoc = transaction.get(mobileStockRef)
+
+                if (mobileStockDoc.exists()) {
+                    // Si ya existe, sumamos
+                    val currentQuantity = mobileStockDoc.getLong("quantity")?.toInt() ?: 0
+                    val newMobileQuantity = currentQuantity + quantity
+                    transaction.update(mobileStockRef, "quantity", newMobileQuantity)
+                } else {
+                    // Si no existe, creamos el StockItem
+                    val newStockItem = StockItem(
+                        id = materialId,
+                        materialId = materialId,
+                        materialName = materialName,
+                        quantity = quantity
+                    )
+                    transaction.set(mobileStockRef, newStockItem)
+                }
+
+                // 5. Actualizar el estado de la solicitud a ENTREGADO
+                val updates = mutableMapOf<String, Any?>(
+                    "status" to RequestStatus.ENTREGADO.name,
+                    "deliveryDate" to Date()
+                )
+
+                if (adminNotes != null) {
+                    updates["adminNotes"] = adminNotes
+                }
+
+                transaction.update(requestRef, updates)
+
+                null // Requerido por runTransaction
+            }.await()
+
+            Resource.Success(Unit)
+
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Error al entregar el material")
+        }
+    }
 }
 
 /**
@@ -331,13 +429,16 @@ private fun MaterialRequest.toFirestoreMap(): Map<String, Any?> {
         "id" to id,
         "workerId" to workerId,
         "workerName" to workerName,
+        "warehouseId" to warehouseId,
         "materialId" to materialId,
         "materialName" to materialName,
         "quantity" to quantity,
         "status" to status.name, // Guardamos el enum como un String
         "requestDate" to requestDate,
         "approvalDate" to approvalDate,
-        "pickupDate" to pickupDate
+        "rejectionDate" to rejectionDate,
+        "deliveryDate" to deliveryDate,
+        "adminNotes" to adminNotes
     )
 }
 
@@ -358,7 +459,9 @@ private fun DocumentSnapshot.toMaterialRequest(): MaterialRequest? {
             status = RequestStatus.valueOf(getString("status")!!),
             requestDate = getDate("requestDate")!!,
             approvalDate = getDate("approvalDate"),
-            pickupDate = getDate("pickupDate")
+            rejectionDate = getDate("rejectionDate"),
+            deliveryDate = getDate("deliveryDate"),
+            adminNotes = getString("adminNotes")
 
         )
     } catch (e: Exception) {

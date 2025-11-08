@@ -10,6 +10,7 @@ import dev.ycosorio.flujo.domain.repository.AuthRepository
 import dev.ycosorio.flujo.domain.repository.DocumentRepository
 import dev.ycosorio.flujo.domain.repository.InventoryRepository
 import dev.ycosorio.flujo.utils.Resource
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -35,6 +36,7 @@ class WorkerDashboardViewModel @Inject constructor(
 ) : ViewModel() {
 
     // Usamos flatMapLatest para reaccionar al cambio de usuario (login/logout)
+    @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<WorkerDashboardUiState> = authRepository.currentUser
         .flatMapLatest { authUser ->
             if (authUser == null) {

@@ -1,5 +1,6 @@
 package dev.ycosorio.flujo.ui.navigation
 
+import dev.ycosorio.flujo.ui.screens.worker.inventory.WorkerRequestViewModel
 import android.util.Log
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,13 +18,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import dev.ycosorio.flujo.domain.repository.AuthRepository
-import dev.ycosorio.flujo.domain.repository.UserRepository
 import dev.ycosorio.flujo.ui.AppViewModel
 import dev.ycosorio.flujo.ui.screens.admin.inventory.MaterialManagementScreen
-import dev.ycosorio.flujo.ui.screens.admin.inventory.MaterialRequestScreen
-import dev.ycosorio.flujo.ui.screens.admin.inventory.MaterialRequestViewModel
-import dev.ycosorio.flujo.ui.screens.documents.AssignDocumentScreen
 import dev.ycosorio.flujo.ui.screens.admin.users.EditUserScreen
 import dev.ycosorio.flujo.ui.screens.admin.users.EditUserViewModel
 import dev.ycosorio.flujo.ui.screens.admin.users.UserDetailScreen
@@ -34,6 +30,7 @@ import dev.ycosorio.flujo.ui.screens.admin.users.usermanagament.UserManagementVi
 import dev.ycosorio.flujo.ui.screens.admin.vehicles.VehicleManagementScreen
 import dev.ycosorio.flujo.ui.screens.auth.AccessVerificationScreen
 import dev.ycosorio.flujo.ui.screens.auth.LoginScreen
+import dev.ycosorio.flujo.ui.screens.documents.AssignDocumentScreen
 import dev.ycosorio.flujo.ui.screens.documents.SignatureScreen
 import dev.ycosorio.flujo.ui.screens.documents.UploadTemplateScreen
 import dev.ycosorio.flujo.ui.screens.main.MainScreen
@@ -42,8 +39,6 @@ import dev.ycosorio.flujo.ui.screens.profile.ProfileScreen
 import dev.ycosorio.flujo.ui.screens.settings.AppearanceScreen
 import dev.ycosorio.flujo.ui.screens.settings.SettingsScreen
 import dev.ycosorio.flujo.ui.screens.worker.inventory.CreateRequestScreen
-import dev.ycosorio.flujo.ui.screens.worker.inventory.WorkerRequestScreen
-import dev.ycosorio.flujo.ui.screens.worker.inventory.WorkerRequestViewModel
 import dev.ycosorio.flujo.utils.Resource
 
 @Composable

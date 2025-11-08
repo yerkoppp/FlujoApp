@@ -1,15 +1,12 @@
 package dev.ycosorio.flujo.ui.components
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import dev.ycosorio.flujo.domain.model.User
-import dev.ycosorio.flujo.domain.model.Role
-import dev.ycosorio.flujo.BuildConfig
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

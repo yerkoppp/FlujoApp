@@ -10,6 +10,8 @@ admin.initializeApp();
 // Define la región globalmente para todas las funciones
 setGlobalOptions({region: "southamerica-west1"});
 
+// --- INTERFACES DE DATOS ---
+
 /**
  * Define la estructura de los datos que esperamos
  * recibir desde la app cliente (Flujo).
@@ -42,16 +44,30 @@ interface AppUser {
   assignedPcId: string | null;
 }
 
+/**
+ * Define la estructura de los datos en la colección 'invitations'.
+ * El ID del documento será el email del invitado.
+ */
+interface InvitationData {
+  name: string;
+  position: string;
+  area: string;
+  role: "TRABAJADOR" | "ADMINISTRADOR";
+  contractStartDate: admin.firestore.Timestamp;
+}
+
+// --- FUNCIÓN 1: createWorker ---
+
 export const createWorker = onCall(async (request) => {
-  // 1. Verificar autenticación (CAMBIO: request.auth)
+  // 1. Verificar autenticación
   if (!request.auth) {
-    throw new HttpsError( // CAMBIO: HttpsError (sin 'functions.https')
+    throw new HttpsError(
       "unauthenticated",
       "Debes estar autenticado para realizar esta acción"
     );
   }
 
-  // 2. Verificar que quien llama es admin (CAMBIO: request.auth.uid)
+  // 2. Verificar que quien llama es admin
   const callerUid = request.auth.uid;
   const callerDoc = await admin.firestore().collection("users").doc(callerUid).get();
   const callerData = callerDoc.data();
@@ -63,7 +79,7 @@ export const createWorker = onCall(async (request) => {
     );
   }
 
-  // 3. Validar datos recibidos (CAMBIO: request.data)
+  // 3. Validar datos recibidos
   // TypeScript no conoce el tipo de request.data, así que lo "casteamos"
   const data = request.data as CreateWorkerData;
   const {email, name, position, area, contractStartDate} = data;
@@ -75,74 +91,152 @@ export const createWorker = onCall(async (request) => {
     );
   }
 
-  // 4. Verificar si el email ya existe (Manejo de error corregido)
+  const normalizedEmail = email.toLowerCase().trim();
+
+  // 4. Verificar si el email ya existe en 'users' O en 'invitations'
   try {
-    await admin.auth().getUserByEmail(email);
-    // Si la promesa se resuelve, el usuario SÍ existe. Lanzamos error.
-    throw new HttpsError(
-      "already-exists",
-      "Ya existe un usuario con este email"
-    );
+    const usersQuery = await admin.firestore().collection("users")
+      .where("email", "==", normalizedEmail).get();
+    if (!usersQuery.empty) {
+      throw new HttpsError(
+        "already-exists",
+        "Ya existe un trabajador provisionado con este email"
+      );
+    }
+    const invitationDoc = await admin.firestore().collection("invitations")
+      .doc(normalizedEmail).get();
+    if (invitationDoc.exists) {
+      throw new HttpsError(
+        "already-exists",
+        "Ya existe una invitación pendiente para este email"
+      );
+    }
   } catch (error: any) {
-    // Si el error es el que lanzamos arriba, lo relanza.
-    if (error instanceof HttpsError) {
-      throw error;
-    }
-    // Esperamos que el error sea 'auth/user-not-found'.
-    if (error.code !== "auth/user-not-found") {
-      throw error; // Relanza cualquier otro error inesperado
-    }
-    // Si es 'auth/user-not-found', está bien. Continuamos.
+    if (error instanceof HttpsError) throw error;
+    console.error("Error al verificar email:", error);
+    throw new HttpsError("internal", error.message);
   }
 
-  // 5. y 6. Crear usuario en Auth y documento en Firestore
+  // Ya no se crea el usuario en Authentication.
   try {
-    const userRecord = await admin.auth().createUser({
-      email: email.toLowerCase().trim(),
-      emailVerified: false,
-      disabled: false,
-    });
-
-    console.log("Usuario creado en Auth:", userRecord.uid);
-
-    // Usamos la interfaz AppUser para asegurar que los datos son correctos
-    const newUserDocument: AppUser = {
-      uid: userRecord.uid,
+    const newInvitation: InvitationData = {
       name: name,
-      email: email.toLowerCase().trim(),
-      role: "TRABAJADOR",
       position: position,
       area: area,
+      role: "TRABAJADOR", // La función solo crea trabajadores
       contractStartDate: admin.firestore.Timestamp.fromDate(
-        new Date(contractStartDate) // Convertimos el string a Fecha
+        new Date(contractStartDate)
       ),
-      contractEndDate: null,
-      phoneNumber: null,
-      photoUrl: null,
-      assignedVehicleId: null,
-      assignedPhoneId: null,
-      assignedPcId: null,
     };
-
     await admin.firestore()
-      .collection("users")
-      .doc(userRecord.uid)
-      .set(newUserDocument);
+      .collection("invitations")
+      .doc(normalizedEmail)
+      .set(newInvitation);
 
-    console.log("Documento creado en Firestore:", userRecord.uid);
+    console.log("Invitación creada para:", normalizedEmail);
 
     return {
       success: true,
-      uid: userRecord.uid,
-      message: "Trabajador creado exitosamente",
+      message: "Invitación creada exitosamente",
     };
   } catch (error: any) {
-    // Si falla la creación en Auth o Firestore.
-    console.error("Error en pasos 5 o 6:", error);
+    console.error("Error al crear invitación:", error);
     throw new HttpsError(
       "internal",
-      error.message || "Error interno al crear el trabajador"
+      error.message || "Error interno al crear la invitación"
     );
+  }
+});
+
+// --- FUNCIÓN 2 (NUEVA): provisionUserAccount ---
+
+/**
+ * Se llama esta función desde la app cliente JUSTO DESPUÉS
+ * de que un usuario inicie sesión por primera vez con Google
+ * y la app descubra que no tiene un documento en 'users'.
+ */
+export const provisionUserAccount = onCall(async (request) => {
+  // 1. Verificar que el usuario que llama está autenticado
+  if (!request.auth) {
+    throw new HttpsError(
+      "unauthenticated",
+      "Debes estar autenticado para provisionar tu cuenta"
+    );
+  }
+
+  // 2. Obtener datos del usuario (desde su token de Google)
+  const uid = request.auth.uid;
+  const email = request.auth.token.email;
+  const googlePhotoUrl = request.auth.token.picture || null;
+
+  if (!email) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Tu cuenta de Google no tiene un email asociado."
+    );
+  }
+
+  const normalizedEmail = email.toLowerCase().trim();
+
+  // 3. Definir referencias
+  const userDocRef = admin.firestore().collection("users").doc(uid);
+  const invitationDocRef = admin.firestore().collection("invitations").doc(normalizedEmail);
+
+  // 4. Ejecutar una transacción ATÓMICA
+  // Esto asegura que o se hacen ambas cosas (crear usuario y borrar inv.) o no se hace nada.
+  try {
+    await admin.firestore().runTransaction(async (t) => {
+      // Leer los documentos DENTRO de la transacción
+      const userDoc = await t.get(userDocRef);
+      if (userDoc.exists) {
+        // El usuario ya fue provisionado en un intento anterior. No hacer nada.
+        console.log("El usuario ya existe, no se requiere provisión:", uid);
+        return;
+      }
+
+      const invitationDoc = await t.get(invitationDocRef);
+      if (!invitationDoc.exists) {
+        throw new HttpsError(
+          "not-found",
+          "No se encontró una invitación para tu email. Contacta al administrador."
+        );
+      }
+
+      const invitationData = invitationDoc.data() as InvitationData;
+
+      // 5. Preparar el nuevo documento de usuario
+      const newUserDocument: AppUser = {
+        uid: uid,
+        name: invitationData.name, // Usamos el nombre oficial de la invitación
+        email: normalizedEmail,
+        role: invitationData.role,
+        position: invitationData.position,
+        area: invitationData.area,
+        contractStartDate: invitationData.contractStartDate,
+        contractEndDate: null,
+        phoneNumber: null,
+        photoUrl: googlePhotoUrl, // Usamos la foto de perfil de Google
+        assignedVehicleId: null,
+        assignedPhoneId: null,
+        assignedPcId: null,
+      };
+
+      // 6. Ejecutar las operaciones DENTRO de la transacción
+      t.set(userDocRef, newUserDocument); // Crear el documento 'users'
+      t.delete(invitationDocRef); // Eliminar la invitación
+    });
+
+    console.log("Cuenta provisionada exitosamente para:", uid, normalizedEmail);
+    return {
+      success: true,
+      message: "Tu cuenta ha sido activada exitosamente.",
+    };
+  } catch (error: any) {
+    console.error("Error en la transacción de provisión:", error);
+    if (error instanceof HttpsError) {
+      throw error; // Relanzar errores Https (ej: 'not-found')
+    }
+    throw new HttpsError("internal", error.message || "Error interno al provisionar la cuenta");
   }
 });
 
@@ -177,7 +271,35 @@ export const deleteWorker = onCall(async (request) => { // CAMBIO: onCall y requ
   }
 
   try {
-    // 4. Eliminar de Authentication
+    const pendingRequests = await admin.firestore()
+      .collection("material_requests")
+      .where("workerId", "==", userId)
+      .where("status", "in", ["PENDIENTE", "APROBADO"])
+      .limit(1)
+      .get();
+
+    if (!pendingRequests.empty) {
+      throw new HttpsError(
+        "failed-precondition",
+        "No se puede eliminar: el trabajador tiene solicitudes pendientes o aprobadas"
+      );
+    }
+
+    // ✅ Verificar documentos pendientes
+    const pendingDocs = await admin.firestore()
+      .collection("document_assignments")
+      .where("workerId", "==", userId)
+      .where("status", "==", "PENDIENTE")
+      .limit(1)
+      .get();
+
+    if (!pendingDocs.empty) {
+      throw new HttpsError(
+        "failed-precondition",
+        "No se puede eliminar: el trabajador tiene documentos pendientes de firma"
+      );
+    }
+    // 4. Eliminar de Authentication (Importante: esto elimina su login de Google)
     await admin.auth().deleteUser(userId);
     console.log("Usuario eliminado de Auth:", userId);
 
@@ -188,6 +310,10 @@ export const deleteWorker = onCall(async (request) => { // CAMBIO: onCall y requ
     return {success: true, message: "Usuario eliminado exitosamente"};
   } catch (error: any) {
     console.error("Error al eliminar trabajador:", error);
+
+    if (error instanceof HttpsError) {
+      throw error;
+    }
 
     // Manejo de error si el usuario no existe
     if (error.code === "auth/user-not-found") {

@@ -7,5 +7,6 @@ enum class RequestStatus {
     PENDIENTE,
     APROBADO,
     RECHAZADO,
-    RETIRADO
+    ENTREGADO,
+    CANCELADO
 }

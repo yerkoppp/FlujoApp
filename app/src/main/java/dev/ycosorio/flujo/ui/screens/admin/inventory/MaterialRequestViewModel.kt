@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import dev.ycosorio.flujo.domain.model.WarehouseType
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -69,6 +70,75 @@ class MaterialRequestViewModel @Inject constructor(
             // Podríamos añadir un StateFlow para el estado de la actualización si queremos mostrar un loader
             inventoryRepository.updateRequestStatus(requestId, newStatus, adminNotes)
 
+        }
+    }
+
+    /**
+     * Actualiza el estado de una solicitud a ENTREGADO y transfiere el stock.
+     * @param request La solicitud completa (necesitamos varios campos).
+     */
+    fun markAsDelivered(request: MaterialRequest) {
+        viewModelScope.launch {
+            // 1. Cambiar estado a ENTREGADO
+            val result = inventoryRepository.updateRequestStatus(
+                requestId = request.id,
+                status = RequestStatus.ENTREGADO,
+                adminNotes = null // O puedes pedir notas al admin
+            )
+
+            if (result is Resource.Success) {
+                // 2. Transferir stock de Bodega Central → Bodega Móvil
+                // Necesitamos obtener el objeto Material completo
+                // (esto requiere una consulta adicional o pasarlo desde la UI)
+
+                // TODO: Implementar transferencia de stock
+                // inventoryRepository.transferStock(
+                //     fromWarehouseId = BODEGA_CENTRAL_ID,
+                //     toWarehouseId = request.warehouseId,
+                //     material = ...,
+                //     quantityToTransfer = request.quantity
+                // )
+            }
+        }
+    }
+
+    /**
+     * Marca una solicitud como ENTREGADA y transfiere el stock automáticamente.
+     * Esta operación valida que la solicitud esté APROBADA y que haya stock disponible.
+     */
+    fun deliverMaterialRequest(request: MaterialRequest, adminNotes: String? = null) {
+        viewModelScope.launch {
+            // Validación previa
+            if (request.status != RequestStatus.APROBADO) {
+                // Podrías emitir un evento de error aquí
+                return@launch
+            }
+
+            // Necesitamos el ID de la Bodega Central
+            // Lo obtenemos consultando las bodegas
+            val warehousesResult = inventoryRepository.getWarehouses()
+
+            // Como es un Flow, necesitamos recoger el primer valor
+            warehousesResult.collect { result ->
+                if (result is Resource.Success) {
+                    val centralWarehouse = result.data?.find { it.type == WarehouseType.FIXED }
+
+                    if (centralWarehouse == null) {
+                        // Error: No se encontró la bodega central
+                        return@collect
+                    }
+
+                    // Llamar a la función de entrega
+                    inventoryRepository.deliverMaterialRequest(
+                        requestId = request.id,
+                        centralWarehouseId = centralWarehouse.id,
+                        adminNotes = adminNotes
+                    )
+
+                    // La UI se actualizará automáticamente por el Flow
+                    return@collect // Salimos después del primer resultado
+                }
+            }
         }
     }
 
