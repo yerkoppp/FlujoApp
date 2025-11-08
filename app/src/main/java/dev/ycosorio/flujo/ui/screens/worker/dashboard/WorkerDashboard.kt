@@ -77,7 +77,7 @@ fun WorkerDashboard(
                         title = "Nueva Solicitud de Material",
                         onClick = {
                             // Navega a la pantalla de crear solicitud
-                            navController.navigate(BottomNavItem.Inventory.route)
+                            navController.navigate(Routes.CreateRequest.route)
                         }
                     )
                 }
