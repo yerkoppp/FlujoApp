@@ -81,8 +81,15 @@ class DocumentRepositoryImpl @Inject constructor(
 
         val subscription = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
-                trySend(Resource.Error(error.localizedMessage ?: "Error al cargar plantillas."))
-                close(error)
+                // Manejar PERMISSION_DENIED sin propagar el error (ocurre al cerrar sesión)
+                if (error is FirebaseFirestoreException &&
+                    error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                    trySend(Resource.Error("Sesión finalizada"))
+                    close()  // Cerrar sin propagar el error
+                } else {
+                    trySend(Resource.Error(error.localizedMessage ?: "Error al cargar plantillas."))
+                    close(error)
+                }
                 return@addSnapshotListener
             }
             if (snapshot != null) {
@@ -129,8 +136,15 @@ class DocumentRepositoryImpl @Inject constructor(
 
         val subscription = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
-                trySend(Resource.Error(error.localizedMessage ?: "Error al cargar documentos pendientes."))
-                close(error)
+                // Manejar PERMISSION_DENIED sin propagar el error (ocurre al cerrar sesión)
+                if (error is FirebaseFirestoreException &&
+                    error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                    trySend(Resource.Error("Sesión finalizada"))
+                    close()  // Cerrar sin propagar el error
+                } else {
+                    trySend(Resource.Error(error.localizedMessage ?: "Error al cargar documentos pendientes."))
+                    close(error)
+                }
                 return@addSnapshotListener
             }
             if (snapshot != null) {
@@ -164,8 +178,15 @@ class DocumentRepositoryImpl @Inject constructor(
 
         val subscription = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
-                trySend(Resource.Error(error.localizedMessage ?: "Error al cargar asignaciones."))
-                close(error)
+                // Manejar PERMISSION_DENIED sin propagar el error (ocurre al cerrar sesión)
+                if (error is FirebaseFirestoreException &&
+                    error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                    trySend(Resource.Error("Sesión finalizada"))
+                    close()  // Cerrar sin propagar el error
+                } else {
+                    trySend(Resource.Error(error.localizedMessage ?: "Error al cargar asignaciones."))
+                    close(error)
+                }
                 return@addSnapshotListener
             }
             if (snapshot != null) {

@@ -61,8 +61,15 @@ class InventoryRepositoryImpl @Inject constructor(
 
         val subscription = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
-                trySend(Resource.Error(error.localizedMessage ?: "Error al escuchar las solicitudes."))
-                close(error)
+                // Manejar PERMISSION_DENIED sin propagar el error (ocurre al cerrar sesión)
+                if (error is FirebaseFirestoreException &&
+                    error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                    trySend(Resource.Error("Sesión finalizada"))
+                    close()  // Cerrar sin propagar el error
+                } else {
+                    trySend(Resource.Error(error.localizedMessage ?: "Error al escuchar las solicitudes."))
+                    close(error)
+                }
                 return@addSnapshotListener
             }
 
@@ -126,8 +133,15 @@ class InventoryRepositoryImpl @Inject constructor(
 
         val subscription = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
-                trySend(Resource.Error(error.localizedMessage ?: "Error al obtener tus solicitudes."))
-                close(error)
+                // Manejar PERMISSION_DENIED sin propagar el error (ocurre al cerrar sesión)
+                if (error is FirebaseFirestoreException &&
+                    error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                    trySend(Resource.Error("Sesión finalizada"))
+                    close()  // Cerrar sin propagar el error
+                } else {
+                    trySend(Resource.Error(error.localizedMessage ?: "Error al obtener tus solicitudes."))
+                    close(error)
+                }
                 return@addSnapshotListener
             }
 
