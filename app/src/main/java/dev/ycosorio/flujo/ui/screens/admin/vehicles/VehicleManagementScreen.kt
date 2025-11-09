@@ -62,6 +62,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import dev.ycosorio.flujo.domain.model.User
 import dev.ycosorio.flujo.domain.model.Vehicle
+import dev.ycosorio.flujo.domain.model.Warehouse
+import dev.ycosorio.flujo.domain.model.WarehouseType
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,6 +78,8 @@ fun VehicleManagementScreen(
     var showCreateDialog by rememberSaveable { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf<Vehicle?>(null) }
     var showAssignDialog by remember { mutableStateOf<Vehicle?>(null) }
+    var showAssignWarehouseDialog by remember { mutableStateOf<Vehicle?>(null) }
+
 
     // Escucha los eventos (Snackbars)
     LaunchedEffect(Unit) {
@@ -116,6 +120,9 @@ fun VehicleManagementScreen(
                 state = uiState,
                 onDeleteClick = { vehicle -> showDeleteDialog = vehicle },
                 onAssignClick = { vehicle -> showAssignDialog = vehicle },
+                onAssignWarehouseClick = { vehicle -> showAssignWarehouseDialog = vehicle },
+                onRemoveWarehouseClick = { vehicleId ->
+                    viewModel.removeWarehouseFromVehicle(vehicleId) },
                 onRemoveUserClick = { userId, vehicleId ->
                     viewModel.removeUserFromVehicle(userId, vehicleId)
                 }
@@ -169,6 +176,19 @@ fun VehicleManagementScreen(
             }
         )
     }
+
+    // Diálogo para ASIGNAR BODEGA
+    showAssignWarehouseDialog?.let { vehicle ->
+        AssignWarehouseDialog(
+            vehicle = vehicle,
+            warehouses = uiState.warehouses.filter { it.type == WarehouseType.MOBILE },  // ✅ Solo MOBILE
+            onDismiss = { showAssignWarehouseDialog = null },
+            onAssignWarehouse = { warehouseId ->
+                viewModel.assignWarehouseToVehicle(vehicle.id, warehouseId)
+                showAssignWarehouseDialog = null
+            }
+        )
+    }
 }
 
 @Composable
@@ -176,6 +196,8 @@ private fun VehicleManagementContent(
     state: VehicleManagementUiState,
     onDeleteClick: (Vehicle) -> Unit,
     onAssignClick: (Vehicle) -> Unit,
+    onAssignWarehouseClick: (Vehicle) -> Unit,
+    onRemoveWarehouseClick: (String) -> Unit,
     onRemoveUserClick: (userId: String, vehicleId: String) -> Unit
 ) {
     if (state.vehicles.isEmpty() && !state.isLoading) {
@@ -194,8 +216,11 @@ private fun VehicleManagementContent(
                 VehicleItemCard(
                     vehicle = vehicle,
                     allWorkers = state.allWorkers,
+                    allWarehouses = state.warehouses,
                     onDeleteClick = { onDeleteClick(vehicle) },
                     onAssignClick = { onAssignClick(vehicle) },
+                    onAssignWarehouseClick = { onAssignWarehouseClick(vehicle) },
+                    onRemoveWarehouseClick = { onRemoveWarehouseClick(vehicle.id) },
                     onRemoveUserClick = { userId ->
                         onRemoveUserClick(userId, vehicle.id)
                     }
@@ -209,8 +234,11 @@ private fun VehicleManagementContent(
 private fun VehicleItemCard(
     vehicle: Vehicle,
     allWorkers: List<User>,
+    allWarehouses: List<Warehouse>,
     onDeleteClick: () -> Unit,
     onAssignClick: () -> Unit,
+    onAssignWarehouseClick: () -> Unit,
+    onRemoveWarehouseClick: () -> Unit,
     onRemoveUserClick: (userId: String) -> Unit
 ) {
     Card(
@@ -251,6 +279,61 @@ private fun VehicleItemCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Sección de Bodega Asignada
+            Text(
+                text = "Bodega Asignada",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            val assignedWarehouse = allWarehouses.find { it.id == vehicle.assignedWarehouseId }
+            if (assignedWarehouse != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = assignedWarehouse.name,
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Tipo: ${assignedWarehouse.type.name}",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = onAssignWarehouseClick) {
+                            Text("Cambiar")
+                        }
+                        OutlinedButton(
+                            onClick = onRemoveWarehouseClick,
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Text("Quitar")
+                        }
+                    }
+                }
+            } else {
+                Text(
+                    text = "Sin bodega asignada",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = onAssignWarehouseClick,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Asignar Bodega")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
             // --- Sección de Usuarios Asignados ---
             Text(
                 text = "Usuarios Asignados (${vehicle.userIds.size} / ${vehicle.maxUsers})",
@@ -447,6 +530,47 @@ private fun ConfirmDeleteDialog(
         },
         dismissButton = {
             OutlinedButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
+}
+
+@Composable
+private fun AssignWarehouseDialog(
+    vehicle: Vehicle,
+    warehouses: List<Warehouse>,
+    onDismiss: () -> Unit,
+    onAssignWarehouse: (warehouseId: String) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Asignar Bodega a ${vehicle.plate}") },
+        text = {
+            if (warehouses.isEmpty()) {
+                Text("No hay bodegas disponibles. Crea una bodega primero.")
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    warehouses.forEach { warehouse ->
+                        OutlinedButton(
+                            onClick = { onAssignWarehouse(warehouse.id) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalAlignment = Alignment.Start
+                            ) {
+                                Text(warehouse.name, fontWeight = FontWeight.Bold)
+                                Text("Tipo: ${warehouse.type.name}", fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
                 Text("Cancelar")
             }
         }

@@ -1,12 +1,16 @@
 package dev.ycosorio.flujo.ui.screens.admin.inventory
 
+import androidx.compose.foundation.gestures.snapping.SnapPosition
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -31,6 +35,8 @@ fun MaterialRequestScreen(
         RequestStatus.ENTREGADO to "Entregadas",
         RequestStatus.CANCELADO to "Canceladas"
     )
+    var expanded by remember { mutableStateOf(false) }
+    val selectedLabel = filterOptions.find { it.first == currentFilter }?.second ?: "Todos"
 
     Scaffold(
         topBar = {
@@ -50,7 +56,7 @@ fun MaterialRequestScreen(
                    }
                )*/
 
-            SingleChoiceSegmentedButtonRow(
+        /*    SingleChoiceSegmentedButtonRow(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -66,18 +72,55 @@ fun MaterialRequestScreen(
                         label = { Text(label, fontSize = 10.sp) }
                     )
                 }
+            }*/
+
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = !expanded },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                OutlinedTextField(
+                    value = "Filtrar: $selectedLabel",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Estado") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor()
+                )
+
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    filterOptions.forEach { (status, label) ->
+                        DropdownMenuItem(
+                            text = { Text(label) },
+                            onClick = {
+                                viewModel.onStatusFilterChanged(status)
+                                expanded = false
+                            },
+                            leadingIcon = if (currentFilter == status) {
+                                { Icon(Icons.Default.Check, contentDescription = null) }
+                            } else null
+                        )
+                    }
+                }
             }
 
             // --- Contenido Principal ---
             Box(
                 modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
+                contentAlignment = Alignment.TopCenter
             ) {
                 when (val state = uiState) {
                     is Resource.Idle, is Resource.Loading -> CircularProgressIndicator()
                     is Resource.Success -> {
                         if (state.data.isNullOrEmpty()) {
-                            Text("No hay solicitudes para mostrar.")
+                            Text("No hay solicitudes para mostrar.", textAlign = TextAlign.Center)
                         } else {
                             LazyColumn(
                                 contentPadding = PaddingValues(16.dp)

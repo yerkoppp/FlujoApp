@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.storage.FirebaseStorage
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.ycosorio.flujo.domain.repository.AuthRepository
 import dev.ycosorio.flujo.domain.repository.DocumentRepository
 import dev.ycosorio.flujo.utils.Resource
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,6 +21,7 @@ import javax.inject.Inject
 class SignatureViewModel @Inject constructor(
     private val documentRepository: DocumentRepository,
     private val storage: FirebaseStorage,
+    private val authRepository: AuthRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -35,13 +37,16 @@ class SignatureViewModel @Inject constructor(
         viewModelScope.launch {
             _signatureState.value = Resource.Loading()
             try {
+                // Obtener el UID del usuario actual
+                val userId = authRepository.getCurrentUser()?.uid
+                    ?: throw IllegalStateException("Usuario no autenticado")
                 // 1. Convertir el Bitmap a bytes
                 val baos = ByteArrayOutputStream()
                 bitmap.compress(Bitmap.CompressFormat.PNG, 100, baos)
                 val data = baos.toByteArray()
 
                 // 2. Definir dónde se guardará en Storage
-                val signatureRef = storage.reference.child("signatures/${assignmentId}/${UUID.randomUUID()}.png")
+                val signatureRef = storage.reference.child("signatures/${userId}/${UUID.randomUUID()}.png")
 
                 // 3. Subir los bytes
                 val uploadTask = signatureRef.putBytes(data).await()

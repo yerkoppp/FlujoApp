@@ -129,15 +129,60 @@ class VehicleRepositoryImpl @Inject constructor(
     }
 
     override suspend fun transferVehicleToWarehouse(vehicleId: String, warehouseId: String): Resource<Unit> {
-
         return try {
-            val vehicleRef = vehiclesCollection.document(vehicleId)
-            vehicleRef.update("assignedWarehouseId", warehouseId).await()
+            // 1. Validar que la bodega existe y es MOBILE
+            val warehouseDoc = firestore.collection("warehouses")
+                .document(warehouseId)
+                .get()
+                .await()
+
+            if (!warehouseDoc.exists()) {
+                throw IllegalStateException("La bodega no existe")
+            }
+
+            val warehouseType = warehouseDoc.getString("type")
+
+            if (warehouseType != "MOBILE") {
+                throw IllegalStateException("Solo se pueden asignar bodegas móviles a vehículos")
+            }
+
+            // 2. Verificar que no esté asignada a otro vehículo
+            val assignedVehicles = vehiclesCollection
+                .whereEqualTo("assignedWarehouseId", warehouseId)
+                .get()
+                .await()
+
+            val alreadyAssigned = assignedVehicles.documents.any { it.id != vehicleId }
+
+            if (alreadyAssigned) {
+                throw IllegalStateException("Esta bodega móvil ya está asignada a otro vehículo")
+            }
+
+            // 3. Asignar bodega
+            vehiclesCollection.document(vehicleId)
+                .update("assignedWarehouseId", warehouseId)
+                .await()
+
             Resource.Success(Unit)
+        } catch (e: IllegalStateException) {
+            Resource.Error(e.message ?: "Error de validación")
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Error al transferir vehículo")
+            Resource.Error(e.message ?: "Error al asignar bodega")
         }
     }
+
+    override suspend fun removeWarehouseFromVehicle(vehicleId: String): Resource<Unit> {
+        return try {
+            vehiclesCollection.document(vehicleId)
+                .update("assignedWarehouseId", null)
+                .await()
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Error al desasignar bodega")
+        }
+    }
+
+
     override suspend fun getVehicle(vehicleId: String): Resource<Vehicle?> {
         return try {
             val vehicleDoc = vehiclesCollection.document(vehicleId).get().await()

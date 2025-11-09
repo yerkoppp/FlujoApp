@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.ycosorio.flujo.domain.model.User
 import dev.ycosorio.flujo.domain.model.Vehicle
+import dev.ycosorio.flujo.domain.model.Warehouse
+import dev.ycosorio.flujo.domain.repository.InventoryRepository
 import dev.ycosorio.flujo.domain.repository.UserRepository
 import dev.ycosorio.flujo.domain.repository.VehicleRepository
 import dev.ycosorio.flujo.utils.Resource
@@ -28,6 +30,7 @@ data class VehicleManagementUiState(
     val allWorkers: List<User> = emptyList(),
     // Lista separada de usuarios sin vehículo para los diálogos de asignación
     val unassignedWorkers: List<User> = emptyList(),
+    val warehouses: List<Warehouse> = emptyList(),
     val error: String? = null
 )
 
@@ -35,7 +38,8 @@ data class VehicleManagementUiState(
 @HiltViewModel
 class VehicleManagementViewModel @Inject constructor(
     private val vehicleRepo: VehicleRepository,
-    private val userRepo: UserRepository
+    private val userRepo: UserRepository,
+    private val inventoryRepo: InventoryRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(VehicleManagementUiState())
@@ -61,15 +65,20 @@ class VehicleManagementViewModel @Inject constructor(
             // Esto se actualizará automáticamente si cambia un usuario O un vehículo.
             val usersFlow = userRepo.getAllWorkers()
             val vehiclesFlow = vehicleRepo.getVehicles()
+            val warehousesFlow = inventoryRepo.getWarehouses()
 
-            usersFlow.combine(vehiclesFlow) { users: List<User>, vehiclesResource: Resource<List<Vehicle>> ->
-
+            combine(usersFlow, vehiclesFlow, warehousesFlow) {
+                    users: List<User>,
+                    vehiclesResource: Resource<List<Vehicle>>,
+                    warehousesResource: Resource<List<Warehouse>>
+                ->
                 if (vehiclesResource is Resource.Error) {
                     _uiState.update { it.copy(isLoading = false, error = vehiclesResource.message) }
                 } else if (vehiclesResource is Resource.Success) {
                     val allWorkers = users
                     val vehicles = vehiclesResource.data ?: emptyList()
                     val unassigned = allWorkers.filter { it.assignedVehicleId == null }
+                    val warehouses = (warehousesResource as? Resource.Success)?.data ?: emptyList()
 
                     _uiState.update {
                         it.copy(
@@ -77,6 +86,7 @@ class VehicleManagementViewModel @Inject constructor(
                             vehicles = vehicles,
                             allWorkers = allWorkers,
                             unassignedWorkers = unassigned,
+                            warehouses = warehouses,
                             error = null
                         )
                     }
@@ -154,6 +164,38 @@ class VehicleManagementViewModel @Inject constructor(
                 }
                 is Resource.Error -> {
                     _eventFlow.emit(UiEvent.ShowSnackbar(result.message ?: "Error al remover usuario"))
+                }
+                else -> Unit
+            }
+        }
+    }
+
+    fun assignWarehouseToVehicle(vehicleId: String, warehouseId: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            val result = vehicleRepo.transferVehicleToWarehouse(vehicleId, warehouseId)
+            when (result) {
+                is Resource.Success -> {
+                    _eventFlow.emit(UiEvent.ShowSnackbar("Bodega asignada correctamente"))
+                }
+                is Resource.Error -> {
+                    _eventFlow.emit(UiEvent.ShowSnackbar(result.message ?: "Error al asignar bodega"))
+                }
+                else -> Unit
+            }
+        }
+    }
+
+    fun removeWarehouseFromVehicle(vehicleId: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            val result = vehicleRepo.removeWarehouseFromVehicle(vehicleId)
+            when (result) {
+                is Resource.Success -> {
+                    _eventFlow.emit(UiEvent.ShowSnackbar("Bodega desasignada"))
+                }
+                is Resource.Error -> {
+                    _eventFlow.emit(UiEvent.ShowSnackbar(result.message ?: "Error al desasignar"))
                 }
                 else -> Unit
             }

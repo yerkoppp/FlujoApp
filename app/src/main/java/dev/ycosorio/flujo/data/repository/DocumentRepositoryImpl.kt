@@ -12,6 +12,7 @@ import com.google.firebase.storage.FirebaseStorage
 import dev.ycosorio.flujo.domain.model.DocumentAssignment
 import dev.ycosorio.flujo.domain.model.DocumentStatus
 import dev.ycosorio.flujo.domain.model.DocumentTemplate
+import dev.ycosorio.flujo.domain.model.User
 import dev.ycosorio.flujo.domain.repository.DocumentRepository
 import dev.ycosorio.flujo.utils.Resource
 import kotlinx.coroutines.channels.awaitClose
@@ -100,16 +101,18 @@ class DocumentRepositoryImpl @Inject constructor(
         awaitClose { subscription.remove() }
     }
 
-    override suspend fun assignDocument(template: DocumentTemplate, workerIds: List<String>): Resource<Unit> {
+    override suspend fun assignDocument(template: DocumentTemplate, workers: List<User>): Resource<Unit> {
         return try {
             firestore.runBatch { batch ->
-                workerIds.forEach { workerId ->
+                workers.forEach { worker ->
                     val newDocRef = assignmentsCollection.document()
                     val newAssignment = DocumentAssignment(
                         id = newDocRef.id,
                         templateId = template.id,
                         documentTitle = template.title,
-                        workerId = workerId,
+                        documentFileUrl = template.fileUrl,
+                        workerId = worker.uid,
+                        workerName = worker.name,
                         status = DocumentStatus.PENDIENTE,
                         assignedDate = Date(),
                         signedDate = null,
@@ -197,20 +200,27 @@ class DocumentRepositoryImpl @Inject constructor(
         awaitClose { subscription.remove() }
     }
 
-    override fun getAssignedDocumentsForUser(workerId: String): Flow<Resource<List<DocumentAssignment>>> {
-        // Consultamos en la colección de asignaciones
-        return assignmentsCollection
-            .whereEqualTo("workerId", workerId) // Esta es la consulta clave que filtra por usuario
-            .snapshots() // Escucha cambios en tiempo real
-            .map { snapshot ->
-                try {
-                    // Convierte los documentos de Firestore a tu data class
-                    val assignments = snapshot.toObjects<DocumentAssignment>()
-                    Resource.Success(assignments)
-                } catch (e: Exception) {
-                    Resource.Error(e.message ?: "Error al obtener documentos asignados")
+    override fun getAssignedDocumentsForUser(workerId: String): Flow<Resource<List<DocumentAssignment>>> = callbackFlow {
+        val query = assignmentsCollection.whereEqualTo("workerId", workerId)
+
+        val subscription = query.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                if (error is FirebaseFirestoreException &&
+                    error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                    trySend(Resource.Error("Sesión finalizada"))
+                    close()
+                } else {
+                    trySend(Resource.Error(error.localizedMessage ?: "Error al obtener documentos asignados"))
+                    close(error)
                 }
+                return@addSnapshotListener
             }
+            if (snapshot != null) {
+                val assignments = snapshot.documents.mapNotNull { it.toDocumentAssignment() }
+                trySend(Resource.Success(assignments))
+            }
+        }
+        awaitClose { subscription.remove() }
     }
 }
 
@@ -234,7 +244,9 @@ private fun DocumentSnapshot.toDocumentAssignment(): DocumentAssignment? {
             id = getString("id")!!,
             templateId = getString("templateId")!!,
             documentTitle = getString("documentTitle")!!,
+            documentFileUrl = getString("documentFileUrl") ?: "",
             workerId = getString("workerId")!!,
+            workerName = getString("workerName") ?: "",
             status = DocumentStatus.valueOf(getString("status")!!),
             assignedDate = getDate("assignedDate")!!,
             signedDate = getDate("signedDate"),
@@ -250,7 +262,9 @@ private fun DocumentAssignment.toFirestoreMap(): Map<String, Any?> {
         "id" to id,
         "templateId" to templateId,
         "documentTitle" to documentTitle,
+        "documentFileUrl" to documentFileUrl,
         "workerId" to workerId,
+        "workerName" to workerName,
         "status" to status.name,
         "assignedDate" to assignedDate,
         "signedDate" to signedDate,

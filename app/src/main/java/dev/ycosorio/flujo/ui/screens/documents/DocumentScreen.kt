@@ -48,7 +48,8 @@ fun DocumentScreen(
                             navController = navController
                         )
                         Role.TRABAJADOR -> WorkerDocumentScreen(
-                            viewModel, onNavigateToSignature
+                            viewModel = viewModel,
+                            navController = navController
                         )
                     }
                 } else {
@@ -67,15 +68,19 @@ private fun AdminDocumentScreen(
     navController: NavHostController
 ) {
     val templatesState by viewModel.templates.collectAsState()
+    val assignmentsState by viewModel.allAssignments.collectAsState()
+    var selectedTab by remember { mutableStateOf(0) }
 
     Scaffold(
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    navController.navigate(Routes.UploadTemplate.route)
+            if (selectedTab == 0) {
+                FloatingActionButton(
+                    onClick = {
+                        navController.navigate(Routes.UploadTemplate.route)
+                    }
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Subir nueva plantilla")
                 }
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Subir nueva plantilla")
             }
         }
     ) { paddingValues ->
@@ -86,37 +91,111 @@ private fun AdminDocumentScreen(
                 .padding(16.dp)
         ) {
             Text(
-                text = "Admin: Plantillas de Documentos",
+                text = "Gestión de Documentos",
                 style = MaterialTheme.typography.headlineSmall
             )
             Spacer(Modifier.height(16.dp))
 
-            // Aquí iría la UI para asignar plantillas, etc.
-            when (val state = templatesState) {
-                is Resource.Loading, is Resource.Idle -> CircularProgressIndicator()
-                is Resource.Success -> {
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) { // <-- Añadir spacedBy
-                        items(state.data ?: emptyList()) { template ->
-                            // --- Convertir en Card Clicable ---
-                            Card(
-                                onClick = {
-                                    // Navegar a la nueva pantalla de asignación
-                                    navController.navigate(Routes.AssignDocument.createRoute(template.id))
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(16.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(template.title, modifier = Modifier.weight(1f))
-                                    Icon(Icons.Default.ChevronRight, contentDescription = "Asignar")
+            // TabRow para cambiar entre Plantillas y Asignaciones
+            TabRow(selectedTabIndex = selectedTab) {
+                Tab(
+                    selected = selectedTab == 0,
+                    onClick = { selectedTab = 0 },
+                    text = { Text("Plantillas") }
+                )
+                Tab(
+                    selected = selectedTab == 1,
+                    onClick = { selectedTab = 1 },
+                    text = { Text("Asignaciones") }
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // Contenido según la pestaña seleccionada
+            when (selectedTab) {
+                0 -> {
+                    // Pestaña de Plantillas
+                    when (val state = templatesState) {
+                        is Resource.Loading, is Resource.Idle -> CircularProgressIndicator()
+                        is Resource.Success -> {
+                            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(state.data ?: emptyList()) { template ->
+                                    Card(
+                                        onClick = {
+                                            navController.navigate(Routes.AssignDocument.createRoute(template.id))
+                                        },
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(16.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(template.title, modifier = Modifier.weight(1f))
+                                            Icon(Icons.Default.ChevronRight, contentDescription = "Asignar")
+                                        }
+                                    }
                                 }
                             }
                         }
+                        is Resource.Error -> Text(state.message ?: "Error")
                     }
                 }
-                is Resource.Error -> Text(state.message ?: "Error")
+                1 -> {
+                    // Pestaña de Asignaciones
+                    when (val state = assignmentsState) {
+                        is Resource.Loading, is Resource.Idle -> CircularProgressIndicator()
+                        is Resource.Success -> {
+                            val assignments = state.data
+                            if (assignments.isNullOrEmpty()) {
+                                Text("No hay documentos asignados.")
+                            } else {
+                                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    items(assignments) { assignment ->
+                                        Card(modifier = Modifier.fillMaxWidth()) {
+                                            Column(modifier = Modifier.padding(16.dp)) {
+                                                Text(
+                                                    assignment.documentTitle,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                                Text(
+                                                    "Trabajador: ${assignment.workerName}",
+                                                    style = MaterialTheme.typography.bodyMedium
+                                                )
+                                                Text(
+                                                    "Asignado: ${assignment.assignedDate.toFormattedString()}",
+                                                    style = MaterialTheme.typography.bodySmall
+                                                )
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(
+                                                        "Estado: ${assignment.status.name}",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = if (assignment.status == DocumentStatus.FIRMADO) {
+                                                            MaterialTheme.colorScheme.primary
+                                                        } else {
+                                                            MaterialTheme.colorScheme.onSurface
+                                                        }
+                                                    )
+                                                    if (assignment.status == DocumentStatus.FIRMADO && assignment.signedDate != null) {
+                                                        Text(
+                                                            "Firmado: ${assignment.signedDate.toFormattedString()}",
+                                                            style = MaterialTheme.typography.bodySmall
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        is Resource.Error -> Text(state.message ?: "Error al cargar asignaciones")
+                    }
+                }
             }
         }
     }
@@ -126,7 +205,7 @@ private fun AdminDocumentScreen(
 @Composable
 private fun WorkerDocumentScreen(
     viewModel: DocumentViewModel,
-    onNavigateToSignature: (String) -> Unit
+    navController: NavHostController
 ) {
     val pendingState by viewModel.pendingAssignments.collectAsState()
 
@@ -142,7 +221,10 @@ private fun WorkerDocumentScreen(
                 } else {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(assignments) { assignment ->
-                            DocumentAssignmentItem(assignment = assignment, onNavigateToSignature)
+                            DocumentAssignmentItem(
+                                assignment = assignment,
+                                navController = navController
+                            )
                         }
                     }
                 }
@@ -156,9 +238,13 @@ private fun WorkerDocumentScreen(
 @Composable
 fun DocumentAssignmentItem(
     assignment: DocumentAssignment,
-    onNavigateToSignature: (String) -> Unit
+    navController: NavHostController
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(onClick = {
+        navController.navigate(Routes.DocumentDetail.createRoute(assignment.id))
+    },
+        modifier = Modifier.fillMaxWidth()
+    ) {
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -172,9 +258,11 @@ fun DocumentAssignmentItem(
             }
             // Mostramos el botón solo si está pendiente
             if (assignment.status == DocumentStatus.PENDIENTE) {
-                Button(onClick = { onNavigateToSignature(assignment.id) }) {
-                    Text("Firmar")
-                }
+                Icon(
+                    Icons.Default.ChevronRight,
+                    contentDescription = "Ver detalle",
+                    tint = MaterialTheme.colorScheme.primary
+                )
             } else {
                 Text("Firmado", color = MaterialTheme.colorScheme.primary)
             }

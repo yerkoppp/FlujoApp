@@ -35,11 +35,18 @@ class MaterialRequestViewModel @Inject constructor(
     }
 
     private fun loadRequests() {
+        android.util.Log.d("MaterialRequestVM", "🔄 loadRequests() llamado")
         inventoryRepository.getMaterialRequests(
             orderBy = _orderBy.value,
             statusFilter = _statusFilter.value
             // La dirección por ahora es fija (DESCENDING), pero podría ser otro StateFlow
         ).onEach { result ->
+            android.util.Log.d("MaterialRequestVM", "📦 Resultado recibido: ${when(result) {
+                is Resource.Loading -> "Loading"
+                is Resource.Success -> "Success con ${result.data?.size} items"
+                is Resource.Error -> "Error: ${result.message}"
+                else -> "Otro"
+            }}")
             _requestsState.value = result
         }.launchIn(viewModelScope)
     }
@@ -67,7 +74,7 @@ class MaterialRequestViewModel @Inject constructor(
      */
     fun updateRequestStatus(requestId: String, newStatus: RequestStatus, adminNotes: String? = null) {
         viewModelScope.launch {
-            // Podríamos añadir un StateFlow para el estado de la actualización si queremos mostrar un loader
+            android.util.Log.d("MaterialRequestVM", "🔄 Actualizando estado: $requestId -> $newStatus")
             inventoryRepository.updateRequestStatus(requestId, newStatus, adminNotes)
 
         }

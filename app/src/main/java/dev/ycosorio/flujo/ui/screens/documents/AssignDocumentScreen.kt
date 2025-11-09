@@ -71,7 +71,9 @@ fun AssignDocumentScreen(
                             .weight(1f)
                             .padding(16.dp)
                     ) {
-                        items(state.data ?: emptyList()) { user ->
+                        items(
+                            items = state.data ?: emptyList()
+                            ) { user ->
                             WorkerCheckItem(
                                 user = user,
                                 isSelected = selectedWorkerIds.contains(user.uid),

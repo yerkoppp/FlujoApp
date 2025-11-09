@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.NoCrash
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Warehouse
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
@@ -36,6 +37,11 @@ fun AdminDashboard(
             title = "Gestionar Materiales",
             icon = Icons.Default.Inventory,
             onClick = { navController.navigate(Routes.MaterialManagement.route) }
+        ),
+        AdminAction(
+            title = "Gestionar Bodegas",
+            icon = Icons.Default.Warehouse,
+            onClick = { navController.navigate(Routes.WarehouseManagement.route) }
         ),
         AdminAction(
             title = "Notificaciones",

@@ -94,7 +94,8 @@ fun MaterialManagementScreen(
                 title = { Text("Gestionar Inventario") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Volver")
                     }
                 }
             )

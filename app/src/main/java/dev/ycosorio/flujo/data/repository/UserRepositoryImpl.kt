@@ -44,8 +44,14 @@ class UserRepositoryImpl @Inject constructor(
         // addSnapshotListener es el listener de Firestore que se dispara cada vez que hay un cambio.
         val subscription = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
-                // Si hay un error, lo cerramos y notificamos al flow.
-                close(error)
+                // Manejar PERMISSION_DENIED sin propagar (ocurre al cerrar sesión)
+                if (error is FirebaseFirestoreException &&
+                    error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                    trySend(emptyList())  // Enviar lista vacía
+                    close()  // Cerrar sin error
+                } else {
+                    close(error)
+                }
                 return@addSnapshotListener
             }
 

@@ -20,6 +20,10 @@ sealed class Routes(val route: String) {
     object MaterialRequests : Routes("admin/inventory/requests")
     object WorkerRequests : Routes("worker/requests")
     object CreateRequest : Routes("worker/requests/new")
+    object DocumentDetail : Routes("documents/detail/{assignmentId}") {
+        fun createRoute(assignmentId: String) = "documents/detail/$assignmentId"
+    }
+
     object Signature : Routes("documents/{assignmentId}/sign") {
         fun createRoute(assignmentId: String) = "documents/$assignmentId/sign"
     }
@@ -33,4 +37,5 @@ sealed class Routes(val route: String) {
     object Appearance : Routes("settings/appearance")
     object VehicleManagement: Routes ("vehicle_management" )
     object MaterialManagement: Routes ( "material_management" )
+    object WarehouseManagement: Routes("warehouse_management")
 }

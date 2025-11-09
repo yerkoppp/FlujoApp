@@ -102,8 +102,15 @@ class DocumentViewModel @Inject constructor(
                 _assignmentState.value = Resource.Error("Selecciona al menos un trabajador.")
                 return@launch
             }
-            // Llamamos a la función del repositorio que ya existe
-            _assignmentState.value = documentRepository.assignDocument(template, workerIds)
+
+            // Filtrar la lista de workers para obtener solo los seleccionados
+            val allWorkersData = _allWorkers.value
+            if (allWorkersData is Resource.Success) {
+                val selectedWorkers = allWorkersData.data?.filter { it.uid in workerIds } ?: emptyList()
+                _assignmentState.value = documentRepository.assignDocument(template, selectedWorkers)
+            } else {
+                _assignmentState.value = Resource.Error("No se pudo cargar la lista de trabajadores.")
+            }
         }
     }
 

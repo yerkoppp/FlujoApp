@@ -75,10 +75,10 @@ service firebase.storage {
     }
 
     // ====================================
-    // PATH: document_templates/{templateId}/{fileName}
+    // PATH: document_templates/{fileName}
     // ====================================
     // Plantillas de documentos
-    match /document_templates/{templateId}/{fileName} {
+    match /document_templates/{fileName} {
       // Lectura: Todos los autenticados pueden ver plantillas
       allow read: if isAuthenticated();
 

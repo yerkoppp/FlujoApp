@@ -13,5 +13,8 @@ interface VehicleRepository {
     suspend fun assignUserToVehicle(userId: String, vehicleId: String): Resource<Unit>
     suspend fun removeUserFromVehicle(userId: String, vehicleId: String): Resource<Unit>
     suspend fun transferVehicleToWarehouse(vehicleId: String, warehouseId: String): Resource<Unit>
+    suspend fun removeWarehouseFromVehicle(vehicleId: String): Resource<Unit>
     suspend fun getVehicle(vehicleId: String): Resource<Vehicle?>
+
+
 }

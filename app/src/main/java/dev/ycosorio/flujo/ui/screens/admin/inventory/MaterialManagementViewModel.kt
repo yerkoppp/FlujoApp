@@ -65,7 +65,7 @@ class MaterialManagementViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            error = result.message ?: "Error desconocido"
+                            error = result.message ?: "Error al cargar materiales"
                         )
                     }
                 }
@@ -87,7 +87,7 @@ class MaterialManagementViewModel @Inject constructor(
                     }
                 }
                 is Resource.Error -> {
-                    _uiState.update { it.copy(error = result.message) }
+                    _eventFlow.emit(UiEvent.ShowSnackbar("Error al cargar bodegas"))
                 }
                 else -> Unit
             }
@@ -111,12 +111,7 @@ class MaterialManagementViewModel @Inject constructor(
                     }
                 }
                 is Resource.Error -> {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            error = result.message
-                        )
-                    }
+                    _eventFlow.emit(UiEvent.ShowSnackbar("Error al cargar stock"))
                 }
                 else -> Unit
             }
@@ -140,6 +135,7 @@ class MaterialManagementViewModel @Inject constructor(
                 }
                 else -> Unit
             }
+            _uiState.update { it.copy(isLoading = false) }
         }
     }
 
@@ -147,26 +143,29 @@ class MaterialManagementViewModel @Inject constructor(
      * Agrega stock de un material a la bodega seleccionada actualmente.
      */
     fun addStockToSelectedWarehouse(material: Material, quantity: Int) {
-        val warehouse = _uiState.value.selectedWarehouse
-        if (warehouse == null) {
-            viewModelScope.launch {
-                _eventFlow.emit(UiEvent.ShowSnackbar("Selecciona una bodega primero"))
-            }
-            return
-        }
-
         viewModelScope.launch {
+            val warehouseId = _uiState.value.selectedWarehouse?.id
+            if (warehouseId == null) {
+                _eventFlow.emit(UiEvent.ShowSnackbar("Selecciona una bodega primero"))
+                return@launch
+            }
+
             _uiState.update { it.copy(isLoading = true) }
-            val result = inventoryRepository.addStockToWarehouse(warehouse.id, material, quantity)
+            val result = inventoryRepository.addStockToWarehouse(
+                warehouseId,
+                material,
+                quantity
+            )
             when (result) {
                 is Resource.Success -> {
-                    _eventFlow.emit(UiEvent.ShowSnackbar("Stock agregado con éxito a ${warehouse.name}"))
+                    _eventFlow.emit(UiEvent.ShowSnackbar("Stock agregado exitosamente"))
                 }
                 is Resource.Error -> {
                     _eventFlow.emit(UiEvent.ShowSnackbar(result.message ?: "Error al agregar stock"))
                 }
                 else -> Unit
             }
+            _uiState.update { it.copy(isLoading = false) }
         }
     }
 }

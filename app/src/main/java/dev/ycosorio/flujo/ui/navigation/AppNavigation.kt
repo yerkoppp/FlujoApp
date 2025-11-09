@@ -28,9 +28,11 @@ import dev.ycosorio.flujo.ui.screens.admin.users.adduser.AddUserViewModel
 import dev.ycosorio.flujo.ui.screens.admin.users.usermanagament.UserManagementScreen
 import dev.ycosorio.flujo.ui.screens.admin.users.usermanagament.UserManagementViewModel
 import dev.ycosorio.flujo.ui.screens.admin.vehicles.VehicleManagementScreen
+import dev.ycosorio.flujo.ui.screens.admin.warehouse.WarehouseManagementScreen
 import dev.ycosorio.flujo.ui.screens.auth.AccessVerificationScreen
 import dev.ycosorio.flujo.ui.screens.auth.LoginScreen
 import dev.ycosorio.flujo.ui.screens.documents.AssignDocumentScreen
+import dev.ycosorio.flujo.ui.screens.documents.DocumentDetailScreen
 import dev.ycosorio.flujo.ui.screens.documents.SignatureScreen
 import dev.ycosorio.flujo.ui.screens.documents.UploadTemplateScreen
 import dev.ycosorio.flujo.ui.screens.main.MainScreen
@@ -120,6 +122,9 @@ fun AppNavigation() {
         }
         composable(Routes.MaterialManagement.route) {
             MaterialManagementScreen(navController = navController)
+        }
+        composable(Routes.WarehouseManagement.route) {
+            WarehouseManagementScreen(navController = navController)
         }
         // Pantalla para Añadir un Usuario
         composable(Routes.AddUser.route) {
@@ -267,6 +272,20 @@ fun AppNavigation() {
                 templateId = templateId,
                 onBackPressed = { navController.popBackStack() },
                 onAssignSuccess = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Routes.DocumentDetail.route,
+            arguments = listOf(navArgument("assignmentId") { type = NavType.StringType })
+        ) {
+            val assignmentId = it.arguments?.getString("assignmentId") ?: return@composable
+            DocumentDetailScreen(
+                assignmentId = assignmentId,
+                onBackPressed = { navController.navigateUp() },
+                onNavigateToSignature = {
+                    navController.navigate(Routes.Signature.createRoute(assignmentId))
+                }
             )
         }
 

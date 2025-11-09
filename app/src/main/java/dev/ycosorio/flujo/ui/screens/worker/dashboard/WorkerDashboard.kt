@@ -99,12 +99,12 @@ fun WorkerDashboard(
                         )
                     }
                 } else {
-                    items(uiState.pendingDocuments, key = { it.workerId }) { document ->
+                    items(uiState.pendingDocuments, key = { it.id }) { document ->
                         DocumentPendingItem(
                             documentName = document.documentTitle,
                             onClick = {
                                 // Navega a la pantalla de firma
-                                navController.navigate("${Routes.Signature.route}/${document.id}")
+                                navController.navigate(Routes.Signature.createRoute(document.id))
                             }
                         )
                     }

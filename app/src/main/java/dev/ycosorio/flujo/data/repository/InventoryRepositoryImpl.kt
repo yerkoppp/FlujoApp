@@ -70,7 +70,13 @@ class InventoryRepositoryImpl @Inject constructor(
             }
 
             if (snapshot != null) {
-                val requests = snapshot.documents.mapNotNull { it.toMaterialRequest() }
+                android.util.Log.d("InventoryRepo", "📦 Documentos recibidos: ${snapshot.size()}")
+                val requests = snapshot.documents.mapNotNull {
+                    val request = it.toMaterialRequest()
+                    android.util.Log.d("InventoryRepo", "Documento ${it.id}: ${if (request != null) "✅ OK" else "❌ NULL"}")
+                    request
+                }
+                android.util.Log.d("InventoryRepo", "✅ Solicitudes parseadas: ${requests.size}")
                 trySend(Resource.Success(requests))
             }
         }
@@ -478,7 +484,6 @@ class InventoryRepositoryImpl @Inject constructor(
 
             )
         } catch (e: Exception) {
-            // Si algún campo falta o es incorrecto, no incluimos la solicitud en la lista.
             null
         }
     }

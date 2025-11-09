@@ -6,6 +6,7 @@ import dev.ycosorio.flujo.domain.model.DocumentTemplate
 import dev.ycosorio.flujo.utils.Resource
 import kotlinx.coroutines.flow.Flow
 import android.net.Uri
+import dev.ycosorio.flujo.domain.model.User
 
 /**
  * Define el contrato para las operaciones de datos relacionadas con los documentos y sus asignaciones.
@@ -29,7 +30,7 @@ interface DocumentRepository {
      * @param template La plantilla a asignar.
      * @param workerIds La lista de IDs de los trabajadores a quienes se asignará.
      */
-    suspend fun assignDocument(template: DocumentTemplate, workerIds: List<String>): Resource<Unit>
+    suspend fun assignDocument(template: DocumentTemplate, workers: List<User>): Resource<Unit>
 
     /**
      * Obtiene todas las asignaciones de documentos pendientes para un trabajador específico.
