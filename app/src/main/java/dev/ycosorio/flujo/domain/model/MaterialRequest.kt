@@ -24,13 +24,20 @@ data class MaterialRequest(
     val workerId: String,
     val workerName: String,
     val warehouseId: String,
-    val materialId: String,
-    val materialName: String,
-    val quantity: Int,
+    val items: List<RequestItem>,
     val status: RequestStatus,
     val requestDate: Date,
     val approvalDate: Date? = null,
     val rejectionDate: Date? = null,
     val deliveryDate: Date? = null,
     val adminNotes: String? = null
+)
+
+/**
+ * Representa un material individual dentro de una solicitud.
+ */
+data class RequestItem(
+    val materialId: String,
+    val materialName: String,
+    val quantity: Int
 )

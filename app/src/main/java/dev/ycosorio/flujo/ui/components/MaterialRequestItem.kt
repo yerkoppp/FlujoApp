@@ -38,10 +38,18 @@ fun MaterialRequestItem(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = "${request.workerName} solicita ${request.quantity} x ${request.materialName}",
+                text = "${request.workerName} - ${request.items.size} material(es)",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
+
+            // Mostrar lista de materiales
+            request.items.forEach { item ->
+                Text(
+                    text = "• ${item.quantity} x ${item.materialName}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
             Text(
                 text = "Fecha: ${request.requestDate.toFormattedString()}",
                 style = MaterialTheme.typography.bodySmall

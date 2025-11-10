@@ -8,6 +8,7 @@ import dev.ycosorio.flujo.domain.repository.AuthRepository
 import dev.ycosorio.flujo.domain.repository.InventoryRepository
 import dev.ycosorio.flujo.domain.repository.UserRepository
 import dev.ycosorio.flujo.domain.repository.VehicleRepository
+import dev.ycosorio.flujo.domain.model.RequestItem
 import dev.ycosorio.flujo.utils.Resource
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -43,6 +44,9 @@ class CreateRequestViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(CreateRequestUiState())
     val uiState: StateFlow<CreateRequestUiState> = _uiState.asStateFlow()
 
+    private val _selectedMaterials = MutableStateFlow<List<SelectedMaterial>>(emptyList())
+    val selectedMaterials = _selectedMaterials.asStateFlow()
+
     private var currentUserId: String? = null
 
     // --- FLUJO: Encuentra Bodega Central y carga su stock ---
@@ -68,6 +72,7 @@ class CreateRequestViewModel @Inject constructor(
                 is Resource.Success -> {
                     inventoryRepository.getStockForWarehouse(warehouseResult.data!!.id)
                 }
+
                 is Resource.Error -> flowOf(Resource.Error(warehouseResult.message!!))
                 else -> flowOf(Resource.Loading())
             }
@@ -81,10 +86,12 @@ class CreateRequestViewModel @Inject constructor(
                         isLoadingStock = false,
                         error = null
                     )
+
                     is Resource.Error -> it.copy(
                         error = stockResult.message,
                         isLoadingStock = false
                     )
+
                     else -> it
                 }
             }
@@ -97,7 +104,10 @@ class CreateRequestViewModel @Inject constructor(
                 emptyList()
             } else {
                 state.centralStock.filter {
-                    it.materialName.contains(state.searchQuery, ignoreCase = true) && it.quantity > 0
+                    it.materialName.contains(
+                        state.searchQuery,
+                        ignoreCase = true
+                    ) && it.quantity > 0
                 }
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -128,9 +138,92 @@ class CreateRequestViewModel @Inject constructor(
     }
 
     /**
+     * Agrega un material al carrito temporal
+     */
+    fun addMaterialToCart(item: StockItem, quantity: Int) {
+        val material = SelectedMaterial(
+            stockItem = item,
+            requestedQuantity = quantity
+        )
+        _selectedMaterials.update { current ->
+            current + material
+        }
+        // Limpiar búsqueda
+        onSearchQueryChanged("")
+    }
+
+    /**
+     * Remueve un material del carrito
+     */
+    fun removeMaterialFromCart(index: Int) {
+        _selectedMaterials.update { current ->
+            current.filterIndexed { i, _ -> i != index }
+        }
+    }
+
+    /**
+     * Crea múltiples solicitudes para todos los materiales en el carrito
+     */
+    fun submitMultipleMaterialRequests() {
+        val userId = currentUserId
+        val workerWarehouseId = _uiState.value.workerWarehouseId
+
+        if (userId == null || workerWarehouseId == null) {
+            _createRequestState.value = Resource.Error("No se pudo obtener el usuario o la bodega de destino.")
+            return
+        }
+
+        if (_selectedMaterials.value.isEmpty()) {
+            _createRequestState.value = Resource.Error("Agrega al menos un material a la solicitud.")
+            return
+        }
+
+        viewModelScope.launch {
+            _createRequestState.value = Resource.Loading()
+
+            try {
+                // Obtener nombre del trabajador
+                val userResource = userRepository.getUser(userId)
+                val workerName = (userResource as? Resource.Success)?.data?.name ?: "Trabajador"
+
+                // Crear lista de items
+                val requestItems = _selectedMaterials.value.map { selected ->
+                    RequestItem(
+                        materialId = selected.stockItem.materialId,
+                        materialName = selected.stockItem.materialName,
+                        quantity = selected.requestedQuantity
+                    )
+                }
+                // Crear UNA sola solicitud con múltiples items
+                val newRequest = MaterialRequest(
+                    id = UUID.randomUUID().toString(),
+                    workerId = userId,
+                    workerName = workerName,
+                    warehouseId = workerWarehouseId,
+                    items = requestItems,
+                    status = RequestStatus.PENDIENTE,
+                    requestDate = Date(),
+                    approvalDate = null,
+                    rejectionDate = null,
+                    deliveryDate = null,
+                    adminNotes = null
+                )
+                _createRequestState.value = inventoryRepository.createMaterialRequest(newRequest)
+
+                if (_createRequestState.value is Resource.Success) {
+                    _selectedMaterials.value = emptyList() // Limpiar carrito
+                }
+
+            } catch (e: Exception) {
+                _createRequestState.value = Resource.Error(e.message ?: "Error al procesar las solicitudes")
+            }
+        }
+    }
+
+    /**
      * Crea una solicitud de material desde Bodega Central para la bodega del trabajador.
      */
-    fun createMaterialRequest(item: StockItem, quantity: Int) {
+  /*  fun createMaterialRequest(item: StockItem, quantity: Int) {
         val userId = currentUserId
         val workerWarehouseId = _uiState.value.workerWarehouseId
 
@@ -195,7 +288,7 @@ class CreateRequestViewModel @Inject constructor(
                     Resource.Error(e.message ?: "Error al procesar la solicitud")
             }
         }
-    }
+    }*/
 
     fun resetCreateState() {
         _createRequestState.value = Resource.Idle()
@@ -210,4 +303,10 @@ data class CreateRequestUiState(
     val error: String? = null,
     val workerWarehouseId: String? = null,
     val centralWarehouseId: String? = null
+)
+
+// --- MODELO PARA MATERIALES SELECCIONADOS ---
+data class SelectedMaterial(
+    val stockItem: StockItem,
+    val requestedQuantity: Int
 )

@@ -15,6 +15,7 @@ import dev.ycosorio.flujo.domain.model.WarehouseType
 import dev.ycosorio.flujo.domain.repository.InventoryRepository
 import dev.ycosorio.flujo.domain.model.ConsolidatedStock
 import dev.ycosorio.flujo.domain.model.WarehouseStock
+import dev.ycosorio.flujo.domain.model.RequestItem
 import dev.ycosorio.flujo.utils.FirestoreConstants.MATERIALS_COLLECTION
 import dev.ycosorio.flujo.utils.FirestoreConstants.MATERIAL_REQUESTS_COLLECTION
 import dev.ycosorio.flujo.utils.FirestoreConstants.STOCK_SUBCOLLECTION
@@ -329,64 +330,83 @@ class InventoryRepositoryImpl @Inject constructor(
                 // Parseamos manualmente los campos necesarios
                 val status = requestDoc.getString("status")?.let { RequestStatus.valueOf(it) }
                 val warehouseId = requestDoc.getString("warehouseId")
-                val materialId = requestDoc.getString("materialId")
-                val materialName = requestDoc.getString("materialName")
-                val quantity = requestDoc.getLong("quantity")?.toInt()
+
+                @Suppress("UNCHECKED_CAST")
+                val itemsList = requestDoc.get("items") as? List<Map<String, Any>> ?: emptyList()
 
                 // Validaciones
                 if (status != RequestStatus.APROBADO) {
                     throw Exception("Solo se pueden entregar solicitudes APROBADAS. Estado actual: $status")
                 }
 
-                if (warehouseId == null || materialId == null || materialName == null || quantity == null) {
-                    throw Exception("Datos incompletos en la solicitud")
+                if (warehouseId == null) {
+                    throw Exception("warehouseId no encontrado en la solicitud")
                 }
 
-                // 2. Verificar stock disponible en Bodega Central
-                val centralStockRef = warehousesCol.document(centralWarehouseId)
-                    .collection(STOCK_SUBCOLLECTION)
-                    .document(materialId)
-
-                val centralStockDoc = transaction.get(centralStockRef)
-
-                if (!centralStockDoc.exists()) {
-                    throw Exception("El material no existe en la Bodega Central")
+                if (itemsList.isEmpty()) {
+                    throw Exception("La solicitud no tiene materiales")
                 }
 
-                val availableQuantity = centralStockDoc.getLong("quantity")?.toInt() ?: 0
+                // 2. Procesar cada material de la solicitud
+                itemsList.forEach { itemMap ->
+                    val materialId = itemMap["materialId"] as? String
+                        ?: throw Exception("materialId faltante en item")
+                    val materialName = itemMap["materialName"] as? String
+                        ?: throw Exception("materialName faltante en item")
+                    val quantity = (itemMap["quantity"] as? Long)?.toInt()
+                        ?: throw Exception("quantity faltante en item")
 
-                if (availableQuantity < quantity) {
-                    throw Exception("Stock insuficiente en Bodega Central. Disponible: $availableQuantity, Solicitado: $quantity")
+                    // 3. Verificar stock disponible en Bodega Central
+                    val centralStockRef = warehousesCol.document(centralWarehouseId)
+                        .collection(STOCK_SUBCOLLECTION)
+                        .document(materialId)
+
+                    val centralStockDoc = transaction.get(centralStockRef)
+
+                    if (!centralStockDoc.exists()) {
+                        throw Exception("El material '$materialName' no existe en la Bodega Central")
+                    }
+
+                    val availableQuantity = centralStockDoc.getLong("quantity")?.toInt() ?: 0
+
+                    if (availableQuantity < quantity) {
+                        throw Exception("Stock insuficiente de '$materialName' en Bodega Central. Disponible: $availableQuantity, Solicitado: $quantity")
+                    }
+
+                    // 4. Restar stock de Bodega Central
+                    val newCentralQuantity = availableQuantity - quantity
+                    if (newCentralQuantity == 0) {
+                        // Si queda en 0, eliminamos el documento
+                        transaction.delete(centralStockRef)
+                    } else {
+                        transaction.update(centralStockRef, "quantity", newCentralQuantity)
+                    }
+
+                    // 5. Sumar stock a Bodega Móvil (destino)
+                    val mobileStockRef = warehousesCol.document(warehouseId)
+                        .collection(STOCK_SUBCOLLECTION)
+                        .document(materialId)
+
+                    val mobileStockDoc = transaction.get(mobileStockRef)
+
+                    if (mobileStockDoc.exists()) {
+                        // Si ya existe, sumamos
+                        val currentQuantity = mobileStockDoc.getLong("quantity")?.toInt() ?: 0
+                        val newMobileQuantity = currentQuantity + quantity
+                        transaction.update(mobileStockRef, "quantity", newMobileQuantity)
+                    } else {
+                        // Si no existe, creamos el StockItem
+                        val newStockItem = StockItem(
+                            id = materialId,
+                            materialId = materialId,
+                            materialName = materialName,
+                            quantity = quantity
+                        )
+                        transaction.set(mobileStockRef, newStockItem)
+                    }
                 }
 
-                // 3. Restar stock de Bodega Central
-                val newCentralQuantity = availableQuantity - quantity
-                transaction.update(centralStockRef, "quantity", newCentralQuantity)
-
-                // 4. Sumar stock a Bodega Móvil (destino)
-                val mobileStockRef = warehousesCol.document(warehouseId)
-                    .collection(STOCK_SUBCOLLECTION)
-                    .document(materialId)
-
-                val mobileStockDoc = transaction.get(mobileStockRef)
-
-                if (mobileStockDoc.exists()) {
-                    // Si ya existe, sumamos
-                    val currentQuantity = mobileStockDoc.getLong("quantity")?.toInt() ?: 0
-                    val newMobileQuantity = currentQuantity + quantity
-                    transaction.update(mobileStockRef, "quantity", newMobileQuantity)
-                } else {
-                    // Si no existe, creamos el StockItem
-                    val newStockItem = StockItem(
-                        id = materialId,
-                        materialId = materialId,
-                        materialName = materialName,
-                        quantity = quantity
-                    )
-                    transaction.set(mobileStockRef, newStockItem)
-                }
-
-                // 5. Actualizar el estado de la solicitud a ENTREGADO
+                // 6. Actualizar el estado de la solicitud a ENTREGADO
                 val updates = mutableMapOf<String, Any?>(
                     "status" to RequestStatus.ENTREGADO.name,
                     "deliveryDate" to Date()
@@ -537,9 +557,13 @@ class InventoryRepositoryImpl @Inject constructor(
             "workerId" to workerId,
             "workerName" to workerName,
             "warehouseId" to warehouseId,
-            "materialId" to materialId,
-            "materialName" to materialName,
-            "quantity" to quantity,
+            "items" to items.map { item ->
+                mapOf(
+                    "materialId" to item.materialId,
+                    "materialName" to item.materialName,
+                    "quantity" to item.quantity
+                )
+            },
             "status" to status.name, // Guardamos el enum como un String
             "requestDate" to requestDate,
             "approvalDate" to approvalDate,
@@ -555,14 +579,22 @@ class InventoryRepositoryImpl @Inject constructor(
      */
     private fun DocumentSnapshot.toMaterialRequest(): MaterialRequest? {
         return try {
+            @Suppress("UNCHECKED_CAST")
+            val itemsList = get("items") as? List<Map<String, Any>> ?: emptyList()
+
+            val items = itemsList.map { itemMap ->
+                RequestItem(
+                    materialId = itemMap["materialId"] as? String ?: "",
+                    materialName = itemMap["materialName"] as? String ?: "",
+                    quantity = (itemMap["quantity"] as? Long)?.toInt() ?: 0
+                )
+            }
             MaterialRequest(
                 id = getString("id")!!,
                 workerId = getString("workerId")!!,
                 workerName = getString("workerName")!!,
                 warehouseId = getString("warehouseId")!!,
-                materialId = getString("materialId")!!,
-                materialName = getString("materialName")!!,
-                quantity = getLong("quantity")?.toInt() ?: 0,
+                items = items,
                 status = RequestStatus.valueOf(getString("status")!!),
                 requestDate = getDate("requestDate")!!,
                 approvalDate = getDate("approvalDate"),

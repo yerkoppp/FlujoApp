@@ -101,10 +101,10 @@ class DocumentViewModel @Inject constructor(
                 _pendingAssignments.value = it
             }.launchIn(viewModelScope)
 
-            /*// Cargar TODOS los documentos asignados al trabajador (pendientes + firmados)
+            // Cargar TODOS los documentos asignados al trabajador (pendientes + firmados)
             documentRepository.getAssignedDocumentsForUser(user.uid).onEach {
                 _allAssignmentsForWorker.value = it
-            }.launchIn(viewModelScope)*/
+            }.launchIn(viewModelScope)
            // Cargar documentos firmados
             documentRepository.getSignedDocumentsForWorker(user.uid).onEach {
                 _signedAssignments.value = it

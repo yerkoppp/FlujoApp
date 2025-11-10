@@ -29,12 +29,13 @@ fun DocumentDetailScreen(
 ) {
     val pendingAssignments by viewModel.pendingAssignments.collectAsState()
     val allAssignments by viewModel.allAssignments.collectAsState()
+    val allAssignmentsForWorker by viewModel.allAssignmentsForWorker.collectAsState()
     val context = LocalContext.current
 
     // Buscar el assignment específico
     val assignment = (pendingAssignments as? Resource.Success)?.data?.find { it.id == assignmentId }
         ?: (allAssignments as? Resource.Success)?.data?.find { it.id == assignmentId }
-
+        ?: (allAssignmentsForWorker as? Resource.Success)?.data?.find { it.id == assignmentId }
     Scaffold(
         topBar = {
             TopAppBar(

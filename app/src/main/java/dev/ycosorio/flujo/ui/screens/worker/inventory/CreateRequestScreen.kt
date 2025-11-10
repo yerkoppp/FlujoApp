@@ -3,6 +3,7 @@ package dev.ycosorio.flujo.ui.screens.worker.inventory
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -69,6 +70,7 @@ fun CreateRequestScreen(
             is Resource.Success -> {
                 snackbarHostState.showSnackbar("Solicitud creada con éxito")
                 viewModel.resetCreateState()
+                onSuccess()
             }
             is Resource.Error -> {
                 snackbarHostState.showSnackbar(state.message ?: "Error desconocido")
@@ -86,7 +88,7 @@ fun CreateRequestScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues),
-            contentAlignment = Alignment.Center
+            contentAlignment = Alignment.TopCenter
         ) {
             Column(
                 modifier = Modifier
@@ -99,13 +101,72 @@ fun CreateRequestScreen(
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
 
+                // --- SECCIÓN: MATERIALES SELECCIONADOS ---
+                val selectedMaterials by viewModel.selectedMaterials.collectAsStateWithLifecycle()
+
+                if (selectedMaterials.isNotEmpty()) {
+                    Text(
+                        text = "Materiales agregados (${selectedMaterials.size})",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            selectedMaterials.forEachIndexed { index, material ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = material.stockItem.materialName,
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                        Text(
+                                            text = "Cantidad: ${material.requestedQuantity}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    TextButton(onClick = { viewModel.removeMaterialFromCart(index) }) {
+                                        Text("Quitar")
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Button(
+                        onClick = { viewModel.submitMultipleMaterialRequests() },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp)
+                    ) {
+                        Text("Enviar Solicitud (${selectedMaterials.size} materiales)")
+                    }
+                }
+
                 // --- CAMPO DE BÚSQUEDA ---
                 OutlinedTextField(
                     value = uiState.searchQuery,
                     onValueChange = viewModel::onSearchQueryChanged,
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("Buscar material...") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null
+                        )
+                    },
                     singleLine = true,
                     isError = uiState.error != null
                 )
@@ -122,10 +183,16 @@ fun CreateRequestScreen(
 
                 // --- LISTA DE RESULTADOS ---
                 if (uiState.isLoadingStock) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
                         CircularProgressIndicator()
                     }
-                } else if (filteredMaterials.isEmpty() && uiState.searchQuery.isNotBlank()) {
+                } else if (
+                    filteredMaterials.isEmpty() &&
+                    uiState.searchQuery.isNotBlank()
+                    ) {
                     Text(
                         text = "No se encontraron materiales con ese nombre o no hay cantidad disponible.",
                         textAlign = TextAlign.Center,
@@ -135,7 +202,9 @@ fun CreateRequestScreen(
                     LazyColumn(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(filteredMaterials, key = { it.id }) { item ->
+                        items(
+                            items = filteredMaterials, key = { it.id }
+                        ) { item ->
                             MaterialSearchResultItem(
                                 item = item,
                                 onClick = {
@@ -162,7 +231,8 @@ fun CreateRequestScreen(
             item = item,
             onDismiss = { itemToRequest = null },
             onConfirm = { quantity ->
-                viewModel.createMaterialRequest(item, quantity)
+                viewModel.addMaterialToCart(item,quantity)
+                //viewModel.createMaterialRequest(item, quantity)
                 itemToRequest = null
             }
         )
