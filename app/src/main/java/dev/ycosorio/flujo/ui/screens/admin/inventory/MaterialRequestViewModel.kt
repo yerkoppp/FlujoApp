@@ -6,6 +6,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.ycosorio.flujo.domain.model.MaterialRequest
 import dev.ycosorio.flujo.domain.model.RequestStatus
 import dev.ycosorio.flujo.domain.repository.InventoryRepository
+import dev.ycosorio.flujo.domain.model.ConsolidatedStock
+import dev.ycosorio.flujo.domain.model.StockItem
+import dev.ycosorio.flujo.domain.model.Warehouse
 import dev.ycosorio.flujo.utils.Resource
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,6 +23,17 @@ class MaterialRequestViewModel @Inject constructor(
     private val inventoryRepository: InventoryRepository
 ) : ViewModel() {
 
+    private val _selectedWarehouse = MutableStateFlow<String?>(null)
+    val selectedWarehouse = _selectedWarehouse.asStateFlow()
+
+    private val _warehouseStock = MutableStateFlow<Resource<List<StockItem>>>(Resource.Idle())
+    val warehouseStock = _warehouseStock.asStateFlow()
+
+    private val _consolidatedStock = MutableStateFlow<Resource<List<ConsolidatedStock>>>(Resource.Idle())
+    val consolidatedStock = _consolidatedStock.asStateFlow()
+
+    private val _warehouses = MutableStateFlow<Resource<List<Warehouse>>>(Resource.Idle())
+    val warehouses = _warehouses.asStateFlow()
     private val _requestsState = MutableStateFlow<Resource<List<MaterialRequest>>>(Resource.Loading())
     val requestsState = _requestsState.asStateFlow()
 
@@ -32,6 +46,20 @@ class MaterialRequestViewModel @Inject constructor(
 
     init {
         loadRequests()
+        // Cargar solicitudes
+        /*inventoryRepository.getAllRequests().onEach {
+            _allRequests.value = it
+        }.launchIn(viewModelScope)*/
+
+        // Cargar bodegas
+        inventoryRepository.getWarehouses().onEach {
+            _warehouses.value = it
+        }.launchIn(viewModelScope)
+
+        // Cargar inventario consolidado
+        inventoryRepository.getConsolidatedInventory().onEach {
+            _consolidatedStock.value = it
+        }.launchIn(viewModelScope)
     }
 
     private fun loadRequests() {
@@ -146,6 +174,15 @@ class MaterialRequestViewModel @Inject constructor(
                     return@collect // Salimos después del primer resultado
                 }
             }
+        }
+    }
+
+    fun selectWarehouse(warehouseId: String?) {
+        _selectedWarehouse.value = warehouseId
+        warehouseId?.let {
+            inventoryRepository.getStockForWarehouse(it).onEach { result ->
+                _warehouseStock.value = result
+            }.launchIn(viewModelScope)
         }
     }
 

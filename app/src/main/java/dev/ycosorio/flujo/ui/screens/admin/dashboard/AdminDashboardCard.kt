@@ -27,7 +27,7 @@ fun AdminDashboardCard(action: AdminAction) {
         onClick = action.onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(1f) // Para que sea cuadrada
+            .aspectRatio(1f)
     ) {
         Column(
             modifier = Modifier.fillMaxSize().padding(16.dp),

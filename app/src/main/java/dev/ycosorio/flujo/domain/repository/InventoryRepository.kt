@@ -9,6 +9,7 @@ import dev.ycosorio.flujo.domain.model.Material
 import dev.ycosorio.flujo.domain.model.StockItem
 import dev.ycosorio.flujo.domain.model.Warehouse
 import dev.ycosorio.flujo.domain.model.WarehouseType
+import dev.ycosorio.flujo.domain.model.ConsolidatedStock
 
 /**
  * Define el contrato para las operaciones de datos relacionadas con el inventario.
@@ -140,4 +141,10 @@ interface InventoryRepository {
         centralWarehouseId: String,
         adminNotes: String? = null
     ): Resource<Unit>
+
+    /**
+     * Obtiene el inventario consolidado sumando el stock de todas las bodegas.
+     * @return Flow con la lista de materiales y sus cantidades totales
+     */
+    fun getConsolidatedInventory(): Flow<Resource<List<ConsolidatedStock>>>
 }

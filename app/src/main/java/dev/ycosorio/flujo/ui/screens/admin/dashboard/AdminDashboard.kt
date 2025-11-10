@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.NoCrash
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PersonAddAlt1
 import androidx.compose.material.icons.filled.Warehouse
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
@@ -24,22 +25,22 @@ fun AdminDashboard(
 ) {
     val adminActions = listOf(
         AdminAction(
-            title = "Gestionar de Usuarios",
-            icon = Icons.Default.Person,
+            title = "Usuarios",
+            icon = Icons.Default.PersonAddAlt1,
             onClick = onNavigateToUserManagement
         ),
         AdminAction(
-            title = "Gestionar Vehículos",
+            title = "Vehículos",
             icon = Icons.Default.NoCrash,
             onClick = { navController.navigate(Routes.VehicleManagement.route) }
         ),
         AdminAction(
-            title = "Gestionar Materiales",
+            title = "Materiales",
             icon = Icons.Default.Inventory,
             onClick = { navController.navigate(Routes.MaterialManagement.route) }
         ),
         AdminAction(
-            title = "Gestionar Bodegas",
+            title = "Bodegas",
             icon = Icons.Default.Warehouse,
             onClick = { navController.navigate(Routes.WarehouseManagement.route) }
         ),
@@ -49,7 +50,7 @@ fun AdminDashboard(
             onClick = { /* TODO: Navegar a pantalla de notificaciones */ }
         ),
         AdminAction(
-            title = "Enviar Mensaje",
+            title = "Mensajes",
             icon = Icons.AutoMirrored.Filled.Message,
             onClick = { /* TODO: Navegar a pantalla de enviar mensaje */ }
         )
@@ -57,8 +58,8 @@ fun AdminDashboard(
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(2), // 2 columnas
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+        horizontalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         items(adminActions) { action ->
             AdminDashboardCard(action = action)

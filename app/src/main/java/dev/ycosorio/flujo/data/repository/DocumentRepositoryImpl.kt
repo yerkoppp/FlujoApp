@@ -162,16 +162,24 @@ class DocumentRepositoryImpl @Inject constructor(
         assignmentId: String, signatureUrl: String
     ): Resource<Unit> {
         return try {
+            Log.d("DocumentRepository", "💾 Marcando documento como firmado: $assignmentId")
+            Log.d("DocumentRepository", "🔗 URL de firma: $signatureUrl")
+
             val updates = mapOf(
                 "status" to DocumentStatus.FIRMADO.name,
                 "signatureUrl" to signatureUrl,
                 "signedDate" to Date()
             )
+            Log.d("DocumentRepository", "📝 Updates a aplicar: $updates")
             assignmentsCollection.document(assignmentId).update(updates).await()
+            Log.d("DocumentRepository", "✅ Documento actualizado exitosamente")
+
             Resource.Success(Unit)
         } catch (e: FirebaseFirestoreException) {
+            Log.e("DocumentRepository", "❌ FirebaseFirestoreException al guardar la firma", e)
             Resource.Error(e.localizedMessage ?: "Error al guardar la firma.")
         } catch (e: Exception) {
+            Log.e("DocumentRepository", "❌ Exception al guardar la firma", e)
             Resource.Error(e.localizedMessage ?: "Error inesperado.")
         }
     }
@@ -211,6 +219,32 @@ class DocumentRepositoryImpl @Inject constructor(
                     close()
                 } else {
                     trySend(Resource.Error(error.localizedMessage ?: "Error al obtener documentos asignados"))
+                    close(error)
+                }
+                return@addSnapshotListener
+            }
+            if (snapshot != null) {
+                val assignments = snapshot.documents.mapNotNull { it.toDocumentAssignment() }
+                trySend(Resource.Success(assignments))
+            }
+        }
+        awaitClose { subscription.remove() }
+    }
+
+    override fun getSignedDocumentsForWorker(workerId: String): Flow<Resource<List<DocumentAssignment>>> = callbackFlow {
+        val query = assignmentsCollection
+            .whereEqualTo("workerId", workerId)
+            .whereEqualTo("status", DocumentStatus.FIRMADO.name)
+            .orderBy("signedDate", Query.Direction.DESCENDING)
+
+        val subscription = query.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                if (error is FirebaseFirestoreException &&
+                    error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                    trySend(Resource.Error("Sesión finalizada"))
+                    close()
+                } else {
+                    trySend(Resource.Error(error.localizedMessage ?: "Error al cargar documentos firmados."))
                     close(error)
                 }
                 return@addSnapshotListener

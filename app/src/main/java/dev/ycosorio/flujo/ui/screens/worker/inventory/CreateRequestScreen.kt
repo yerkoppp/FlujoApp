@@ -50,7 +50,7 @@ import dev.ycosorio.flujo.utils.Resource
 @Composable
 fun CreateRequestScreen(
     // Inyectamos el ViewModel que es compartido por WorkerRequestScreen
-    viewModel: WorkerRequestViewModel = hiltViewModel(),
+    viewModel: CreateRequestViewModel = hiltViewModel(),
     onSuccess: () -> Unit
 
 ) {

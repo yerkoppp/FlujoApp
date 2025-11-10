@@ -54,4 +54,9 @@ interface DocumentRepository {
      * Obtiene una lista (en tiempo real) de todos los documentos asignados a un usuario específico.
      */
     fun getAssignedDocumentsForUser(workerId: String): Flow<Resource<List<DocumentAssignment>>>
+
+    /**
+     * Obtiene todos los documentos firmados por un trabajador específico.
+     */
+    fun getSignedDocumentsForWorker(workerId: String): Flow<Resource<List<DocumentAssignment>>>
 }

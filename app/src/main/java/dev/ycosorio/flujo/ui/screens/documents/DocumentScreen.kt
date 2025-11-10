@@ -152,7 +152,12 @@ private fun AdminDocumentScreen(
                             } else {
                                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     items(assignments) { assignment ->
-                                        Card(modifier = Modifier.fillMaxWidth()) {
+                                        Card(
+                                            onClick = {
+                                            navController.navigate(Routes.DocumentDetail.createRoute(assignment.id))
+                                            },
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
                                             Column(modifier = Modifier.padding(16.dp)) {
                                                 Text(
                                                     assignment.documentTitle,
@@ -208,28 +213,84 @@ private fun WorkerDocumentScreen(
     navController: NavHostController
 ) {
     val pendingState by viewModel.pendingAssignments.collectAsState()
+    val signedState by viewModel.signedAssignments.collectAsState()
+    var selectedTab by remember { mutableStateOf(0) }
 
-    Column {
-        Text("Mis Documentos Pendientes", style = MaterialTheme.typography.headlineSmall)
+    Column(modifier = Modifier.fillMaxSize()) {
+        Text(
+            "Mis Documentos",
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
 
-        when (val state = pendingState) {
-            is Resource.Loading, is Resource.Idle -> CircularProgressIndicator()
-            is Resource.Success -> {
-                val assignments = state.data
-                if (assignments.isNullOrEmpty()) {
-                    Text("No tienes documentos pendientes de firma.")
-                } else {
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(assignments) { assignment ->
-                            DocumentAssignmentItem(
-                                assignment = assignment,
-                                navController = navController
-                            )
+        // TabRow para cambiar entre Pendientes y Firmados
+        TabRow(selectedTabIndex = selectedTab) {
+            Tab(
+                selected = selectedTab == 0,
+                onClick = { selectedTab = 0 },
+                text = { Text("Pendientes") }
+            )
+            Tab(
+                selected = selectedTab == 1,
+                onClick = { selectedTab = 1 },
+                text = { Text("Firmados") }
+            )
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // Contenido según la pestaña seleccionada
+        when (selectedTab) {
+            0 -> {
+                // Pestaña de Pendientes
+                when (val state = pendingState) {
+                    is Resource.Loading, is Resource.Idle -> CircularProgressIndicator()
+                    is Resource.Success -> {
+                        val assignments = state.data
+                        if (assignments.isNullOrEmpty()) {
+                            Text("No tienes documentos pendientes de firma.")
+                        } else {
+                            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(
+                                    items = assignments,
+                                    key = { it.id }
+                                ) { assignment ->
+                                    DocumentAssignmentItem(
+                                        assignment = assignment,
+                                        navController = navController
+                                    )
+                                }
+                            }
                         }
                     }
+                    is Resource.Error -> Text(state.message ?: "Error")
                 }
             }
-            is Resource.Error -> Text(state.message ?: "Error")
+            1 -> {
+                // Pestaña de Firmados
+                when (val state = signedState) {
+                    is Resource.Loading, is Resource.Idle -> CircularProgressIndicator()
+                    is Resource.Success -> {
+                        val assignments = state.data
+                        if (assignments.isNullOrEmpty()) {
+                            Text("No has firmado documentos aún.")
+                        } else {
+                            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(
+                                    items = assignments,
+                                    key = { it.id }
+                                ) { assignment ->
+                                    SignedDocumentItem(
+                                        assignment = assignment,
+                                        navController = navController
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    is Resource.Error -> Text(state.message ?: "Error al cargar documentos firmados")
+                }
+            }
         }
     }
 }
@@ -256,15 +317,53 @@ fun DocumentAssignmentItem(
                     style = MaterialTheme.typography.bodySmall
                 )
             }
-            // Mostramos el botón solo si está pendiente
-            if (assignment.status == DocumentStatus.PENDIENTE) {
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = "Ver detalle",
+                tint = MaterialTheme.colorScheme.primary
+            )
+
+        }
+    }
+}
+
+// --- COMPONENTE PARA UN DOCUMENTO FIRMADO ---
+@Composable
+fun SignedDocumentItem(
+    assignment: DocumentAssignment,
+    navController: NavHostController
+) {
+    Card(
+        onClick = {
+            navController.navigate(Routes.DocumentDetail.createRoute(assignment.id))
+        },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(assignment.documentTitle, fontWeight = FontWeight.Bold)
+                Text(
+                    "Asignado: ${assignment.assignedDate.toFormattedString()}",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                assignment.signedDate?.let { signedDate ->
+                    Text(
+                        "Firmado: ${signedDate.toFormattedString()}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+            Column(horizontalAlignment = Alignment.End) {
                 Icon(
                     Icons.Default.ChevronRight,
-                    contentDescription = "Ver detalle",
+                    contentDescription = "Ver documento",
                     tint = MaterialTheme.colorScheme.primary
                 )
-            } else {
-                Text("Firmado", color = MaterialTheme.colorScheme.primary)
             }
         }
     }

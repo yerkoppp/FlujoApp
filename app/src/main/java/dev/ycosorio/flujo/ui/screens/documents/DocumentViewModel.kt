@@ -41,6 +41,12 @@ class DocumentViewModel @Inject constructor(
     private val _pendingAssignments = MutableStateFlow<Resource<List<DocumentAssignment>>>(Resource.Idle())
     val pendingAssignments = _pendingAssignments.asStateFlow()
 
+    private val _allAssignmentsForWorker = MutableStateFlow<Resource<List<DocumentAssignment>>>(Resource.Idle())
+    val allAssignmentsForWorker = _allAssignmentsForWorker.asStateFlow()
+
+    private val _signedAssignments = MutableStateFlow<Resource<List<DocumentAssignment>>>(Resource.Idle())
+    val signedAssignments = _signedAssignments.asStateFlow()
+
     private val _allWorkers = MutableStateFlow<Resource<List<User>>>(Resource.Idle())
     val allWorkers = _allWorkers.asStateFlow()
 
@@ -49,6 +55,8 @@ class DocumentViewModel @Inject constructor(
 
     private val _uploadState = MutableStateFlow<Resource<Unit>>(Resource.Idle())
     val uploadState = _uploadState.asStateFlow()
+
+
 
     init {
         viewModelScope.launch {
@@ -91,6 +99,15 @@ class DocumentViewModel @Inject constructor(
             // Cargar datos para el Trabajador
             documentRepository.getPendingAssignmentsForWorker(user.uid).onEach {
                 _pendingAssignments.value = it
+            }.launchIn(viewModelScope)
+
+            /*// Cargar TODOS los documentos asignados al trabajador (pendientes + firmados)
+            documentRepository.getAssignedDocumentsForUser(user.uid).onEach {
+                _allAssignmentsForWorker.value = it
+            }.launchIn(viewModelScope)*/
+           // Cargar documentos firmados
+            documentRepository.getSignedDocumentsForWorker(user.uid).onEach {
+                _signedAssignments.value = it
             }.launchIn(viewModelScope)
         }
     }

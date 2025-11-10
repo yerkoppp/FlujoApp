@@ -13,6 +13,8 @@ import dev.ycosorio.flujo.domain.model.StockItem
 import dev.ycosorio.flujo.domain.model.Warehouse
 import dev.ycosorio.flujo.domain.model.WarehouseType
 import dev.ycosorio.flujo.domain.repository.InventoryRepository
+import dev.ycosorio.flujo.domain.model.ConsolidatedStock
+import dev.ycosorio.flujo.domain.model.WarehouseStock
 import dev.ycosorio.flujo.utils.FirestoreConstants.MATERIALS_COLLECTION
 import dev.ycosorio.flujo.utils.FirestoreConstants.MATERIAL_REQUESTS_COLLECTION
 import dev.ycosorio.flujo.utils.FirestoreConstants.STOCK_SUBCOLLECTION
@@ -23,6 +25,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import java.util.Date
 import javax.inject.Inject
 
@@ -34,6 +40,8 @@ import javax.inject.Inject
 class InventoryRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore
 ) : InventoryRepository {
+
+    private val viewModelScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val requestsCollection = firestore.collection(MATERIAL_REQUESTS_COLLECTION)
 
@@ -437,6 +445,86 @@ class InventoryRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Error al agregar stock")
         }
+    }
+
+    override fun getConsolidatedInventory(): Flow<Resource<List<ConsolidatedStock>>> = callbackFlow {
+        val materialsQuery = firestore.collection("materials")
+        val warehousesQuery = firestore.collection("warehouses")
+
+        val materialsListener = materialsQuery.addSnapshotListener { materialsSnapshot, materialsError ->
+            if (materialsError != null) {
+                if (materialsError is FirebaseFirestoreException &&
+                    materialsError.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                    trySend(Resource.Error("Sesión finalizada"))
+                    close()
+                } else {
+                    trySend(Resource.Error(materialsError.localizedMessage ?: "Error al cargar inventario"))
+                    close(materialsError)
+                }
+                return@addSnapshotListener
+            }
+
+            if (materialsSnapshot != null) {
+                // Por cada material, consultar el stock en todas las bodegas
+                viewModelScope.launch {
+                    try {
+                        val consolidatedList = mutableListOf<ConsolidatedStock>()
+
+                        for (materialDoc in materialsSnapshot.documents) {
+                            val materialId = materialDoc.id
+                            val materialName = materialDoc.getString("name") ?: "Sin nombre"
+
+                            // Obtener todas las bodegas
+                            val warehousesSnapshot = warehousesQuery.get().await()
+                            val warehouseStockList = mutableListOf<WarehouseStock>()
+                            var totalQuantity = 0
+
+                            for (warehouseDoc in warehousesSnapshot.documents) {
+                                val warehouseId = warehouseDoc.id
+                                val warehouseName = warehouseDoc.getString("name") ?: "Sin nombre"
+
+                                // Buscar el stock de este material en esta bodega
+                                val stockDoc = firestore
+                                    .collection("warehouses")
+                                    .document(warehouseId)
+                                    .collection("stock")
+                                    .document(materialId)
+                                    .get()
+                                    .await()
+
+                                val quantity = stockDoc.getLong("quantity")?.toInt() ?: 0
+
+                                if (quantity > 0) {
+                                    warehouseStockList.add(
+                                        WarehouseStock(
+                                            warehouseId = warehouseId,
+                                            warehouseName = warehouseName,
+                                            quantity = quantity
+                                        )
+                                    )
+                                    totalQuantity += quantity
+                                }
+                            }
+
+                            consolidatedList.add(
+                                ConsolidatedStock(
+                                    materialId = materialId,
+                                    materialName = materialName,
+                                    totalQuantity = totalQuantity,
+                                    warehouseBreakdown = warehouseStockList
+                                )
+                            )
+                        }
+
+                        trySend(Resource.Success(consolidatedList))
+                    } catch (e: Exception) {
+                        trySend(Resource.Error(e.localizedMessage ?: "Error al consolidar inventario"))
+                    }
+                }
+            }
+        }
+
+        awaitClose { materialsListener.remove() }
     }
 
     /**

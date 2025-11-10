@@ -1,6 +1,6 @@
 package dev.ycosorio.flujo.ui.navigation
 
-import dev.ycosorio.flujo.ui.screens.worker.inventory.WorkerRequestViewModel
+import dev.ycosorio.flujo.ui.screens.worker.inventory.CreateRequestViewModel
 import android.util.Log
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -219,29 +219,10 @@ fun AppNavigation() {
                 else -> CircularProgressIndicator()
             }
         }
-        /*
-                // Pantalla para Solicitudes de Materiales
-                composable(Routes.MaterialRequests.route) {
-                    val viewModel: MaterialRequestViewModel = hiltViewModel()
-                    MaterialRequestScreen(viewModel = viewModel)
-                }
-
-                // --- GRAFO DE NAVEGACIÓN DEL TRABAJADOR ---
-
-                // Pantalla de la lista de solicitudes del trabajador
-                composable(Routes.WorkerRequests.route) {
-                    val viewModel: WorkerRequestViewModel = hiltViewModel()
-                    WorkerRequestScreen(
-                        viewModel = viewModel,
-                        onAddRequestClicked = {
-                            navController.navigate(Routes.CreateRequest.route)
-                        }
-                    )
-                }
-        */
+        // --- GRAFO DE NAVEGACIÓN DEL TRABAJADOR ---
         // Pantalla para crear una nueva solicitud
         composable(Routes.CreateRequest.route) {
-            val viewModel: WorkerRequestViewModel = hiltViewModel()
+            val viewModel: CreateRequestViewModel = hiltViewModel()
             CreateRequestScreen(
                 viewModel = viewModel,
                 onSuccess = {
