@@ -40,6 +40,7 @@ import dev.ycosorio.flujo.ui.screens.documents.UploadTemplateScreen
 import dev.ycosorio.flujo.ui.screens.main.MainScreen
 import dev.ycosorio.flujo.ui.screens.messages.ComposeMessageScreen
 import dev.ycosorio.flujo.ui.screens.messages.MessagesScreen
+import dev.ycosorio.flujo.ui.screens.messages.MessagesViewModel
 import dev.ycosorio.flujo.ui.screens.profile.EditProfileScreen
 import dev.ycosorio.flujo.ui.screens.profile.ProfileScreen
 import dev.ycosorio.flujo.ui.screens.settings.AppearanceScreen
@@ -328,18 +329,18 @@ fun AppNavigation() {
             arguments = listOf(navArgument("userId") { type = NavType.StringType })
         ) { backStackEntry ->
             val userId = backStackEntry.arguments?.getString("userId") ?: ""
+            val messagesViewModel: MessagesViewModel = hiltViewModel()
             MessagesScreen(
                 userId = userId,
-                onNavigateToCompose = {
-                    appViewModel.currentUserProfile.value?.let { user ->
-                        navController.navigate(
-                            Routes.ComposeMessage.createRoute(
-                                user.uid,
-                                user.name,
-                                user.role.name
-                            )
+                viewModel = messagesViewModel,
+                onNavigateToCompose = { user ->  // ✅ Recibir el usuario como parámetro
+                    navController.navigate(
+                        Routes.ComposeMessage.createRoute(
+                            user.uid,
+                            user.name,
+                            user.role.name
                         )
-                    }
+                    )
                 }
             )
         }

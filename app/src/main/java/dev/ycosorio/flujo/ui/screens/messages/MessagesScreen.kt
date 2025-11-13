@@ -17,6 +17,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import dev.ycosorio.flujo.domain.model.Message
 import dev.ycosorio.flujo.domain.model.Role
+import dev.ycosorio.flujo.domain.model.User
 import dev.ycosorio.flujo.ui.navigation.Routes
 import dev.ycosorio.flujo.utils.Resource
 import java.text.SimpleDateFormat
@@ -27,8 +28,7 @@ import java.util.*
 fun MessagesScreen(
     userId: String,
     viewModel: MessagesViewModel = hiltViewModel(),
-    //navController: NavHostController,
-    onNavigateToCompose: () -> Unit
+    onNavigateToCompose: (User) -> Unit  // ✅ Cambiar firma para recibir User
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
 
@@ -47,7 +47,15 @@ fun MessagesScreen(
             TopAppBar(
                 title = { Text("Mensajes") },
                 actions = {
-                    IconButton(onClick = { onNavigateToCompose() }) {
+                    // ✅ Solo mostrar botón si el usuario está cargado
+                    IconButton(
+                        onClick = {
+                            currentUser?.let { user ->
+                                onNavigateToCompose(user)
+                            }
+                        },
+                        enabled = currentUser != null  // ✅ Deshabilitar si no hay usuario
+                    ) {
                         Icon(Icons.Default.Add, "Nuevo mensaje")
                     }
                 }

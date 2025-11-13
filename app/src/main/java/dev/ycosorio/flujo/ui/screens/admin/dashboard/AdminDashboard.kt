@@ -9,17 +9,12 @@ import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.NoCrash
 import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAddAlt1
 import androidx.compose.material.icons.filled.Warehouse
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import dev.ycosorio.flujo.domain.model.User
-import dev.ycosorio.flujo.ui.AppViewModel
 import dev.ycosorio.flujo.ui.navigation.Routes
 
 
@@ -27,10 +22,8 @@ import dev.ycosorio.flujo.ui.navigation.Routes
 fun AdminDashboard(
     navController: NavHostController,
     onNavigateToUserManagement: () -> Unit,
-    viewModel: AppViewModel = hiltViewModel()
+    user: User
 ) {
-
-    val currentUser by viewModel.currentUserProfile.collectAsState()
 
     val adminActions = listOf(
         AdminAction(
@@ -62,9 +55,8 @@ fun AdminDashboard(
             title = "Mensajes",
             icon = Icons.AutoMirrored.Filled.Message,
             onClick = {
-                currentUser?.let { user ->
-                    navController.navigate(Routes.Messages.createRoute(user.uid))
-                }
+                navController.navigate(Routes.Messages.createRoute(user.uid))
+
             }
         )
     )

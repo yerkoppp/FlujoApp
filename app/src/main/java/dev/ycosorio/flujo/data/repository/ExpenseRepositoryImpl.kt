@@ -26,67 +26,82 @@ class ExpenseRepositoryImpl @Inject constructor(
 
     override fun getExpenseReportsForWorker(workerId: String): Flow<Resource<List<ExpenseReport>>> =
         callbackFlow {
+            trySend(Resource.Loading())
+
             val listener = expenseReportsCol
                 .whereEqualTo("workerId", workerId)
                 .orderBy("createdDate", com.google.firebase.firestore.Query.Direction.DESCENDING)
-                .snapshots()
-                .map { snapshot ->
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        trySend(Resource.Error(error.message ?: "Error al cargar rendiciones"))
+                        return@addSnapshotListener
+                    }
+
                     try {
-                        val reports = snapshot.documents.mapNotNull { doc ->
+                        val reports = snapshot?.documents?.mapNotNull { doc ->
                             doc.toObject(ExpenseReport::class.java)?.copy(id = doc.id)
-                        }
-                        Resource.Success(reports)
+                        } ?: emptyList()
+                        trySend(Resource.Success(reports))
                     } catch (e: Exception) {
-                        Resource.Error(e.message ?: "Error al cargar rendiciones")
+                        trySend(Resource.Error(e.message ?: "Error al cargar rendiciones"))
                     }
                 }
-                .collect { trySend(it) }
 
-            awaitClose { }
+            awaitClose { listener.remove() }  // ✅ Cancelar el listener
         }
 
     override fun getAllExpenseReports(): Flow<Resource<List<ExpenseReport>>> =
         callbackFlow {
+            trySend(Resource.Loading())
+
             val listener = expenseReportsCol
                 .orderBy("createdDate", com.google.firebase.firestore.Query.Direction.DESCENDING)
-                .snapshots()
-                .map { snapshot ->
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        trySend(Resource.Error(error.message ?: "Error al cargar rendiciones"))
+                        return@addSnapshotListener
+                    }
+
                     try {
-                        val reports = snapshot.documents.mapNotNull { doc ->
+                        val reports = snapshot?.documents?.mapNotNull { doc ->
                             doc.toObject(ExpenseReport::class.java)?.copy(id = doc.id)
-                        }
-                        Resource.Success(reports)
+                        } ?: emptyList()
+                        trySend(Resource.Success(reports))
                     } catch (e: Exception) {
-                        Resource.Error(e.message ?: "Error al cargar rendiciones")
+                        trySend(Resource.Error(e.message ?: "Error al cargar rendiciones"))
                     }
                 }
-                .collect { trySend(it) }
 
-            awaitClose { }
+            awaitClose { listener.remove() }
         }
 
     override fun getExpenseReportById(reportId: String): Flow<Resource<ExpenseReport>> =
         callbackFlow {
+            trySend(Resource.Loading())
+
             val listener = expenseReportsCol.document(reportId)
-                .snapshots()
-                .map { snapshot ->
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        trySend(Resource.Error(error.message ?: "Error al cargar rendición"))
+                        return@addSnapshotListener
+                    }
+
                     try {
-                        val report = snapshot.toObject(ExpenseReport::class.java)?.copy(id = snapshot.id)
+                        val report = snapshot?.toObject(ExpenseReport::class.java)?.copy(id = snapshot.id)
                         if (report != null) {
-                            Resource.Success(report)
+                            trySend(Resource.Success(report))
                         } else {
-                            Resource.Error("Rendición no encontrada")
+                            trySend(Resource.Error("Rendición no encontrada"))
                         }
                     } catch (e: Exception) {
-                        Resource.Error(e.message ?: "Error al cargar rendición")
+                        trySend(Resource.Error(e.message ?: "Error al cargar rendición"))
                     }
                 }
-                .collect { trySend(it) }
 
-            awaitClose { }
+            awaitClose { listener.remove() }
         }
 
-    override suspend fun saveExpenseReport(report: ExpenseReport): Resource<Unit> {
+    override suspend fun saveExpenseReport(report: ExpenseReport): Resource<String> {
         return try {
             val docRef = if (report.id.isEmpty()) {
                 expenseReportsCol.document()
@@ -96,7 +111,7 @@ class ExpenseRepositoryImpl @Inject constructor(
 
             val reportToSave = report.copy(id = docRef.id)
             docRef.set(reportToSave).await()
-            Resource.Success(Unit)
+            Resource.Success(docRef.id)
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Error al guardar rendición")
         }

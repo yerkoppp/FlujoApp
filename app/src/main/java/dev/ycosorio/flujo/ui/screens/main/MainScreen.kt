@@ -210,7 +210,8 @@ private fun RealDashboardContent(
         when (user.role) {
             Role.ADMINISTRADOR -> AdminDashboard(
                 navController = navController,
-                onNavigateToUserManagement = onNavigateToUserManagement
+                onNavigateToUserManagement = onNavigateToUserManagement,
+                user = user
             )
             Role.TRABAJADOR -> WorkerDashboard(
                 user = user,

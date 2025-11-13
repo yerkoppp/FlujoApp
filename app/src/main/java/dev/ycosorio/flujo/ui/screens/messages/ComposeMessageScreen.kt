@@ -194,23 +194,22 @@ fun ComposeMessageScreen(
                     }
                 }
             }
+            OutlinedTextField(
+                value = subject,
+                onValueChange = { subject = it },
+                label = { Text("Asunto") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+
+            OutlinedTextField(
+                value = content,
+                onValueChange = { content = it },
+                label = { Text("Mensaje") },
+                modifier = Modifier
+                    .fillMaxWidth(),
+                minLines = 5
+            )
         }
-
-        OutlinedTextField(
-            value = subject,
-            onValueChange = { subject = it },
-            label = { Text("Asunto") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true
-        )
-
-        OutlinedTextField(
-            value = content,
-            onValueChange = { content = it },
-            label = { Text("Mensaje") },
-            modifier = Modifier
-                .fillMaxWidth(),
-            minLines = 5
-        )
     }
 }

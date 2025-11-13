@@ -131,7 +131,7 @@ class ExpenseReportViewModel @Inject constructor(
         val newReport = ExpenseReport(
             id = "",
             workerId = userId,
-            workerName = "",
+            workerName = currentUserId?.displayName ?: "",
             items = emptyList(),
             totalAmount = 0.0,
             status = ExpenseReportStatus.DRAFT,
@@ -140,8 +140,14 @@ class ExpenseReportViewModel @Inject constructor(
 
         when (val result = expenseRepository.saveExpenseReport(newReport)) {
             is Resource.Success -> {
-                // Recargar para obtener el ID generado
-                loadReport(null)
+                // ✅ Cargar el draft con el ID que acabamos de crear
+                // El repository debe retornar el ID generado
+                _uiState.update {
+                    it.copy(
+                        currentReport = newReport.copy(id = result.data ?: ""),
+                        isLoading = false
+                    )
+                }
             }
             is Resource.Error -> {
                 _uiState.update {
@@ -206,9 +212,10 @@ class ExpenseReportViewModel @Inject constructor(
                     // Guardar
                     when (val saveResult = expenseRepository.saveExpenseReport(updatedReport)) {
                         is Resource.Success -> {
+                            val reportId = saveResult.data ?: updatedReport.id
                             _uiState.update {
                                 it.copy(
-                                    currentReport = updatedReport,
+                                    currentReport = updatedReport.copy(id = reportId),
                                     isUploadingImage = false,
                                     uploadProgress = null
                                 )
@@ -258,9 +265,10 @@ class ExpenseReportViewModel @Inject constructor(
 
             when (val result = expenseRepository.saveExpenseReport(updatedReport)) {
                 is Resource.Success -> {
+                    val reportId = result.data ?: updatedReport.id
                     _uiState.update {
                         it.copy(
-                            currentReport = updatedReport,
+                            currentReport = updatedReport.copy(id = reportId),
                             isLoading = false
                         )
                     }

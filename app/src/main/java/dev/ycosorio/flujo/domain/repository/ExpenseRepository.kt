@@ -26,7 +26,7 @@ interface ExpenseRepository {
     /**
      * Crea o actualiza una rendición (para guardar borrador)
      */
-    suspend fun saveExpenseReport(report: ExpenseReport): Resource<Unit>
+    suspend fun saveExpenseReport(report: ExpenseReport): Resource<String>
 
     /**
      * Sube una imagen de un comprobante y retorna la URL
