@@ -22,7 +22,7 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class WorkerRequestViewModel @Inject constructor(
     private val inventoryRepository: InventoryRepository,
-    private val authRepository: AuthRepository,
+    authRepository: AuthRepository,
     private val vehicleRepository: VehicleRepository
 ) : ViewModel() {
 

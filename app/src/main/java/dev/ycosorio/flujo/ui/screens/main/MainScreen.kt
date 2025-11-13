@@ -19,9 +19,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -34,7 +31,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.firebase.ui.auth.AuthUI
 import dev.ycosorio.flujo.domain.model.Role
 import dev.ycosorio.flujo.domain.model.User
 import dev.ycosorio.flujo.ui.components.MainTopAppBar
@@ -43,8 +39,6 @@ import dev.ycosorio.flujo.ui.navigation.Routes
 import dev.ycosorio.flujo.ui.screens.admin.dashboard.AdminDashboard
 import dev.ycosorio.flujo.ui.screens.admin.inventory.MaterialRequestScreen
 import dev.ycosorio.flujo.ui.screens.admin.inventory.MaterialRequestViewModel
-import dev.ycosorio.flujo.ui.screens.auth.LoginViewModel
-import dev.ycosorio.flujo.ui.screens.dashboard.DashboardScreen
 import dev.ycosorio.flujo.ui.screens.dashboard.DashboardViewModel
 import dev.ycosorio.flujo.ui.screens.documents.DocumentScreen
 import dev.ycosorio.flujo.ui.screens.worker.dashboard.WorkerDashboard
@@ -66,28 +60,7 @@ fun MainScreen(
     val currentRoute = navBackStackEntry?.destination?.route
 
     val dashboardViewModel: DashboardViewModel = hiltViewModel()
-    //val loginViewModel: LoginViewModel = hiltViewModel()
 
-    //var isAuthorized by remember { mutableStateOf(false) }
-    //var authorizedUser by remember { mutableStateOf<User?>(null) }
-    /*
-        val mockUser = remember {
-            User(
-                uid = "admin_001",
-                name = "Admin Prueba",
-                email = "admin@flujo.com",
-                phoneNumber = "+56912345678",
-                photoUrl = null,
-                role = Role.ADMINISTRADOR,
-                position = "Gerente General",
-                area = "Administración",
-                contractStartDate = Date(),
-                contractEndDate = null
-            )
-        }
-
-        val userState = Resource.Success(mockUser)
-    */
     val userState by dashboardViewModel.userState.collectAsState()
 
     // Cargar usuario actual

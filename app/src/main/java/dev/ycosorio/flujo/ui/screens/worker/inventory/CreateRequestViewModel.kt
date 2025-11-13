@@ -34,7 +34,7 @@ import kotlinx.coroutines.flow.launchIn
 class CreateRequestViewModel @Inject constructor(
     private val inventoryRepository: InventoryRepository,
     private val userRepository: UserRepository,
-    private val authRepository: AuthRepository,
+    authRepository: AuthRepository,
     private val vehicleRepository: VehicleRepository
 ) : ViewModel() {
 

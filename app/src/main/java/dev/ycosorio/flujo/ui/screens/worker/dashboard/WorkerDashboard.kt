@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -51,7 +52,9 @@ fun WorkerDashboard(
 
     Scaffold (
         topBar = {
-            TopAppBar(title = { Text("Resumen del Trabajador") })
+            TopAppBar(
+                title = { Text("Resumen del Trabajador") },
+                modifier = Modifier.fillMaxHeight(0.1f))
         }
     ) { paddingValues ->
 
@@ -81,7 +84,29 @@ fun WorkerDashboard(
                         }
                     )
                 }
-
+                item {
+                    QuickActionCard(
+                        title = "Enviar Mensaje al Admin",
+                        onClick = {
+                            navController.navigate(
+                                Routes.ComposeMessage.createRoute(
+                                    user.uid,
+                                    user.name,
+                                    Role.TRABAJADOR.name
+                                )
+                            )
+                        }
+                    )
+                }
+                //Tarjeta de Rendición de Gastos
+                item {
+                    QuickActionCard(
+                        title = "Rendir Gastos",
+                        onClick = {
+                            navController.navigate(Routes.ExpenseReportList.route)
+                        }
+                    )
+                }
                 // --- 2. Tareas Pendientes (Documentos) ---
                 item {
                     Text(

@@ -22,8 +22,12 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.ycosorio.flujo.BuildConfig
 import dev.ycosorio.flujo.data.preferences.UserPreferencesRepository
 import dev.ycosorio.flujo.data.repository.AuthRepositoryImpl
+import dev.ycosorio.flujo.data.repository.ExpenseRepositoryImpl
+import dev.ycosorio.flujo.data.repository.MessageRepositoryImpl
 import dev.ycosorio.flujo.data.repository.VehicleRepositoryImpl
 import dev.ycosorio.flujo.domain.repository.AuthRepository
+import dev.ycosorio.flujo.domain.repository.ExpenseRepository
+import dev.ycosorio.flujo.domain.repository.MessageRepository
 import dev.ycosorio.flujo.domain.repository.VehicleRepository
 
 @Module
@@ -94,7 +98,21 @@ object AppModule {
     @Singleton
     fun provideFirebaseFunctions(): FirebaseFunctions {
         val functions = Firebase.functions("southamerica-west1")
-
         return functions
     }
+
+    @Provides
+    @Singleton
+    fun provideMessageRepository(firestore: FirebaseFirestore): MessageRepository =
+        MessageRepositoryImpl(firestore)
+
+    @Provides
+    @Singleton
+    fun provideExpenseRepository(
+        firestore: FirebaseFirestore,
+        storage: FirebaseStorage
+    ): ExpenseRepository {
+        return ExpenseRepositoryImpl(firestore, storage)
+    }
+
 }

@@ -14,6 +14,7 @@ object FirestoreConstants {
     const val WAREHOUSES_COLLECTION = "warehouses"
     const val MATERIALS_COLLECTION = "materials"
     const val STOCK_SUBCOLLECTION = "stock"
+    const val MESSAGES_COLLECTION = "messages"
 
 
     // Campos comunes

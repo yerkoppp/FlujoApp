@@ -101,6 +101,27 @@ service firebase.storage {
     }
 
     // ====================================
+    // PATH: expense_images/{userId}/{fileName}
+    // ====================================
+    // Comprobantes de gastos (boletas y facturas)
+    match /expense_images/{userId}/{fileName} {
+      // Lectura: Admin puede ver todas, usuario solo sus propios comprobantes
+      allow read: if isAuthenticated() && (isAdmin() || isOwner(userId));
+
+      // Escritura: Solo el propietario puede subir sus comprobantes
+      allow create: if isAuthenticated() &&
+                      isOwner(userId) &&
+                      isValidImageType() &&
+                      request.resource.size < 10 * 1024 * 1024; // 10 MB para comprobantes
+
+      // Actualización: No permitida (los comprobantes no se actualizan)
+      allow update: if false;
+
+      // Eliminación: Admin o el propio usuario pueden eliminar
+      allow delete: if isAuthenticated() && (isAdmin() || isOwner(userId));
+    }
+
+    // ====================================
     // DENEGAR TODO LO DEMÁS
     // ====================================
     // Cualquier path no especificado es denegado por defecto

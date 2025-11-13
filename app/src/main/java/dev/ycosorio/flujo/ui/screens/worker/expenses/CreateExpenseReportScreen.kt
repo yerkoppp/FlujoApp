@@ -1,0 +1,336 @@
+package dev.ycosorio.flujo.ui.screens.worker.expenses
+
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import coil.compose.AsyncImage
+import dev.ycosorio.flujo.domain.model.ExpenseItem
+import dev.ycosorio.flujo.domain.model.ExpenseReportStatus
+import dev.ycosorio.flujo.utils.Resource
+import java.text.NumberFormat
+import java.text.SimpleDateFormat
+import java.util.Locale
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CreateExpenseReportScreen(
+    reportId: String? = null,
+    onNavigateBack: () -> Unit,
+    viewModel: ExpenseReportViewModel = hiltViewModel()
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    var showAddDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(reportId) {
+        viewModel.loadReport(reportId)
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(if (reportId == null) "Nueva Rendición" else "Editar Rendición") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver")
+                    }
+                },
+                actions = {
+                    if (uiState.currentReport != null) {
+                        TextButton(onClick = { viewModel.submitReport() }) {
+                            Text("ENVIAR")
+                        }
+                    }
+                }
+            )
+        },
+        floatingActionButton = {
+            if (uiState.currentReport != null &&
+                uiState.currentReport?.status == ExpenseReportStatus.DRAFT) {
+                FloatingActionButton(onClick = { showAddDialog = true }) {
+                    Icon(Icons.Default.Add, "Agregar Comprobante")
+                }
+            }
+        }
+    ) { padding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            when {
+                uiState.isLoading -> {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                }
+                uiState.currentReport != null -> {
+                    val report = uiState.currentReport!!
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        // Total
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    "Total Acumulado",
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Text(
+                                    NumberFormat.getCurrencyInstance(Locale("es", "CL"))
+                                        .format(report.totalAmount),
+                                    style = MaterialTheme.typography.displaySmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    "${report.items.size} comprobante(s)",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        }
+
+                        // Lista de items
+                        if (report.items.isEmpty()) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "No hay comprobantes agregados\nToca el botón + para agregar",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(report.items) { item ->
+                                    ExpenseItemCard(
+                                        item = item,
+                                        onDelete = { viewModel.removeExpenseItem(item.id) },
+                                        canDelete = report.status == ExpenseReportStatus.DRAFT
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                else -> {
+                    Text(
+                        "Cargando...",
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+            }
+
+            // Overlay de carga al subir imagen
+            if (uiState.isUploadingImage) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(uiState.uploadProgress ?: "Procesando...")
+                    }
+                }
+            }
+        }
+    }
+
+    // Dialog para agregar comprobante
+    if (showAddDialog) {
+        AddExpenseDialog(
+            onDismiss = { showAddDialog = false },
+            onAdd = { uri, reason, docNumber, amount ->
+                viewModel.addExpenseItem(uri, reason, docNumber, amount)
+                showAddDialog = false
+            }
+        )
+    }
+
+    // Mostrar errores
+    uiState.error?.let { error ->
+        AlertDialog(
+            onDismissRequest = { viewModel.clearError() },
+            title = { Text("Error") },
+            text = { Text(error) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.clearError() }) {
+                    Text("OK")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun ExpenseItemCard(
+    item: ExpenseItem,
+    onDelete: () -> Unit,
+    canDelete: Boolean = true
+) {
+    val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+    val currencyFormat = NumberFormat.getCurrencyInstance(Locale("es", "CL"))
+
+    Card(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Imagen
+            AsyncImage(
+                model = item.imageUrl,
+                contentDescription = "Comprobante",
+                modifier = Modifier.size(80.dp),
+                contentScale = ContentScale.Crop
+            )
+
+            // Detalles
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = item.reason,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = "Doc: ${item.documentNumber}",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    text = currencyFormat.format(item.amount),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = dateFormat.format(item.uploadDate),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Botón eliminar
+            if (canDelete) {
+                IconButton(onClick = onDelete) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Eliminar",
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AddExpenseDialog(
+    onDismiss: () -> Unit,
+    onAdd: (Uri, String, String, Double) -> Unit
+) {
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var reason by remember { mutableStateOf("") }
+    var documentNumber by remember { mutableStateOf("") }
+    var amount by remember { mutableStateOf("") }
+
+    val imagePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let { selectedImageUri = it }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Agregar Comprobante") },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Botón para seleccionar imagen
+                OutlinedButton(
+                    onClick = { imagePicker.launch("image/*") },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Image, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (selectedImageUri != null) "Imagen seleccionada" else "Seleccionar imagen")
+                }
+
+                OutlinedTextField(
+                    value = reason,
+                    onValueChange = { reason = it },
+                    label = { Text("Motivo") },
+                    placeholder = { Text("Ej: Combustible, Estacionamiento") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = documentNumber,
+                    onValueChange = { documentNumber = it },
+                    label = { Text("Nro Documento") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = amount,
+                    onValueChange = { amount = it },
+                    label = { Text("Monto") },
+                    modifier = Modifier.fillMaxWidth(),
+                    prefix = { Text("$") }
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val uri = selectedImageUri
+                    val amt = amount.toDoubleOrNull()
+                    if (uri != null && reason.isNotBlank() &&
+                        documentNumber.isNotBlank() && amt != null && amt > 0) {
+                        onAdd(uri, reason, documentNumber, amt)
+                    }
+                },
+                enabled = selectedImageUri != null && reason.isNotBlank() &&
+                        documentNumber.isNotBlank() && amount.toDoubleOrNull() != null
+            ) {
+                Text("AGREGAR")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("CANCELAR")
+            }
+        }
+    )
+}

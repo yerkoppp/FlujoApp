@@ -261,6 +261,41 @@ class UserRepositoryImpl @Inject constructor(
         }
     }
 
+    override fun getUserById(uid: String): Flow<Resource<User>> = callbackFlow {
+        val listener = usersCollection.document(uid)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    trySend(Resource.Error(error.message ?: "Error al obtener usuario"))
+                    return@addSnapshotListener
+                }
+
+                val user = snapshot?.toUser()
+                if (user != null) {
+                    trySend(Resource.Success(user))
+                } else {
+                    trySend(Resource.Error("Usuario no encontrado"))
+                }
+            }
+
+        awaitClose { listener.remove() }
+    }
+
+    override fun getUsersByRole(role: Role): Flow<Resource<List<User>>> = callbackFlow {
+        val listener = usersCollection
+            .whereEqualTo("role", role.name)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    trySend(Resource.Error(error.message ?: "Error al obtener usuarios"))
+                    return@addSnapshotListener
+                }
+
+                val users = snapshot?.documents?.mapNotNull { it.toUser() } ?: emptyList()
+                trySend(Resource.Success(users))
+            }
+
+        awaitClose { listener.remove() }
+    }
+
     /**
      * Limpia la caché de usuarios (útil al cerrar sesión)
      */
@@ -268,6 +303,7 @@ class UserRepositoryImpl @Inject constructor(
         Log.d("UserRepository", "🧹 Limpiando caché de usuarios")
         emailCache.clear()
     }
+
 }
 /**
  * Función de extensión privada para convertir un DocumentSnapshot de Firestore

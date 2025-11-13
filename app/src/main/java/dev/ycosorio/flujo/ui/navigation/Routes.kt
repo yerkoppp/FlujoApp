@@ -38,4 +38,17 @@ sealed class Routes(val route: String) {
     object VehicleManagement: Routes ("vehicle_management" )
     object MaterialManagement: Routes ( "material_management" )
     object WarehouseManagement: Routes("warehouse_management")
+    object Messages : Routes("messages/{userId}") {
+        fun createRoute(userId: String) = "messages/$userId"
+    }
+    object ComposeMessage : Routes("compose_message/{userId}/{userName}/{userRole}") {
+        fun createRoute(userId: String, userName: String, userRole: String) =
+            "compose_message/$userId/$userName/$userRole"
+    }
+    object ExpenseReportList : Routes("worker/expenses")
+    object CreateExpenseReport : Routes("worker/expenses/new")
+    object EditExpenseReport : Routes("worker/expenses/edit/{reportId}") {
+        fun createRoute(reportId: String) = "worker/expenses/edit/$reportId"
+    }
 }
+

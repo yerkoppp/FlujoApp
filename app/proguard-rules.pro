@@ -30,3 +30,67 @@
 -keepnames class com.google.firebase.auth.FirebaseAuthException
 -keepnames class com.google.firebase.firestore.FirebaseFirestoreException
 -keepnames class com.google.firebase.storage.StorageException
+
+# ====================================
+# FIREBASE FIRESTORE - Modelos
+# ====================================
+# Mantener todos los modelos de dominio sin ofuscar
+-keep class dev.ycosorio.flujo.domain.model.** { *; }
+-keepclassmembers class dev.ycosorio.flujo.domain.model.** { *; }
+
+# Mantener constructores sin argumentos
+-keepclassmembers class * {
+    public <init>();
+}
+
+# Mantener atributos para serialización
+-keepattributes Signature
+-keepattributes *Annotation*
+-keepattributes EnclosingMethod
+
+# Mantener enums
+-keepclassmembers enum * {
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
+    **[] $VALUES;
+    public *;
+}
+
+# ====================================
+# FIREBASE STORAGE
+# ====================================
+-keep class com.google.firebase.storage.** { *; }
+
+# ====================================
+# KOTLIN
+# ====================================
+# Mantener clases de datos de Kotlin
+-keep class kotlin.Metadata { *; }
+-keepclassmembers class * {
+    @kotlin.Metadata *;
+}
+
+# Mantener constructores por defecto para data classes
+-keepclassmembers class * {
+    public <init>(...);
+}
+
+# ====================================
+# HILT/DAGGER
+# ====================================
+-keep class dagger.hilt.** { *; }
+-keep class javax.inject.** { *; }
+-keep class * extends dagger.hilt.android.internal.managers.ViewComponentManager$FragmentContextWrapper { *; }
+
+# ====================================
+# COIL (Carga de imágenes)
+# ====================================
+-keep class coil.** { *; }
+
+# ====================================
+# MODELOS ESPECÍFICOS DE RENDICIÓN
+# ====================================
+# Asegurarse de que los nuevos modelos no sean ofuscados
+-keep class dev.ycosorio.flujo.domain.model.ExpenseReport { *; }
+-keep class dev.ycosorio.flujo.domain.model.ExpenseItem { *; }
+-keep enum dev.ycosorio.flujo.domain.model.ExpenseReportStatus { *; }

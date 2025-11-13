@@ -13,16 +13,25 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAddAlt1
 import androidx.compose.material.icons.filled.Warehouse
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import dev.ycosorio.flujo.domain.model.User
+import dev.ycosorio.flujo.ui.AppViewModel
 import dev.ycosorio.flujo.ui.navigation.Routes
 
 
 @Composable
 fun AdminDashboard(
     navController: NavHostController,
-    onNavigateToUserManagement: () -> Unit
+    onNavigateToUserManagement: () -> Unit,
+    viewModel: AppViewModel = hiltViewModel()
 ) {
+
+    val currentUser by viewModel.currentUserProfile.collectAsState()
+
     val adminActions = listOf(
         AdminAction(
             title = "Usuarios",
@@ -52,7 +61,11 @@ fun AdminDashboard(
         AdminAction(
             title = "Mensajes",
             icon = Icons.AutoMirrored.Filled.Message,
-            onClick = { /* TODO: Navegar a pantalla de enviar mensaje */ }
+            onClick = {
+                currentUser?.let { user ->
+                    navController.navigate(Routes.Messages.createRoute(user.uid))
+                }
+            }
         )
     )
 

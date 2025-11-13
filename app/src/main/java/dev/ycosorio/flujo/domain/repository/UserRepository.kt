@@ -1,5 +1,6 @@
 package dev.ycosorio.flujo.domain.repository
 
+import dev.ycosorio.flujo.domain.model.Role
 import dev.ycosorio.flujo.domain.model.User
 import dev.ycosorio.flujo.utils.Resource
 import kotlinx.coroutines.flow.Flow
@@ -55,4 +56,16 @@ interface UserRepository {
      * Obtiene un usuario por su email (usado para vincular con Firebase Auth).
      */
     suspend fun getUserByEmail(email: String): Resource<User>
+
+    /**
+     * Obtiene un usuario por su ID en tiempo real.
+     */
+    fun getUserById(uid: String): Flow<Resource<User>>
+
+    /**
+     * Obtiene una lista de usuarios según su rol.
+     * @param role El rol de los usuarios a obtener.
+     * @return Un Flow que emite un Resource con la lista de usuarios.
+     */
+    fun getUsersByRole(role: Role): Flow<Resource<List<User>>>
 }

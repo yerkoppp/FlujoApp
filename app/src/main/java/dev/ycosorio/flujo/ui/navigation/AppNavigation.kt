@@ -18,6 +18,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import dev.ycosorio.flujo.domain.model.AuthUser
+import dev.ycosorio.flujo.domain.model.Role
 import dev.ycosorio.flujo.ui.AppViewModel
 import dev.ycosorio.flujo.ui.screens.admin.inventory.MaterialManagementScreen
 import dev.ycosorio.flujo.ui.screens.admin.users.EditUserScreen
@@ -36,10 +38,14 @@ import dev.ycosorio.flujo.ui.screens.documents.DocumentDetailScreen
 import dev.ycosorio.flujo.ui.screens.documents.SignatureScreen
 import dev.ycosorio.flujo.ui.screens.documents.UploadTemplateScreen
 import dev.ycosorio.flujo.ui.screens.main.MainScreen
+import dev.ycosorio.flujo.ui.screens.messages.ComposeMessageScreen
+import dev.ycosorio.flujo.ui.screens.messages.MessagesScreen
 import dev.ycosorio.flujo.ui.screens.profile.EditProfileScreen
 import dev.ycosorio.flujo.ui.screens.profile.ProfileScreen
 import dev.ycosorio.flujo.ui.screens.settings.AppearanceScreen
 import dev.ycosorio.flujo.ui.screens.settings.SettingsScreen
+import dev.ycosorio.flujo.ui.screens.worker.expenses.CreateExpenseReportScreen
+import dev.ycosorio.flujo.ui.screens.worker.expenses.ExpenseReportListScreen
 import dev.ycosorio.flujo.ui.screens.worker.inventory.CreateRequestScreen
 import dev.ycosorio.flujo.utils.Resource
 
@@ -314,6 +320,84 @@ fun AppNavigation() {
             EditProfileScreen(
                 onBackPressed = { navController.popBackStack() },
                 onSaveSuccess = { navController.popBackStack() }
+            )
+        }
+        // Lista de mensajes
+        composable(
+            route = Routes.Messages.route,
+            arguments = listOf(navArgument("userId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId") ?: ""
+            MessagesScreen(
+                userId = userId,
+                onNavigateToCompose = {
+                    appViewModel.currentUserProfile.value?.let { user ->
+                        navController.navigate(
+                            Routes.ComposeMessage.createRoute(
+                                user.uid,
+                                user.name,
+                                user.role.name
+                            )
+                        )
+                    }
+                }
+            )
+        }
+        // Pantalla para componer un nuevo mensaje
+        composable(
+            route = Routes.ComposeMessage.route,
+            arguments = listOf(
+                navArgument("userId") { type = NavType.StringType },
+                navArgument("userName") { type = NavType.StringType },
+                navArgument("userRole") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId") ?: ""
+            val userName = backStackEntry.arguments?.getString("userName") ?: ""
+            val userRoleString = backStackEntry.arguments?.getString("userRole") ?: ""
+            val userRole = try { Role.valueOf(userRoleString)
+            } catch (e: Exception) { Role.TRABAJADOR }
+
+            ComposeMessageScreen(
+                userId = userId,
+                userName = userName,
+                userRole = userRole,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Lista de rendiciones
+        composable(Routes.ExpenseReportList.route) {
+            ExpenseReportListScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onCreateNew = { navController.navigate(Routes.CreateExpenseReport.route) },
+                onReportClick = { reportId ->
+                    navController.navigate(Routes.EditExpenseReport.createRoute(reportId))
+                }
+            )
+        }
+
+        // Crear nueva rendición
+        composable(Routes.CreateExpenseReport.route) {
+            CreateExpenseReportScreen(
+                reportId = null,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Editar rendición existente
+        composable(
+            route = Routes.EditExpenseReport.route,
+            arguments = listOf(
+                navArgument("reportId") {
+                    type = NavType.StringType
+                }
+            )
+        ) { backStackEntry ->
+            val reportId = backStackEntry.arguments?.getString("reportId")
+            CreateExpenseReportScreen(
+                reportId = reportId,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }
