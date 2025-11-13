@@ -1,5 +1,6 @@
 package dev.ycosorio.flujo.data.repository
 
+import android.util.Log
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -45,6 +46,7 @@ class MessageRepositoryImpl @Inject constructor(
             .whereArrayContains("recipientIds", userId)
             .orderBy("timestamp", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
+                Log.d("MessagesRepositoryImpl", "🔍 Cargando mensajes recibidos para: $userId")
                 if (error != null) {
                     trySend(Resource.Error(error.message ?: "Error al obtener mensajes"))
                     return@addSnapshotListener

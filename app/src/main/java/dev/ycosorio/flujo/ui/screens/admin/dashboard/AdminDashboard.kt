@@ -16,6 +16,8 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import dev.ycosorio.flujo.domain.model.User
 import dev.ycosorio.flujo.ui.navigation.Routes
+import dev.ycosorio.flujo.ui.screens.dashboard.DashboardAction
+import dev.ycosorio.flujo.ui.screens.dashboard.DashboardCard
 
 
 @Composable
@@ -25,33 +27,33 @@ fun AdminDashboard(
     user: User
 ) {
 
-    val adminActions = listOf(
-        AdminAction(
+    val dashboardActions = listOf(
+        DashboardAction(
             title = "Usuarios",
             icon = Icons.Default.PersonAddAlt1,
             onClick = onNavigateToUserManagement
         ),
-        AdminAction(
+        DashboardAction(
             title = "Vehículos",
             icon = Icons.Default.NoCrash,
             onClick = { navController.navigate(Routes.VehicleManagement.route) }
         ),
-        AdminAction(
+        DashboardAction(
             title = "Materiales",
             icon = Icons.Default.Inventory,
             onClick = { navController.navigate(Routes.MaterialManagement.route) }
         ),
-        AdminAction(
+        DashboardAction(
             title = "Bodegas",
             icon = Icons.Default.Warehouse,
             onClick = { navController.navigate(Routes.WarehouseManagement.route) }
         ),
-        AdminAction(
+        DashboardAction(
             title = "Notificaciones",
             icon = Icons.Default.NotificationsActive,
             onClick = { /* TODO: Navegar a pantalla de notificaciones */ }
         ),
-        AdminAction(
+        DashboardAction(
             title = "Mensajes",
             icon = Icons.AutoMirrored.Filled.Message,
             onClick = {
@@ -66,8 +68,8 @@ fun AdminDashboard(
         verticalArrangement = Arrangement.spacedBy(20.dp),
         horizontalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        items(adminActions) { action ->
-            AdminDashboardCard(action = action)
+        items(dashboardActions) { action ->
+            DashboardCard(action = action)
         }
     }
 }

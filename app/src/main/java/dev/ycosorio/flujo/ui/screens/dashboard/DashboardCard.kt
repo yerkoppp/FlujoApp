@@ -1,4 +1,4 @@
-package dev.ycosorio.flujo.ui.screens.admin.dashboard
+package dev.ycosorio.flujo.ui.screens.dashboard
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AdminDashboardCard(action: AdminAction) {
+fun DashboardCard(action: DashboardAction) {
     Card(
         onClick = action.onClick,
         modifier = Modifier
@@ -41,7 +41,7 @@ fun AdminDashboardCard(action: AdminAction) {
     }
 }
 
-data class AdminAction(
+data class DashboardAction(
     val title: String,
     val icon: ImageVector,
     val onClick: () -> Unit

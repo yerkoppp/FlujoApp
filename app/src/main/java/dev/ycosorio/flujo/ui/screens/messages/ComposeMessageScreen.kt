@@ -35,10 +35,14 @@ fun ComposeMessageScreen(
     LaunchedEffect(Unit) {
         if (userRole == Role.ADMINISTRADOR) {
             viewModel.loadWorkers()
+        } else {
+            // Si es trabajador, cargar lista de admins
+            viewModel.loadAdmins()
         }
     }
 
     val workers by viewModel.workers.collectAsState()
+    val admins by viewModel.admins.collectAsState()
 
     Scaffold(
         topBar = {
@@ -55,7 +59,10 @@ fun ComposeMessageScreen(
                             if (subject.isNotBlank() && content.isNotBlank()) {
                                 isSending = true
                                 val recipientIds = when {
-                                    userRole == Role.TRABAJADOR -> listOf("ADMIN") // ID especial para admin
+                                    userRole == Role.TRABAJADOR -> {
+                                        // ✅ Obtener UIDs de TODOS los administradores
+                                        (admins as? Resource.Success)?.data?.map { it.uid } ?: emptyList()
+                                    }
                                     sendToAll -> {
                                         (workers as? Resource.Success)?.data?.map { it.uid } ?: emptyList()
                                     }
@@ -77,8 +84,14 @@ fun ComposeMessageScreen(
                                 }
                             }
                         },
-                        enabled = !isSending && subject.isNotBlank() && content.isNotBlank() &&
-                                (userRole == Role.TRABAJADOR || sendToAll || selectedWorkers.isNotEmpty())
+                        enabled = !isSending && subject.isNotBlank() &&
+                                content.isNotBlank() &&
+                                (
+                                        (userRole == Role.TRABAJADOR && (admins as? Resource.Success)
+                                            ?.data?.isNotEmpty() == true) ||
+                                                (userRole == Role.ADMINISTRADOR &&
+                                                        (sendToAll || selectedWorkers.isNotEmpty()))
+                                        )
                     ) {
                         if (isSending) {
                             CircularProgressIndicator(modifier = Modifier.size(20.dp))
@@ -101,7 +114,17 @@ fun ComposeMessageScreen(
             if (userRole == Role.TRABAJADOR) {
                 Card {
                     ListItem(
-                        headlineContent = { Text("Para: Administrador") }
+                        headlineContent = {
+                            when (admins) {
+                                is Resource.Success -> {
+                                    val adminCount = (admins as Resource.Success).data?.size ?: 0
+                                    Text(if (adminCount > 1)
+                                        "Para: Todos los Administradores ($adminCount)" else "Para: Administrador")
+                                }
+                                is Resource.Loading -> Text("Para: Cargando...")
+                                else -> Text("Para: Administrador")
+                            }
+                        }
                     )
                 }
             }

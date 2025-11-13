@@ -1,5 +1,6 @@
 package dev.ycosorio.flujo.ui.screens.messages
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -30,6 +31,9 @@ class MessagesViewModel @Inject constructor(
     private val _workers = MutableStateFlow<Resource<List<User>>>(Resource.Loading())
     val workers: StateFlow<Resource<List<User>>> = _workers.asStateFlow()
 
+    private val _admins = MutableStateFlow<Resource<List<User>>>(Resource.Loading())
+    val admins: StateFlow<Resource<List<User>>> = _admins.asStateFlow()
+
     private val _currentUser = MutableStateFlow<User?>(null)
     val currentUser: StateFlow<User?> = _currentUser.asStateFlow()
 
@@ -45,7 +49,18 @@ class MessagesViewModel @Inject constructor(
 
     fun loadReceivedMessages(userId: String) {
         viewModelScope.launch {
+            Log.d("MessagesViewModel", "🔍 Cargando mensajes recibidos para: $userId")
             messageRepository.getReceivedMessages(userId).collect { resource ->
+                Log.d("MessagesViewModel", "📬 Estado mensajes recibidos: ${resource.javaClass.simpleName}")
+                when (resource) {
+                    is Resource.Success -> {
+                        Log.d("MessagesViewModel", "✅ Mensajes recibidos: ${resource.data?.size ?: 0}")
+                    }
+                    is Resource.Error -> {
+                        Log.e("MessagesViewModel", "❌ Error: ${resource.message}")
+                    }
+                    else -> {}
+                }
                 _receivedMessages.value = resource
             }
         }
@@ -53,7 +68,18 @@ class MessagesViewModel @Inject constructor(
 
     fun loadSentMessages(userId: String) {
         viewModelScope.launch {
+            Log.d("MessagesViewModel", "🔍 Cargando mensajes enviados para: $userId")
             messageRepository.getSentMessages(userId).collect { resource ->
+                Log.d("MessagesViewModel", "📤 Estado mensajes enviados: ${resource.javaClass.simpleName}")
+                when (resource) {
+                    is Resource.Success -> {
+                        Log.d("MessagesViewModel", "✅ Mensajes enviados: ${resource.data?.size ?: 0}")
+                    }
+                    is Resource.Error -> {
+                        Log.e("MessagesViewModel", "❌ Error: ${resource.message}")
+                    }
+                    else -> {}
+                }
                 _sentMessages.value = resource
             }
         }
@@ -63,6 +89,14 @@ class MessagesViewModel @Inject constructor(
         viewModelScope.launch {
             userRepository.getUsersByRole(Role.TRABAJADOR).collect { resource ->
                 _workers.value = resource
+            }
+        }
+    }
+
+    fun loadAdmins() {
+        viewModelScope.launch {
+            userRepository.getUsersByRole(Role.ADMINISTRADOR).collect { resource ->
+                _admins.value = resource
             }
         }
     }
