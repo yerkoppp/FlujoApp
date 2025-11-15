@@ -1,6 +1,7 @@
 package dev.ycosorio.flujo.data.repository
 
 import android.net.Uri
+import android.util.Log
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
@@ -255,7 +256,7 @@ class DocumentRepositoryImpl @Inject constructor(
 
     override suspend fun deleteTemplate(template: DocumentTemplate): Resource<Unit> {
         return try {
-            Log.d("DocumentRepository", "🗑️ Eliminando plantilla: ${template.title}")
+            Timber.d("🗑️ Eliminando plantilla: ${template.title}")
 
             // 1. Verificar si hay asignaciones asociadas a esta plantilla
             val assignmentsSnapshot = assignmentsCollection
@@ -265,7 +266,7 @@ class DocumentRepositoryImpl @Inject constructor(
                 .await()
 
             if (!assignmentsSnapshot.isEmpty) {
-                Log.w("DocumentRepository", "⚠️ No se puede eliminar: existen asignaciones asociadas")
+                Timber.w("⚠️ No se puede eliminar: existen asignaciones asociadas")
                 return Resource.Error("No se puede eliminar esta plantilla porque tiene asignaciones asociadas.")
             }
 
@@ -273,19 +274,19 @@ class DocumentRepositoryImpl @Inject constructor(
             try {
                 val fileRef = storage.getReferenceFromUrl(template.fileUrl)
                 fileRef.delete().await()
-                Log.d("DocumentRepository", "✅ Archivo eliminado de Storage")
+                Timber.d("✅ Archivo eliminado de Storage")
             } catch (e: Exception) {
-                Log.w("DocumentRepository", "⚠️ No se pudo eliminar el archivo de Storage: ${e.message}")
+                Timber.w("⚠️ No se pudo eliminar el archivo de Storage: ${e.message}")
                 // Continuamos incluso si falla la eliminación del archivo
             }
 
             // 3. Eliminar el documento de Firestore
             templatesCollection.document(template.id).delete().await()
-            Log.d("DocumentRepository", "✅ Plantilla eliminada de Firestore")
+            Timber.d("✅ Plantilla eliminada de Firestore")
 
             Resource.Success(Unit)
         } catch (e: Exception) {
-            Log.e("DocumentRepository", "❌ Error al eliminar plantilla", e)
+            Timber.e(e, "❌ Error al eliminar plantilla")
             Resource.Error(e.localizedMessage ?: "Error al eliminar la plantilla.")
         }
     }

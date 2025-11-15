@@ -1,5 +1,6 @@
 package dev.ycosorio.flujo.data.repository
 
+import android.util.Log
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestoreException
@@ -13,6 +14,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.callbackFlow
 import javax.inject.Inject
 import androidx.collection.LruCache
+import com.google.firebase.Timestamp
 import kotlinx.coroutines.withTimeout
 import timber.log.Timber
 
@@ -297,6 +299,23 @@ class UserRepositoryImpl @Inject constructor(
         awaitClose { listener.remove() }
     }
 
+    override suspend fun updateFCMToken(userId: String, token: String): Result<Unit> {
+        return try {
+            firestore.collection("users")
+                .document(userId)
+                .update(
+                    mapOf(
+                        "fcmToken" to token,
+                        "tokenUpdatedAt" to Timestamp.now()
+                    )
+                ).await()
+            Timber.d("✅ Token FCM actualizado para usuario: $userId")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     /**
      * Limpia la caché de usuarios (útil al cerrar sesión)
      */
@@ -328,6 +347,8 @@ private fun DocumentSnapshot.toUser(): User? {
         val assignedVehicleId = getString("assignedVehicleId")
         val assignedPhoneId = getString("assignedPhoneId")
         val assignedPcId = getString("assignedPcId")
+        val fcmToken = getString("fcmToken")
+        val tokenUpdatedAt = getTimestamp("tokenUpdatedAt")
 
         User(
             uid = uid,
@@ -342,9 +363,12 @@ private fun DocumentSnapshot.toUser(): User? {
             contractEndDate = contractEndDate,
             assignedVehicleId = assignedVehicleId,
             assignedPhoneId = assignedPhoneId,
-            assignedPcId = assignedPcId
+            assignedPcId = assignedPcId,
+            fcmToken = fcmToken,
+            tokenUpdatedAt = tokenUpdatedAt
         )
     } catch (e: Exception) {
+        Timber.e(e, "Error al mapear documento ${this.id} a User. Datos: ${this.data}")
         null
     }
 }
@@ -369,6 +393,8 @@ private fun User.toFirestoreMap(): Map<String, Any?> {
         "contractEndDate" to contractEndDate,
         "assignedVehicleId" to assignedVehicleId,
         "assignedPhoneId" to assignedPhoneId,
-        "assignedPcId" to assignedPcId
+        "assignedPcId" to assignedPcId,
+        "fcmToken" to fcmToken,
+        "tokenUpdatedAt" to tokenUpdatedAt
     )
 }

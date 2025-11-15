@@ -57,10 +57,17 @@ fun AdminDashboard(
         DashboardAction(
             title = "Mensajes",
             icon = Icons.AutoMirrored.Filled.Message,
-            onClick = {
-                navController.navigate(Routes.Messages.createRoute(user.uid))
-
-            }
+            onClick = { navController.navigate(Routes.Messages.createRoute(user.uid))}
+        ),
+        DashboardAction(
+            title = "Notificaciones",
+            icon = Icons.Default.NotificationsActive,
+            onClick = { navController.navigate(Routes.Notifications.route) }
+        ),
+        DashboardAction(
+            title = "No sé",
+            icon = Icons.Default.NotificationsActive,
+            onClick = { /* Acción por definir */ }
         )
     )
 

@@ -1,7 +1,9 @@
 package dev.ycosorio.flujo.ui.navigation
 
+import android.os.Build
 import dev.ycosorio.flujo.ui.screens.worker.inventory.CreateRequestViewModel
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -41,6 +43,7 @@ import dev.ycosorio.flujo.ui.screens.main.MainScreen
 import dev.ycosorio.flujo.ui.screens.messages.ComposeMessageScreen
 import dev.ycosorio.flujo.ui.screens.messages.MessagesScreen
 import dev.ycosorio.flujo.ui.screens.messages.MessagesViewModel
+import dev.ycosorio.flujo.ui.screens.notifications.NotificationsScreen
 import dev.ycosorio.flujo.ui.screens.profile.EditProfileScreen
 import dev.ycosorio.flujo.ui.screens.profile.ProfileScreen
 import dev.ycosorio.flujo.ui.screens.settings.AppearanceScreen
@@ -50,6 +53,7 @@ import dev.ycosorio.flujo.ui.screens.worker.expenses.ExpenseReportListScreen
 import dev.ycosorio.flujo.ui.screens.worker.inventory.CreateRequestScreen
 import dev.ycosorio.flujo.utils.Resource
 
+@RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
 @Composable
 fun AppNavigation() {
 
@@ -177,6 +181,7 @@ fun AppNavigation() {
                     if (user != null) {
                         UserDetailScreen(
                             user = user,
+                            deleteUserState = deleteState,
                             onBackPressed = { navController.popBackStack() },
                             onEditClicked = {
                                 navController.navigate(Routes.EditUser.createRoute(user.uid))
@@ -402,6 +407,12 @@ fun AppNavigation() {
             val reportId = backStackEntry.arguments?.getString("reportId")
             CreateExpenseReportScreen(
                 reportId = reportId,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        // Pantalla de notificaciones
+        composable(Routes.Notifications.route) {
+            NotificationsScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }

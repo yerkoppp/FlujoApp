@@ -1,5 +1,6 @@
 package dev.ycosorio.flujo.ui.screens.worker.expenses
 
+import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -15,11 +16,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import dev.ycosorio.flujo.domain.model.ExpenseItem
 import dev.ycosorio.flujo.domain.model.ExpenseReportStatus
 import dev.ycosorio.flujo.utils.Resource
+import java.io.File
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -259,16 +263,54 @@ fun AddExpenseDialog(
     onDismiss: () -> Unit,
     onAdd: (Uri, String, String, Double) -> Unit
 ) {
+    val context = LocalContext.current
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var reason by remember { mutableStateOf("") }
     var documentNumber by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
 
+    // URI temporal para la foto de cámara
+    var tempCameraUri by remember { mutableStateOf<Uri?>(null) }
+
+    // Estado para disparar el lanzamiento de la cámara
+    var shouldLaunchCamera by remember { mutableStateOf(false) }
+
+    // Launcher para tomar foto con cámara
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            tempCameraUri?.let { selectedImageUri = it }
+        }
+        shouldLaunchCamera = false
+    }
+
+    // Launcher para solicitar permiso de cámara
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            // Permiso concedido, preparar y marcar para lanzar la cámara
+            tempCameraUri = createTempImageUri(context)
+            shouldLaunchCamera = true
+        }
+    }
+
+    // Launcher para seleccionar imagen de galería
     val imagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         uri?.let { selectedImageUri = it }
     }
+
+    // Efecto para lanzar la cámara cuando el estado cambie
+    LaunchedEffect(shouldLaunchCamera) {
+        if (shouldLaunchCamera && tempCameraUri != null) {
+            cameraLauncher.launch(tempCameraUri!!)
+        }
+    }
+
+
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -277,14 +319,59 @@ fun AddExpenseDialog(
             Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Botón para seleccionar imagen
-                OutlinedButton(
-                    onClick = { imagePicker.launch("image/*") },
-                    modifier = Modifier.fillMaxWidth()
+                // Botones para seleccionar origen de imagen
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(Icons.Default.Image, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text(if (selectedImageUri != null) "Imagen seleccionada" else "Seleccionar imagen")
+                    // Botón Cámara
+                    OutlinedButton(
+                        onClick = {
+                            cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
+                            tempCameraUri = createTempImageUri(context)
+                            cameraLauncher.launch(tempCameraUri!!)
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.CameraAlt, contentDescription = null)
+                        Spacer(Modifier.width(4.dp))
+                        Text("Cámara")
+                    }
+
+                    // Botón Galería
+                    OutlinedButton(
+                        onClick = { imagePicker.launch("image/*") },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.Image, contentDescription = null)
+                        Spacer(Modifier.width(4.dp))
+                        Text("Galería")
+                    }
+                }
+
+                // Indicador de imagen seleccionada
+                if (selectedImageUri != null) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("Imagen seleccionada")
+                        }
+                    }
                 }
 
                 OutlinedTextField(
@@ -332,5 +419,27 @@ fun AddExpenseDialog(
                 Text("CANCELAR")
             }
         }
+    )
+}
+
+// Función auxiliar para crear URI (ahora fuera del @Composable)
+private fun createTempImageUri(context: Context): Uri {
+    // Crear directorio si no existe
+    val cameraDir = File(context.cacheDir, "camera")
+    if (!cameraDir.exists()) {
+        cameraDir.mkdirs()
+    }
+
+    // Crear archivo temporal
+    val tempFile = File.createTempFile(
+        "expense_${System.currentTimeMillis()}",
+        ".jpg",
+        cameraDir
+    )
+
+    return FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        tempFile
     )
 }

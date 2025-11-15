@@ -36,8 +36,6 @@ private val LightColorScheme = lightColorScheme(
 
     tertiary = FlujoPrimaryBlue,
     onTertiary = FlujoSurfaceLight,
-    tertiaryContainer = FlujoTerciaryBlueSkyLight,
-    onTertiaryContainer = FlujoSurfaceLight,
 
     background = FlujoBackgroundLight, // Fondo gris (EEEEEE)
     onBackground = FlujoTextDark,

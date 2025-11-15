@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.functions.FirebaseFunctionsException
+import com.google.firebase.messaging.FirebaseMessaging
 import dev.ycosorio.flujo.domain.model.AuthUser
 import dev.ycosorio.flujo.domain.model.User
 import dev.ycosorio.flujo.domain.repository.UserRepository
@@ -17,12 +18,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.tasks.await
 import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
 class AccessVerificationViewModel @Inject constructor(
     private val userRepository: UserRepository,
+    private val messaging: FirebaseMessaging,
     private val functions: FirebaseFunctions
 ) : ViewModel() {
 
@@ -97,6 +100,7 @@ class AccessVerificationViewModel @Inject constructor(
                                 Timber.d("✅ Usuario encontrado: ${result.data?.name}")
                                 lastVerifiedEmail = email
                                 _verificationState.value = result
+                                updateFCMToken(result.data.uid)
                             } else {
                                 // --- Caso 2: Usuario NUEVO (data es null) ---
                                 // ¡Este es el momento de provisionar!
@@ -203,6 +207,7 @@ class AccessVerificationViewModel @Inject constructor(
                 Timber.d("🎉 ¡Usuario provisionado y cargado! ${newUserResult.data.name}")
                 lastVerifiedEmail = emailForCache
                 _verificationState.value = newUserResult // ¡Ahora sí! Resource.Success(user)
+                updateFCMToken(newUserResult.data.uid)
             } else {
                 Timber.e("🚨 ¡Falló la re-búsqueda después de provisión! Esto no debería pasar.")
                 lastVerifiedEmail = null
@@ -222,6 +227,23 @@ class AccessVerificationViewModel @Inject constructor(
         Timber.d("🔄 Reseteando verificación")
         _verificationState.value = Resource.Idle()
         lastVerifiedEmail = null
+    }
+
+    /**
+     * Actualiza el token FCM del usuario en Firestore
+     * @param userId ID del usuario cuyo token se va a actualizar
+     */
+    private fun updateFCMToken(userId: String) {
+        viewModelScope.launch {
+            try {
+                messaging.token.await().let { token ->
+                    userRepository.updateFCMToken(userId, token)
+                    Timber.d("Token guardado: $token")
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Error al obtener/guardar token")
+            }
+        }
     }
 
 }

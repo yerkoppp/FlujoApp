@@ -1,10 +1,12 @@
 package dev.ycosorio.flujo.data.repository
 
+import android.util.Log
 import androidx.paging.PagingData
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.functions.FirebaseFunctions
 import dev.ycosorio.flujo.domain.model.Message
 import dev.ycosorio.flujo.domain.repository.MessageRepository
 import dev.ycosorio.flujo.utils.FirestoreConstants
@@ -17,7 +19,8 @@ import timber.log.Timber
 import javax.inject.Inject
 
 class MessageRepositoryImpl @Inject constructor(
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val functions: FirebaseFunctions
 ) : MessageRepository {
 
     private val messagesCollection = firestore.collection(FirestoreConstants.MESSAGES_COLLECTION)
@@ -39,6 +42,9 @@ class MessageRepositoryImpl @Inject constructor(
             firestore.collection(FirestoreConstants.MESSAGES_COLLECTION)
                 .add(messageData)
                 .await()
+
+            // Enviar notificación push a los destinatarios
+            sendPushNotification(message)
 
             Resource.Success(Unit)
         } catch (e: Exception) {
@@ -130,6 +136,7 @@ class MessageRepositoryImpl @Inject constructor(
             Resource.Error(e.message ?: "Error al eliminar mensaje")
         }
     }
+
     override fun getReceivedMessagesPaged(userId: String): Flow<PagingData<Message>> {
         return Pager(
             config = PagingConfig(
@@ -162,5 +169,36 @@ class MessageRepositoryImpl @Inject constructor(
                 )
             }
         ).flow
+    }
+
+    /**
+     * Envía una notificación push a los destinatarios del mensaje
+     */
+    private fun sendPushNotification(message: Message) {
+        try {
+            val data = hashMapOf(
+                "userIds" to message.recipientIds,
+                "title" to "Nuevo mensaje de ${message.senderName}",
+                "body" to message.subject,
+                "data" to hashMapOf(
+                    "type" to "message",
+                    "senderId" to message.senderId,
+                    "subject" to message.subject
+                )
+            )
+
+            functions.getHttpsCallable("sendNotificationToUsers")
+                .call(data)
+                .addOnSuccessListener {
+                    Timber.tag("MessageRepository").d("✅ Notificación enviada correctamente")
+                }
+                .addOnFailureListener { e ->
+                    Timber.tag("MessageRepository")
+                        .e(e, "❌ Error al enviar notificación: ${e.message}")
+                    // No fallar el envío del mensaje si falla la notificación
+                }
+        } catch (e: Exception) {
+            Timber.tag("MessageRepository").e(e, "❌ Error al preparar notificación")
+        }
     }
 }

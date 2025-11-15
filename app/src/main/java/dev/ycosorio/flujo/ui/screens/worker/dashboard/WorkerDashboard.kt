@@ -80,7 +80,7 @@ fun WorkerDashboard(
                 title = { Text("Resumen del Trabajador") },
                 actions = {
                     NotificationBadge(count = uiState.pendingDocuments.size) {
-                        /* Navegar a notificaciones/pendientes si es necesario */
+                        navController.navigate(Routes.Notifications.route)
                     }
                 },
                 modifier = Modifier.fillMaxHeight(0.1f)
@@ -297,7 +297,7 @@ private fun CompactQuickAction(
     }
 }
 
-// [NUEVO COMPOSABLE]: Botón de texto para "Ver más"
+// Botón de texto para "Ver más"
 @Composable
 private fun ActionTextButton(text: String, onClick: () -> Unit) {
     Text(
@@ -310,7 +310,7 @@ private fun ActionTextButton(text: String, onClick: () -> Unit) {
     )
 }
 
-// [NUEVO COMPOSABLE]: Tarjeta de Notificación en el TopAppBar
+// Tarjeta de Notificación en el TopAppBar
 @Composable
 private fun NotificationBadge(count: Int, onClick: () -> Unit) {
     Box(

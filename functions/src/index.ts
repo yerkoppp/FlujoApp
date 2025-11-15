@@ -14,6 +14,8 @@ setGlobalOptions({region: "southamerica-west1"});
 
 /**
  * Valida que un email tenga formato correcto
+ * @param {string} email - Email a validar
+ * @return {boolean} True si el email es válido
  */
 function isValidEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -22,6 +24,10 @@ function isValidEmail(email: string): boolean {
 
 /**
  * Valida que un string tenga longitud válida
+ * @param {string} str - String a validar
+ * @param {number} minLength - Longitud mínima
+ * @param {number} maxLength - Longitud máxima
+ * @return {boolean} True si la longitud es válida
  */
 function isValidStringLength(
   str: string,
@@ -33,6 +39,8 @@ function isValidStringLength(
 
 /**
  * Valida que una fecha tenga formato válido (YYYY-MM-DD)
+ * @param {string} dateStr - String de fecha a validar
+ * @return {boolean} True si la fecha es válida
  */
 function isValidDateFormat(dateStr: string): boolean {
   const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
@@ -44,6 +52,8 @@ function isValidDateFormat(dateStr: string): boolean {
 
 /**
  * Sanitiza un mensaje de error para evitar exponer información sensible
+ * @param {any} error - Error original
+ * @return {string} Mensaje de error sanitizado
  */
 function sanitizeErrorMessage(error: any): string {
   // Si es un HttpsError, retornar su mensaje (ya es seguro)
@@ -229,7 +239,7 @@ export const createWorker = onCall(async (request) => {
   }
 });
 
-// --- FUNCIÓN 2 (NUEVA): provisionUserAccount ---
+// --- FUNCIÓN 2: provisionUserAccount ---
 
 /**
  * Se llama esta función desde la app cliente JUSTO DESPUÉS
@@ -411,6 +421,114 @@ export const deleteWorker = onCall(async (request) => { // CAMBIO: onCall y requ
       throw new HttpsError("not-found", "El usuario a eliminar no existe en Authentication");
     }
 
+    throw new HttpsError("internal", sanitizeErrorMessage(error));
+  }
+});
+
+// --- FUNCIÓN 4: sendNotificationToUsers ---
+
+/**
+ * Datos esperados para enviar notificaciones a usuarios.
+ */
+interface SendNotificationData {
+  userIds: string[]; // Lista de UIDs de usuarios destinatarios
+  title: string; // Título de la notificación
+  body: string; // Cuerpo del mensaje
+  data?: { // Datos personalizados opcionales
+    [key: string]: string;
+  };
+}
+
+/**
+ * Función para enviar notificaciones push a múltiples usuarios.
+ */
+export const sendNotificationToUsers = onCall(async (request) => {
+  // 1. Verificar autenticación
+  if (!request.auth) {
+    throw new HttpsError(
+      "unauthenticated",
+      "Debes estar autenticado para enviar notificaciones"
+    );
+  }
+
+  // 2. Obtener y validar datos
+  const data = request.data as SendNotificationData;
+  const {userIds, title, body} = data;
+
+  if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+    throw new HttpsError(
+      "invalid-argument",
+      "userIds debe ser un array no vacío"
+    );
+  }
+
+  if (!title || !body) {
+    throw new HttpsError(
+      "invalid-argument",
+      "title y body son obligatorios"
+    );
+  }
+
+  try {
+    // 3. Obtener tokens FCM de los usuarios
+    const tokens: string[] = [];
+
+    for (const userId of userIds) {
+      const userDoc = await admin.firestore()
+        .collection("users")
+        .doc(userId)
+        .get();
+
+      const fcmToken = userDoc.data()?.fcmToken;
+      if (fcmToken) {
+        tokens.push(fcmToken);
+      } else {
+        console.log(`Usuario ${userId} no tiene token FCM`);
+      }
+    }
+
+    if (tokens.length === 0) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Ningún destinatario tiene token FCM registrado"
+      );
+    }
+
+    // 4. Preparar el mensaje
+    const message = {
+      notification: {
+        title: title,
+        body: body,
+      },
+      data: data.data || {},
+      tokens: tokens, // Enviar a múltiples tokens
+    };
+
+    // 5. Enviar notificaciones
+    const response = await admin.messaging().sendEachForMulticast(message);
+
+    console.log(`✅ Notificaciones enviadas: ${response.successCount}/${tokens.length}`);
+
+    if (response.failureCount > 0) {
+      console.log(`❌ Fallos: ${response.failureCount}`);
+      response.responses.forEach((resp, idx) => {
+        if (!resp.success) {
+          console.error(`Error token ${idx}:`, resp.error);
+        }
+      });
+    }
+
+    return {
+      success: true,
+      successCount: response.successCount,
+      failureCount: response.failureCount,
+      message: `${response.successCount} notificaciones enviadas exitosamente`,
+    };
+  } catch (error: any) {
+    console.error("Error al enviar notificaciones:", error);
+    if (error instanceof HttpsError) {
+      throw error;
+    }
     throw new HttpsError("internal", sanitizeErrorMessage(error));
   }
 });

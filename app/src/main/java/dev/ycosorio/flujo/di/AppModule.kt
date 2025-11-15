@@ -6,6 +6,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.functions.functions
+import com.google.firebase.messaging.FirebaseMessaging
 import dev.ycosorio.flujo.data.repository.UserRepositoryImpl
 import dev.ycosorio.flujo.domain.repository.UserRepository
 import dagger.Module
@@ -82,6 +83,12 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideFirebaseMessaging(): FirebaseMessaging {
+        return FirebaseMessaging.getInstance()
+    }
+
+    @Provides
+    @Singleton
     fun provideAuthRepository(
         firebaseAuth: FirebaseAuth,
        // firestore: FirebaseFirestore
@@ -103,8 +110,11 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideMessageRepository(firestore: FirebaseFirestore): MessageRepository =
-        MessageRepositoryImpl(firestore)
+    fun provideMessageRepository(firestore: FirebaseFirestore): MessageRepository {
+        val functions = Firebase.functions("southamerica-west1")
+        return MessageRepositoryImpl(firestore, functions)
+    }
+
 
     @Provides
     @Singleton
@@ -114,5 +124,7 @@ object AppModule {
     ): ExpenseRepository {
         return ExpenseRepositoryImpl(firestore, storage)
     }
+
+
 
 }

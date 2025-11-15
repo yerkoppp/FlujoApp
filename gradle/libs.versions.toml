@@ -23,7 +23,7 @@ viewModelCompose = "2.9.4"       # (debe coincidir con lifecycle)
 room = "2.8.3"
 
 # ========== FIREBASE ==========#
-firebaseBom = "34.5.0"
+firebaseBom = "34.6.0"
 googleServicesPlugin = "4.4.4"
 googleAuth = "21.4.0"
 firebaseAuth = "23.2.1"
@@ -31,6 +31,7 @@ firebaseFirestore = "25.1.4"
 firebaseStorage = "21.0.2"
 firebaseUiAuth = "9.1.1"
 firebaseFunctions = "21.2.1"
+firebaseMessaging = "24.1.0"
 
 # ========== SEGURIDAD ==========#
 securityCrypto = "1.1.0"
@@ -39,7 +40,7 @@ securityCrypto = "1.1.0"
 timber = "5.0.1"
 
 # ========== PAGING ==========#
-paging = "3.2.1"
+paging = "3.3.6"
 
 # ========== Testing ===========
 junit = "4.13.2"
@@ -114,6 +115,7 @@ google-auth = { group = "com.google.android.gms", name = "play-services-auth", v
 firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics" }
 firebase-ui-auth = { group = "com.firebaseui", name = "firebase-ui-auth", version.ref = "firebaseUiAuth" }
 firebase-functions = { group = "com.google.firebase", name = "firebase-functions-ktx", version.ref = "firebaseFunctions" }
+firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging-ktx", version.ref = "firebaseMessaging" }
 
 # ---------- Seguridad ----------
 androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
@@ -173,7 +175,8 @@ firebase = [
     "firebase-auth",
     "firebase-firestore",
     "firebase-storage",
-    "firebase-analytics"
+    "firebase-analytics",
+    "firebase-messaging"
 ]
 
 lifecycle = [

@@ -1,5 +1,6 @@
 package dev.ycosorio.flujo.domain.model
 
+import com.google.firebase.Timestamp
 import java.util.Date
 
 /**
@@ -19,5 +20,7 @@ data class User(
     val contractEndDate: Date? = null, // Fecha de término, nulo si es indefinido
     val assignedVehicleId: String? = null,
     val assignedPhoneId: String? = null,
-    val assignedPcId: String? = null
+    val assignedPcId: String? = null,
+    val fcmToken: String? = null,
+    val tokenUpdatedAt: Timestamp? = null
 )

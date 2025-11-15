@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.ycosorio.flujo.domain.model.User
+import dev.ycosorio.flujo.utils.Resource
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -19,6 +20,7 @@ import java.util.*
 @Composable
 fun UserDetailScreen(
     user: User,
+    deleteUserState: Resource<Unit>,
     onBackPressed: () -> Unit,
     onEditClicked: (User) -> Unit,
     onDeleteClicked: (User) -> Unit
@@ -89,24 +91,46 @@ fun UserDetailScreen(
     // Diálogo de confirmación de eliminación
     if (showDeleteDialog) {
         AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
+            onDismissRequest = {
+                if (deleteUserState !is Resource.Loading) {
+                    showDeleteDialog = false
+                }
+            },
             title = { Text("Eliminar Trabajador") },
-            text = { Text("¿Estás seguro de que deseas eliminar a ${user.name}? Esta acción no se puede deshacer.") },
+            text = {
+                when (deleteUserState) {
+                    is Resource.Loading -> Text("Eliminando usuario...")
+                    is Resource.Error -> Text("Error: ${deleteUserState.message}\n\n¿Deseas intentar de nuevo?")
+                    else -> Text("¿Estás seguro de que deseas eliminar a ${user.name}? Esta acción no se puede deshacer.")
+                }
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        showDeleteDialog = false
-                        onDeleteClicked(user)
+                        if (deleteUserState !is Resource.Loading) {
+                            onDeleteClicked(user)
+                        }
                     },
+                    enabled = deleteUserState !is Resource.Loading,
                     colors = ButtonDefaults.textButtonColors(
                         contentColor = MaterialTheme.colorScheme.error
                     )
                 ) {
-                    Text("Eliminar")
+                    if (deleteUserState is Resource.Loading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(if (deleteUserState is Resource.Error) "Reintentar" else "Eliminar")
+                    }
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
+                TextButton(
+                    onClick = { showDeleteDialog = false },
+                    enabled = deleteUserState !is Resource.Loading
+                ) {
                     Text("Cancelar")
                 }
             }

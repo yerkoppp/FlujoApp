@@ -104,7 +104,7 @@ private fun AdminDocumentScreen(
             Spacer(Modifier.height(16.dp))
 
             // TabRow para cambiar entre Plantillas y Asignaciones
-            TabRow(selectedTabIndex = selectedTab) {
+            PrimaryTabRow(selectedTabIndex = selectedTab) {
                 Tab(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
@@ -405,7 +405,7 @@ private fun AssignmentsTab(
             val filteredAssignments = allAssignments.filter { assignment ->
                 val statusMatch = selectedStatus == null || assignment.status == selectedStatus
                 val workerMatch = selectedWorkerName.isBlank() ||
-                    assignment.workerName.contains(selectedWorkerName, ignoreCase = true)
+                        assignment.workerName.contains(selectedWorkerName, ignoreCase = true)
                 val dateMatch = when (selectedDateFilter) {
                     DateFilter.ALL -> true
                     DateFilter.LAST_7_DAYS -> {
@@ -564,23 +564,51 @@ private fun TemplatesTab(
     // Diálogo de confirmación
     if (showDeleteDialog && templateToDelete != null) {
         AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
+            onDismissRequest = {
+                showDeleteDialog = false
+                viewModel.resetDeleteState()
+            },
             title = { Text("Confirmar eliminación") },
-            text = { Text("¿Estás seguro de que deseas eliminar \"${templateToDelete?.title}\"? Esta acción no se puede deshacer.") },
+            text = {
+                Column {  // ← NUEVO: Column para mostrar error dentro del diálogo
+                    Text("¿Estás seguro de que deseas eliminar \"${templateToDelete?.title}\"? Esta acción no se puede deshacer.")
+
+                    // Mostrar error si existe
+                    if (deleteState is Resource.Error) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            (deleteState as Resource.Error).message ?: "Error al eliminar",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+            },
             confirmButton = {
                 Button(
                     onClick = {
                         templateToDelete?.let { viewModel.deleteTemplate(it) }
                     },
+                    enabled = deleteState !is Resource.Loading,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error
                     )
                 ) {
-                    Text("Eliminar")
+                    if (deleteState is Resource.Loading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = MaterialTheme.colorScheme.onError
+                        )
+                    } else {
+                        Text("Eliminar")
+                    }
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    viewModel.resetDeleteState()
+                }) {
                     Text("Cancelar")
                 }
             }

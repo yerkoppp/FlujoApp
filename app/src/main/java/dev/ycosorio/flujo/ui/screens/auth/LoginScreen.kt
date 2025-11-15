@@ -108,10 +108,11 @@ fun LoginScreen(
                               },
                     modifier = Modifier
                         .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
                         .height(56.dp)
                 ) {
                     Text(
-                        text = "Iniciar sesión con Google",
+                        text = "INGRESAR",
                         style = MaterialTheme.typography.titleMedium
                     )
                 }

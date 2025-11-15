@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.Flow
 /**
  * Define el contrato para las operaciones de datos relacionadas con el usuario.
  * Esta interfaz es la única puerta de entrada a los datos de usuario para la capa de negocio (domain).
+ * Las implementaciones concretas pueden usar diversas fuentes de datos (Firebase, local, etc.).
  */
 interface UserRepository {
 
@@ -54,11 +55,15 @@ interface UserRepository {
 
     /**
      * Obtiene un usuario por su email (usado para vincular con Firebase Auth).
+     * @param email El email del usuario a buscar.
+     * @return Un Resource que contendrá el User en caso de éxito o un mensaje de error.
      */
     suspend fun getUserByEmail(email: String): Resource<User>
 
     /**
      * Obtiene un usuario por su ID en tiempo real.
+     * @param uid El ID único del usuario a buscar.
+     * @return Un Flow que emite un Resource con el User cada vez que hay un cambio.
      */
     fun getUserById(uid: String): Flow<Resource<User>>
 
@@ -68,4 +73,14 @@ interface UserRepository {
      * @return Un Flow que emite un Resource con la lista de usuarios.
      */
     fun getUsersByRole(role: Role): Flow<Resource<List<User>>>
+
+    /**
+     * Actualiza el token FCM de un usuario para notificaciones push.
+     * @param userId El ID del usuario.
+     * @param token El nuevo token FCM.
+     * @return Un Result que indica si la operación fue exitosa o falló.
+     */
+    suspend fun updateFCMToken(userId: String, token: String): Result<Unit>
+
+
 }
