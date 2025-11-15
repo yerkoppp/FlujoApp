@@ -1,5 +1,6 @@
 package dev.ycosorio.flujo.ui.screens.auth
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -104,9 +105,15 @@ class AccessVerificationViewModel @Inject constructor(
                             }
                         }
                         is Resource.Error -> {
-                            Timber.e("❌ Error: ${result.message}")
-                            lastVerifiedEmail = null
-                            _verificationState.value = result
+                            if (result.message?.contains("no se pudieron encontrar", ignoreCase = true) == true ||
+                                result.message?.contains("no registrado", ignoreCase = true) == true) {
+                                Timber.i("ℹ️ Usuario no encontrado en Firestore. Intentando provisionar desde invitación...")
+                                provisionNewUser(uid, email)
+                            } else {
+                                Timber.e("❌ Error: ${result.message}")
+                                lastVerifiedEmail = null
+                                _verificationState.value = result
+                            }
                         }
                         else -> {
                             Timber.w("⚠️ Estado inesperado")
