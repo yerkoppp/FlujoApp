@@ -12,8 +12,9 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.callbackFlow
 import javax.inject.Inject
-import android.util.Log
+import androidx.collection.LruCache
 import kotlinx.coroutines.withTimeout
+import timber.log.Timber
 
 /**
  * Implementación del UserRepository que se comunica con Firebase Firestore.
@@ -31,8 +32,10 @@ class UserRepositoryImpl @Inject constructor(
      */
     private val usersCollection = firestore.collection("users")
 
-    // Caché simple para evitar búsquedas repetidas
-    private val emailCache = mutableMapOf<String, User?>()
+    // Caché con límite de 50 usuarios usando LRU (Least Recently Used)
+    private val emailCache = object : LruCache<String, User>(50) {
+        override fun sizeOf(key: String, value: User): Int = 1
+    }
     /**
      * Obtiene todos los usuarios con el rol de TRABAJADOR en tiempo real.
      * @return Un Flow que emite la lista de trabajadores cada vez que hay un cambio en Firestore.
@@ -48,9 +51,8 @@ class UserRepositoryImpl @Inject constructor(
                 if (error is FirebaseFirestoreException &&
                     error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
                     trySend(emptyList())  // Enviar lista vacía
-                    close()  // Cerrar sin error
                 } else {
-                    close(error)
+                    Timber.e(error, "Error al obtener trabajadores: ${error.message}")
                 }
                 return@addSnapshotListener
             }
@@ -83,7 +85,6 @@ class UserRepositoryImpl @Inject constructor(
 
         val subscription = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
-                close(error)
                 return@addSnapshotListener
             }
 
@@ -107,14 +108,14 @@ class UserRepositoryImpl @Inject constructor(
             val document = usersCollection.document(uid).get().await()
             val user = document.toUser() // Usamos nuestra función traductora
             if(user != null){
-                Log.d("UserRepository", "Usuario $uid cargado exitosamente.")
+                Timber.d("Usuario $uid cargado exitosamente.")
                 Resource.Success(user)
             } else {
-                Log.e("UserRepository", "Error al mapear: toUser() devolvió null para $uid. ¿Datos incompletos en Firestore?")
+                Timber.e("Error al mapear: toUser() devolvió null para $uid. ¿Datos incompletos en Firestore?")
                 Resource.Error("No se pudieron encontrar los datos del usuario.")
             }
         } catch (e: FirebaseFirestoreException) {
-            Log.e("UserRepository", "Error de Firestore: ${e.code.name}", e) // <-- AÑADE ESTA LÍNEA
+            Timber.e(e, "Error de Firestore: ${e.code.name}") // <-- AÑADE ESTA LÍNEA
             // Errores específicos de Firebase
             when (e.code) {
                 FirebaseFirestoreException.Code.UNAVAILABLE -> Resource.Error("No hay conexión a internet.")
@@ -123,7 +124,7 @@ class UserRepositoryImpl @Inject constructor(
             }
         } catch (e: Exception) {
             // Otros errores
-            Log.e("UserRepository", "Error general en getUser", e) // <-- AÑADE ESTA LÍNEA
+            Timber.e(e, "Error general en getUser") // <-- AÑADE ESTA LÍNEA
             Resource.Error("Ocurrió un error desconocido.")
         }
     }
@@ -146,7 +147,7 @@ class UserRepositoryImpl @Inject constructor(
                 .set(userWithNormalizedEmail.toFirestoreMap())
                 .await()
             // Actualizar caché
-            emailCache[userWithNormalizedEmail.email] = userWithNormalizedEmail
+            emailCache.put(userWithNormalizedEmail.email, userWithNormalizedEmail)
 
             Resource.Success(Unit)
         } catch (e: FirebaseFirestoreException) {
@@ -171,7 +172,7 @@ class UserRepositoryImpl @Inject constructor(
             usersCollection.document(user.uid).update(user.toFirestoreMap()).await()
 
             // Actualizar caché
-            emailCache[user.email.lowercase()] = user
+            emailCache.put(user.email.lowercase(), user)
             Resource.Success(Unit)
         } catch (e: FirebaseFirestoreException) {
             Resource.Error("Error al actualizar la base de datos: ${e.localizedMessage}")
@@ -207,17 +208,17 @@ class UserRepositoryImpl @Inject constructor(
 
     override suspend fun getUserByEmail(email: String): Resource<User> {
         return try {
-            Log.d("UserRepository", "🔍 Buscando email: $email")
+            Timber.d("🔍 Buscando email: $email")
             val normalizedEmail = email.trim().lowercase()
 
             // Verificar caché primero
-            emailCache[normalizedEmail]?.let { cachedUser ->
-                Log.d("UserRepository", "⚡ Usuario encontrado en caché: ${cachedUser.name}")
+            emailCache.get(normalizedEmail)?.let { cachedUser ->
+                Timber.d("⚡ Usuario encontrado en caché: ${cachedUser.name}")
                 return Resource.Success(cachedUser)
             }
 
             // Si no está en caché, buscar en Firestore
-            val query = withTimeout(12_000L) {
+            val query = withTimeout(30_000L) {
                 usersCollection
                     .whereEqualTo("email", normalizedEmail)
                     .limit(1)
@@ -225,27 +226,27 @@ class UserRepositoryImpl @Inject constructor(
                     .await()
             }
 
-            Log.d("UserRepository", "📦 Documentos encontrados: ${query.documents.size}")
+            Timber.d("📦 Documentos encontrados: ${query.documents.size}")
 
             if (query.documents.isEmpty()) {
-                Log.w("UserRepository", "❌ Usuario no encontrado")
+                Timber.w("❌ Usuario no encontrado")
                 // Limpiar entrada de caché si existía
                 emailCache.remove(normalizedEmail)
                 Resource.Error("Usuario no registrado en el sistema.")
             } else {
                 val user = query.documents.first().toUser()
                 if (user != null) {
-                    Log.d("UserRepository", "✅ Usuario cargado: ${user.name}")
+                    Timber.d("✅ Usuario cargado: ${user.name}")
                     // Guardar en caché
-                    emailCache[normalizedEmail] = user
+                    emailCache.put(normalizedEmail, user)
                     Resource.Success(user)
                 } else {
-                    Log.e("UserRepository", "❌ Error al mapear usuario")
+                    Timber.e("❌ Error al mapear usuario")
                     Resource.Error("Error al cargar datos del usuario.")
                 }
             }
         } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-            Log.e("UserRepository", "⏱️ Timeout en Firestore")
+            Timber.e("⏱️ Timeout en Firestore")
             Resource.Error("Tiempo de espera agotado. Verifica tu conexión.")
         } catch (e: FirebaseFirestoreException) {
             when (e.code) {
@@ -256,7 +257,7 @@ class UserRepositoryImpl @Inject constructor(
                 else -> Resource.Error("Error: ${e.localizedMessage}")
             }
         } catch (e: Exception) {
-            Log.e("UserRepository", "💥 Error general", e)
+            Timber.e(e, "💥 Error general")
             Resource.Error("Error desconocido: ${e.localizedMessage}")
         }
     }
@@ -300,8 +301,8 @@ class UserRepositoryImpl @Inject constructor(
      * Limpia la caché de usuarios (útil al cerrar sesión)
      */
     fun clearCache() {
-        Log.d("UserRepository", "🧹 Limpiando caché de usuarios")
-        emailCache.clear()
+        Timber.d("🧹 Limpiando caché de usuarios")
+        emailCache.evictAll()
     }
 
 }

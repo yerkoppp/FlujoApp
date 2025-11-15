@@ -1,6 +1,5 @@
 package dev.ycosorio.flujo.ui.screens.admin.users.adduser
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.functions.FirebaseFunctions
@@ -11,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import timber.log.Timber
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -47,7 +47,7 @@ class AddUserViewModel @Inject constructor(
             _addUserState.value = Resource.Loading()
 
             try {
-                Log.d("AddUserViewModel", "📤 Llamando a Cloud Function...")
+                Timber.d("📤 Llamando a Cloud Function...")
 
                 // Formatear fecha en ISO 8601 para compatibilidad con backend
                 val dateFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -66,11 +66,11 @@ class AddUserViewModel @Inject constructor(
                     .call(data)
                     .await()
 
-                Log.d("AddUserViewModel", "✅ Respuesta: ${result.data}")
+                Timber.d("✅ Respuesta: ${result.data}")
                 _addUserState.value = Resource.Success(Unit)
 
             } catch (e: com.google.firebase.functions.FirebaseFunctionsException) {
-                Log.e("AddUserViewModel", "❌ Error de Function: ${e.code}", e)
+                Timber.e(e, "❌ Error de Function: ${e.code}")
 
                 val errorMessage = when (e.code) {
                     com.google.firebase.functions.FirebaseFunctionsException.Code.ALREADY_EXISTS ->
@@ -85,7 +85,7 @@ class AddUserViewModel @Inject constructor(
                 _addUserState.value = Resource.Error(errorMessage)
 
             } catch (e: Exception) {
-                Log.e("AddUserViewModel", "❌ Error general", e)
+                Timber.e(e, "❌ Error general")
                 _addUserState.value = Resource.Error(
                     e.localizedMessage ?: "Error inesperado al crear el trabajador"
                 )

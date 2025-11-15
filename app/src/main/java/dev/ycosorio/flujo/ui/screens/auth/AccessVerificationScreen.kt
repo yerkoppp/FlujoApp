@@ -13,7 +13,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.firebase.ui.auth.AuthUI
 import dev.ycosorio.flujo.domain.model.AuthUser
 import dev.ycosorio.flujo.utils.Resource
-import android.util.Log
+import timber.log.Timber
 
 @Composable
 fun AccessVerificationScreen(
@@ -30,27 +30,27 @@ fun AccessVerificationScreen(
 
     // Resetear estado al entrar a la pantalla
     LaunchedEffect(Unit) {
-        Log.d("AccessVerification", "🔄 Pantalla iniciada, reseteando estado")
+        Timber.d("🔄 Pantalla iniciada, reseteando estado")
         viewModel.resetVerification()
     }
 
     // Verificar acceso cuando hay un usuario autenticado
     LaunchedEffect(authUser?.uid) {
-        Log.d("AccessVerification", "👤 AuthUser cambió: ${authUser?.email}")
+        Timber.d("👤 AuthUser cambió: ${authUser?.email}")
 
         if (authUser != null && verificationState !is Resource.Success) {
-            Log.d("AccessVerification", "🔍 Verificando usuario: ${authUser.email}")
+            Timber.d("🔍 Verificando usuario: ${authUser.email}")
             viewModel.verifyUserAccess(authUser)
         }
     }
 
     // Manejar resultado de verificación
     LaunchedEffect(verificationState) {
-        Log.d("AccessVerification", "Estado: ${verificationState::class.simpleName}")
+        Timber.d("Estado: ${verificationState::class.simpleName}")
 
         when (val state = verificationState) {
             is Resource.Success -> {
-                Log.d("AccessVerification", "✅ Acceso concedido")
+                Timber.d("✅ Acceso concedido")
                 kotlinx.coroutines.delay(1000)
                 onAccessGranted()
             }
@@ -60,7 +60,7 @@ fun AccessVerificationScreen(
 
                 // Solo cerrar sesión si NO es error de conexión
                 if (!isConnectionError && !hasSignedOut) {
-                    Log.e("AccessVerification", "❌ Acceso denegado: ${state.message}")
+                    Timber.e("❌ Acceso denegado: ${state.message}")
                     hasSignedOut = true
 
                     kotlinx.coroutines.delay(2000)
@@ -68,13 +68,13 @@ fun AccessVerificationScreen(
                     AuthUI.getInstance()
                         .signOut(context)
                         .addOnCompleteListener {
-                            Log.d("AccessVerification", "🚪 Sesión cerrada")
+                            Timber.d("🚪 Sesión cerrada")
                             onAccessDenied()
                         }
                 }
             }
             else -> {
-                Log.d("AccessVerification", "⏳ Verificando...")
+                Timber.d("⏳ Verificando...")
             }
         }
     }

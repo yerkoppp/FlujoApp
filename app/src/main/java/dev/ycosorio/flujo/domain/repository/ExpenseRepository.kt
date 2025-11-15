@@ -1,6 +1,7 @@
 package dev.ycosorio.flujo.domain.repository
 
 import android.net.Uri
+import androidx.paging.PagingData
 import dev.ycosorio.flujo.domain.model.ExpenseReport
 import dev.ycosorio.flujo.domain.model.ExpenseReportStatus
 import dev.ycosorio.flujo.utils.Resource
@@ -46,4 +47,6 @@ interface ExpenseRepository {
      * Elimina una rendición borrador
      */
     suspend fun deleteExpenseReport(reportId: String): Resource<Unit>
+
+    fun getExpenseReportsForWorkerPaged(userId: String): Flow<PagingData<ExpenseReport>>
 }

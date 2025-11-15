@@ -15,6 +15,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
 import dev.ycosorio.flujo.domain.model.Message
 import dev.ycosorio.flujo.domain.model.Role
 import dev.ycosorio.flujo.domain.model.User
@@ -28,19 +31,20 @@ import java.util.*
 fun MessagesScreen(
     userId: String,
     viewModel: MessagesViewModel = hiltViewModel(),
-    onNavigateToCompose: (User) -> Unit  // ✅ Cambiar firma para recibir User
+    onNavigateToCompose: (User) -> Unit
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(userId) {
         viewModel.loadCurrentUser(userId)
-        viewModel.loadReceivedMessages(userId)
-        viewModel.loadSentMessages(userId)
+        //viewModel.loadReceivedMessages(userId)
+        //viewModel.loadSentMessages(userId)
     }
 
     val currentUser by viewModel.currentUser.collectAsState()
-    val receivedMessages by viewModel.receivedMessages.collectAsState()
-    val sentMessages by viewModel.sentMessages.collectAsState()
+    val receivedMessagesPaged = viewModel.getReceivedMessagesPaged(userId).collectAsLazyPagingItems()
+    val sentMessagesPaged = viewModel.getSentMessagesPaged(userId).collectAsLazyPagingItems()
+
 
     Scaffold(
         topBar = {
@@ -54,9 +58,10 @@ fun MessagesScreen(
                                 onNavigateToCompose(user)
                             }
                         },
-                        enabled = currentUser != null  // ✅ Deshabilitar si no hay usuario
+                        enabled = currentUser != null
                     ) {
-                        Icon(Icons.Default.Add, "Nuevo mensaje")
+                        Icon(Icons.Default.Add,
+                            "Nuevo mensaje")
                     }
                 }
             )
@@ -83,19 +88,119 @@ fun MessagesScreen(
             }
 
             when (selectedTab) {
-                0 -> MessageList(
-                    messages = receivedMessages,
+                0 -> MessageListPaged(
+                    messages = receivedMessagesPaged,
                     currentUserId = userId,
                     isReceived = true,
                     onMarkAsRead = { messageId ->
                         viewModel.markAsRead(messageId, userId)
                     }
                 )
-                1 -> MessageList(
-                    messages = sentMessages,
+                1 -> MessageListPaged(
+                    messages = sentMessagesPaged,
                     currentUserId = userId,
                     isReceived = false
                 )
+            }
+        }
+    }
+}
+
+// ✅ NUEVO: Composable para lista paginada
+@Composable
+fun MessageListPaged(
+    messages: androidx.paging.compose.LazyPagingItems<Message>,
+    currentUserId: String,
+    isReceived: Boolean,
+    onMarkAsRead: ((String) -> Unit)? = null
+) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Mostrar estado de carga inicial
+        if (messages.loadState.refresh is LoadState.Loading) {
+            CircularProgressIndicator(
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+
+        // Mostrar error si ocurre
+        if (messages.loadState.refresh is LoadState.Error) {
+            Column(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    "Error al cargar mensajes",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(onClick = { messages.retry() }) {
+                    Text("Reintentar")
+                }
+            }
+        }
+
+        // Mostrar lista vacía
+        if (messages.loadState.refresh is LoadState.NotLoading && messages.itemCount == 0) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("No hay mensajes")
+            }
+        }
+
+        // ✅ Lista paginada
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(
+                count = messages.itemCount,
+                key = messages.itemKey { it.id }
+            ) { index ->
+                val message = messages[index]
+                if (message != null) {
+                    MessageItem(
+                        message = message,
+                        currentUserId = currentUserId,
+                        isReceived = isReceived,
+                        onMarkAsRead = onMarkAsRead
+                    )
+                }
+            }
+
+            // Mostrar loading al cargar más items
+            if (messages.loadState.append is LoadState.Loading) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+            }
+
+            // Mostrar error al cargar más
+            if (messages.loadState.append is LoadState.Error) {
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text("Error al cargar más mensajes")
+                        Button(onClick = { messages.retry() }) {
+                            Text("Reintentar")
+                        }
+                    }
+                }
             }
         }
     }
@@ -197,7 +302,10 @@ fun MessageItem(
                     fontWeight = if (isRead || !isReceived) FontWeight.Normal else FontWeight.Bold
                 )
                 Text(
-                    text = SimpleDateFormat("dd/MM/yy HH:mm", Locale.getDefault()).format(message.timestamp),
+                    text = SimpleDateFormat(
+                        "dd/MM/yy HH:mm",
+                        Locale.getDefault())
+                        .format(message.timestamp),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -227,7 +335,8 @@ fun MessageItem(
 fun getRecipientText(message: Message): String {
     return when {
         message.isToAllWorkers -> "Todos los trabajadores"
-        message.recipientIds.size > 1 -> "${message.recipientIds.size} destinatarios"
+        message.recipientIds.size > 1 ->
+            "${message.recipientIds.size} destinatarios"
         else -> "1 destinatario"
     }
 }

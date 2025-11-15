@@ -1,6 +1,5 @@
 package dev.ycosorio.flujo.ui.screens.auth
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -10,10 +9,14 @@ import dev.ycosorio.flujo.domain.model.AuthUser
 import dev.ycosorio.flujo.domain.model.User
 import dev.ycosorio.flujo.domain.repository.UserRepository
 import dev.ycosorio.flujo.utils.Resource
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
+import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
@@ -27,75 +30,113 @@ class AccessVerificationViewModel @Inject constructor(
 
     // Cache del último email verificado para evitar verificaciones duplicadas
     private var lastVerifiedEmail: String? = null
-    fun verifyUserAccess(authUser: AuthUser) {
-        val email = authUser.email?.trim()?.lowercase()
 
-        // Si es el mismo email que acabamos de verificar, no verificar de nuevo
-        if (email == lastVerifiedEmail && _verificationState.value is Resource.Success) {
-            Log.d("AccessVerificationVM", "⚡ Usando resultado en caché para: $email")
-            return
+    /**
+     * Mutex para evitar verificaciones concurrentes
+     */
+    private val verificationMutex = Mutex()
+
+    /**
+     * Función de ayuda para reintentos con backoff exponencial
+     */
+    private suspend fun <T> retryWithExponentialBackoff(
+        maxAttempts: Int = 3,
+        initialDelay: Long = 2000L,
+        maxDelay: Long = 10000L,
+        factor: Double = 2.0,
+        block: suspend () -> T
+    ): T {
+        var currentDelay = initialDelay
+        repeat(maxAttempts - 1) { attempt ->
+            try {
+                return block()
+            } catch (e: Exception) {
+                Timber.w("Intento ${attempt + 1} falló, reintentando en ${currentDelay}ms")
+                delay(currentDelay)
+                currentDelay = (currentDelay * factor).toLong().coerceAtMost(maxDelay)
+            }
         }
+        return block() // Último intento
+    }
+
+    fun verifyUserAccess(authUser: AuthUser) {
         viewModelScope.launch {
-            try{
-                Log.d("AccessVerificationVM", "🔍 Iniciando verificación: $email")
-                _verificationState.value = Resource.Loading()
+            verificationMutex.withLock {
+                val email = authUser.email?.trim()?.lowercase()
 
-                if (email.isNullOrBlank()) {
-                    Log.e("AccessVerificationVM", "❌ Email vacío o nulo")
-                    _verificationState.value = Resource.Error("Email no disponible")
-                    lastVerifiedEmail = null
-                    return@launch
+                // Si es el mismo email que acabamos de verificar, no verificar de nuevo
+                if (email == lastVerifiedEmail && _verificationState.value is Resource.Success) {
+                    Timber.d("⚡ Usando resultado en caché para: $email")
+                    return@withLock
                 }
-                val uid = authUser.uid
-                // Buscar por id
-                val result = withTimeout(15_000L) {
-                    userRepository.getUser(uid)
-                }
+                try{
+                    Timber.d("🔍 Iniciando verificación: $email")
+                    _verificationState.value = Resource.Loading()
 
-                when (result) {
-                    is Resource.Success -> {
-                        if (result.data != null) {
-                        Log.d("AccessVerificationVM", "✅ Usuario encontrado: ${result.data?.name}")
-                        lastVerifiedEmail = email
-                            _verificationState.value = result
-                        } else {
-                            // --- Caso 2: Usuario NUEVO (data es null) ---
-                            // ¡Este es el momento de provisionar!
-                            Log.i("AccessVerificationVM", "ℹ️ Usuario no encontrado. Intentando provisionar...")
-                            provisionNewUser(uid, email)
+                    if (email.isNullOrBlank()) {
+                        Timber.e("❌ Email vacío o nulo")
+                        _verificationState.value = Resource.Error("Email no disponible")
+                        lastVerifiedEmail = null
+                        return@launch
+                    }
+                    val uid = authUser.uid
+                    // Buscar por id
+                    val result = retryWithExponentialBackoff(
+                        maxAttempts = 3,
+                        initialDelay = 2000L
+                    ) {
+                        withTimeout(30_000L) {
+                            userRepository.getUser(uid)
                         }
                     }
-                    is Resource.Error -> {
-                        Log.e("AccessVerificationVM", "❌ Error: ${result.message}")
-                        lastVerifiedEmail = null
-                        _verificationState.value = result
-                    }
-                    else -> {
-                        Log.w("AccessVerificationVM", "⚠️ Estado inesperado")
-                        lastVerifiedEmail = null
-                        _verificationState.value = result
-                    }
-                }
 
-            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                Log.e("AccessVerificationVM", "⏱️ Timeout al verificar usuario")
-                lastVerifiedEmail = null
-                _verificationState.value = Resource.Error(
-                    "No se pudo verificar tu acceso. Verifica tu conexión a internet."
-                )
-            } catch (e: Exception) {
-                Log.e("AccessVerificationVM", "💥 Excepción: ${e.message}", e)
-                lastVerifiedEmail = null
-                _verificationState.value = Resource.Error(
-                    "Error de conexión: ${e.localizedMessage}"
-                )
+                    when (result) {
+                        is Resource.Success -> {
+                            if (result.data != null) {
+                                Timber.d("✅ Usuario encontrado: ${result.data?.name}")
+                                lastVerifiedEmail = email
+                                _verificationState.value = result
+                            } else {
+                                // --- Caso 2: Usuario NUEVO (data es null) ---
+                                // ¡Este es el momento de provisionar!
+                                Timber.i("ℹ️ Usuario no encontrado. Intentando provisionar...")
+                                provisionNewUser(uid, email)
+                            }
+                        }
+                        is Resource.Error -> {
+                            Timber.e("❌ Error: ${result.message}")
+                            lastVerifiedEmail = null
+                            _verificationState.value = result
+                        }
+                        else -> {
+                            Timber.w("⚠️ Estado inesperado")
+                            lastVerifiedEmail = null
+                            _verificationState.value = result
+                        }
+                    }
+
+                } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                    Timber.e("⏱️ Timeout al verificar usuario")
+                    lastVerifiedEmail = null
+                    _verificationState.value = Resource.Error(
+                        "No se pudo verificar tu acceso. Verifica tu conexión a internet."
+                    )
+                } catch (e: Exception) {
+                    Timber.e(e, "💥 Excepción: ${e.message}")
+                    lastVerifiedEmail = null
+                    _verificationState.value = Resource.Error(
+                        "Error de conexión: ${e.localizedMessage}"
+                    )
+                }
             }
         }
     }
 
-    // Función para llamar a la Cloud Function de provisión
+    /**
+     * Provisión de una nueva cuenta de usuario llamando a la función en la nube.
+     */
     private fun provisionNewUser(uid: String, emailForCache: String?) {
-        Log.d("AccessVerificationVM", "📤 Llamando a 'provisionUserAccount'...")
+        Timber.d("📤 Llamando a 'provisionUserAccount'...")
         _verificationState.value = Resource.Loading() // Mantener el estado de carga
 
         // Esta función no necesita enviar 'data' porque el backend
@@ -106,7 +147,7 @@ class AccessVerificationViewModel @Inject constructor(
                 if (task.isSuccessful) {
                     // ¡ÉXITO! La función encontró la invitación y creó el documento en 'users'.
                     val message = (task.result?.data as? Map<String, Any>)?.get("message") as? String
-                    Log.d("AccessVerificationVM", "✅ Provisión exitosa: $message")
+                    Timber.d("✅ Provisión exitosa: $message")
 
                     // Ahora que el usuario existe, volvemos a buscar sus datos
                     viewModelScope.launch {
@@ -116,7 +157,7 @@ class AccessVerificationViewModel @Inject constructor(
                     // ¡FALLO! La función falló (ej: no encontró invitación)
                     lastVerifiedEmail = null
                     val exception = task.exception
-                    Log.e("AccessVerificationVM", "❌ Error en provisión", exception)
+                    Timber.e(exception, "❌ Error en provisión")
 
                     // Traducir el error para el usuario
                     val errorMessage = if (exception is FirebaseFunctionsException) {
@@ -136,25 +177,32 @@ class AccessVerificationViewModel @Inject constructor(
             }
     }
 
-    // CAMBIO: Nueva función de ayuda para volver a buscar al usuario después de provisionar
+    /**
+     * Vuelve a buscar al usuario provisionado después de llamar a la función en la nube.
+     */
     private suspend fun refetchProvisionedUser(uid: String, emailForCache: String?) {
         try {
-            Log.d("AccessVerificationVM", "🔄 Volviendo a buscar al usuario provisionado...")
-            val newUserResult = withTimeout(10_000L) {
-                userRepository.getUser(uid)
+            Timber.d("🔄 Volviendo a buscar al usuario provisionado...")
+            val newUserResult = retryWithExponentialBackoff(
+                maxAttempts = 3,
+                initialDelay = 2000L
+            ) {
+                withTimeout(30_000L) {
+                    userRepository.getUser(uid)
+                }
             }
 
             if (newUserResult is Resource.Success && newUserResult.data != null) {
-                Log.d("AccessVerificationVM", "🎉 ¡Usuario provisionado y cargado! ${newUserResult.data.name}")
+                Timber.d("🎉 ¡Usuario provisionado y cargado! ${newUserResult.data.name}")
                 lastVerifiedEmail = emailForCache
                 _verificationState.value = newUserResult // ¡Ahora sí! Resource.Success(user)
             } else {
-                Log.e("AccessVerificationVM", "🚨 ¡Falló la re-búsqueda después de provisión! Esto no debería pasar.")
+                Timber.e("🚨 ¡Falló la re-búsqueda después de provisión! Esto no debería pasar.")
                 lastVerifiedEmail = null
                 _verificationState.value = Resource.Error("Error al cargar tu cuenta después de la activación. Intenta reiniciar la app.")
             }
         } catch (e: Exception) {
-            Log.e("AccessVerificationVM", "💥 Excepción en re-búsqueda: ${e.message}", e)
+            Timber.e(e, "💥 Excepción en re-búsqueda: ${e.message}")
             lastVerifiedEmail = null
             _verificationState.value = Resource.Error(e.localizedMessage ?: "Error al cargar cuenta.")
         }
@@ -164,7 +212,7 @@ class AccessVerificationViewModel @Inject constructor(
      * Resetea el estado de verificación (llamar al volver a la pantalla de login)
      */
     fun resetVerification() {
-        Log.d("AccessVerificationVM", "🔄 Reseteando verificación")
+        Timber.d("🔄 Reseteando verificación")
         _verificationState.value = Resource.Idle()
         lastVerifiedEmail = null
     }

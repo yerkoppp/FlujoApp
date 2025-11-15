@@ -1,5 +1,6 @@
 package dev.ycosorio.flujo.domain.repository
 
+import androidx.paging.PagingData
 import dev.ycosorio.flujo.domain.model.MaterialRequest
 import dev.ycosorio.flujo.domain.model.RequestStatus
 import dev.ycosorio.flujo.utils.Resource
@@ -13,6 +14,8 @@ import dev.ycosorio.flujo.domain.model.ConsolidatedStock
 
 /**
  * Define el contrato para las operaciones de datos relacionadas con el inventario.
+ * Incluye funciones para gestionar solicitudes de materiales,
+ * bodegas, definiciones de materiales y stock.
  */
 interface InventoryRepository {
 
@@ -31,12 +34,15 @@ interface InventoryRepository {
 
     /**
      * Crea una nueva solicitud de materiales.
+     * @param request El objeto MaterialRequest a crear
      */
     suspend fun createMaterialRequest(request: MaterialRequest): Resource<Unit>
 
     /**
      * Actualiza el estado de una solicitud existente.
      * Usado por el administrador para aprobar o rechazar.
+     * @param requestId El ID de la solicitud a actualizar
+     * @param newStatus El nuevo estado de la solicitud
      */
     suspend fun updateRequestStatus(
         requestId: String,
@@ -46,18 +52,23 @@ interface InventoryRepository {
     /**
      * Obtiene las solicitudes de materiales para un trabajador específico en tiempo real.
      * @param workerId El ID del trabajador del que se quieren obtener las solicitudes.
+     * @return Flow con la lista de solicitudes del trabajador
      */
     fun getRequestsForWorker(workerId: String): Flow<Resource<List<MaterialRequest>>>
 
     // --- Funciones de Gestión de Admin ---
     /**
      * Obtiene todas las solicitudes de materiales en tiempo real (sin filtrar por trabajador).
+     * @return Flow con la lista de todas las solicitudes
      */
     fun getAllRequests(): Flow<Resource<List<MaterialRequest>>>
 
     /**
      * Actualiza el estado de una solicitud existente con notas del administrador.
      * Usado por el administrador para aprobar o rechazar.
+     * @param requestId El ID de la solicitud a actualizar
+     * @param status El nuevo estado de la solicitud
+     * @param adminNotes Notas opcionales del administrador
      */
     suspend fun updateRequestStatus(
         requestId: String,
@@ -69,24 +80,29 @@ interface InventoryRepository {
 
     /**
      * Obtiene una lista (en tiempo real) de todas las bodegas.
+     * @return Flow con la lista de bodegas disponibles
      */
     fun getWarehouses(): Flow<Resource<List<Warehouse>>>
 
     /**
      * Crea una nueva bodega (fija o móvil).
+     * @param name Nombre de la bodega
+     * @param type Tipo de bodega (fija o móvil)
      */
     suspend fun createWarehouse(name: String, type: WarehouseType): Resource<Unit>
-
 
     // --- FUNCIONES DE GESTIÓN DE MATERIALES (Definiciones) ---
 
     /**
      * Obtiene la lista maestra (en tiempo real) de todas las definiciones de materiales.
+     * @return Flow con la lista de materiales disponibles
      */
     fun getMaterials(): Flow<Resource<List<Material>>>
 
     /**
      * Crea una nueva definición de material en la colección 'materials'.
+     * @param name Nombre del material
+     * @param description Descripción del material
      */
     suspend fun createMaterialDefinition(name: String, description: String): Resource<Unit>
 
@@ -147,4 +163,24 @@ interface InventoryRepository {
      * @return Flow con la lista de materiales y sus cantidades totales
      */
     fun getConsolidatedInventory(): Flow<Resource<List<ConsolidatedStock>>>
+
+    /**
+     * Obtiene las solicitudes de materiales en forma paginada con opciones de orden y filtro.
+     * @param orderBy El campo por el cual ordenar (ej: "requestDate").
+     * @param direction La dirección del orden (Ascendente o Descendente).
+     * @param statusFilter Un estado específico para filtrar, o null para no filtrar.
+     * @return Un Flow que emite PagingData de solicitudes.
+     */
+    fun getMaterialRequestsPaged(
+        orderBy: String = "requestDate",
+        direction: Query.Direction = Query.Direction.DESCENDING,
+        statusFilter: RequestStatus? = null
+    ): Flow<PagingData<MaterialRequest>>
+
+    /**
+     * Obtiene las solicitudes de materiales para un trabajador específico en forma paginada.
+     * @param workerId El ID del trabajador del que se quieren obtener las solicitudes.
+     * @return Un Flow que emite PagingData de solicitudes.
+     */
+    fun getRequestsForWorkerPaged(workerId: String): Flow<PagingData<MaterialRequest>>
 }

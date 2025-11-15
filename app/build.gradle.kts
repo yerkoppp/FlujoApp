@@ -57,9 +57,10 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.material.icons.extended)
 
-    // Arquitectura (Lifecycle, Room)
+    // Arquitectura (Lifecycle, Room, Paging)
     implementation(libs.bundles.lifecycle)
     implementation(libs.bundles.room)
+    implementation(libs.bundles.paging)
     implementation(libs.androidx.foundation)
     implementation(libs.identity.jvm)
     implementation(libs.ui)
@@ -77,6 +78,9 @@ dependencies {
     // Core & Seguridad
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.security.crypto)
+
+    // Logging
+    implementation(libs.timber)
 
     //Imágenes
     implementation(libs.coil.compose)

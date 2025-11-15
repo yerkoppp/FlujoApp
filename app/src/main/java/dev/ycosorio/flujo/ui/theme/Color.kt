@@ -12,6 +12,10 @@ val FlujoPrimaryBlueVariant = Color(0xFF0D5A9C) // Azul más oscuro para tema cl
 val FlujoSecondaryCyan = Color(0xFF00B8D4) // Cian de acento para tema claro
 val FlujoSecondaryCyanVariant = Color(0xFF0097A7) // Cian más oscuro para tema claro
 
+val FlujoTerciaryBlueSky = Color(0xFFB2EBF2) // Cian de acento para tema claro
+val FlujoTerciaryBlueSkyVariant = Color(0xFF80DEEA)
+val FlujoTerciaryBlueSkyLight = Color(0xB2E0F7FA)
+
 // ---  TEMA CLARO ---
 // Neutros para tema CLARO (Ajustados para más contraste)
 val FlujoBackgroundLight = Color(0xFFEEEEEE) // Fondo gris (antes F0F2F5)

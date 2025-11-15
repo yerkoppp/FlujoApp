@@ -1,6 +1,6 @@
 package dev.ycosorio.flujo.ui.screens.settings
 
-import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
@@ -14,13 +14,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import com.firebase.ui.auth.AuthUI
+import androidx.hilt.navigation.compose.hiltViewModel
 import dev.ycosorio.flujo.BuildConfig
 import dev.ycosorio.flujo.domain.model.User
 import dev.ycosorio.flujo.ui.AppViewModel
 import dev.ycosorio.flujo.ui.components.UserAvatar
 import dev.ycosorio.flujo.utils.Resource
+import timber.log.Timber
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,16 +33,37 @@ fun SettingsScreen(
     onNavigateToAppearance: () -> Unit
 ) {
     val userState by viewModel.userState.collectAsState()
+    val logoutState by viewModel.logoutState.collectAsState()
     val context = LocalContext.current
     var showLogoutDialog by remember { mutableStateOf(false) }
 
+    // Observar el estado de logout
+    LaunchedEffect(logoutState) {
+        when (logoutState) {
+            is LogoutState.Success -> {
+                Timber.d("✅ Navegando a login")
+                onNavigateToAuth()
+            }
+            is LogoutState.Error -> {
+                Timber.e("❌ Error en logout: ${(logoutState as LogoutState.Error).message}")
+                Toast.makeText(
+                    context,
+                    "Error al cerrar sesión: ${(logoutState as LogoutState.Error).message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+            else -> { /* No hacer nada */ }
+        }
+    }
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Configuración") },
                 navigationIcon = {
                     IconButton(onClick = onBackPressed) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            "Volver")
                     }
                 }
             )
@@ -138,6 +159,7 @@ fun SettingsScreen(
 
             item { Spacer(Modifier.height(32.dp)) }
 
+            // Cerrar sesión
             item {
                 Button(
                     onClick = { showLogoutDialog = true },
@@ -145,11 +167,21 @@ fun SettingsScreen(
                         containerColor = MaterialTheme.colorScheme.errorContainer,
                         contentColor = MaterialTheme.colorScheme.onErrorContainer
                     ),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = logoutState !is LogoutState.Loading
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null)
-                    Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                    Text("Cerrar Sesión")
+                    if (logoutState is LogoutState.Loading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Cerrando sesión...")
+                    } else {
+                        Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null)
+                        Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                        Text("Cerrar Sesión")
+                    }
                 }
             }
         }
@@ -164,17 +196,7 @@ fun SettingsScreen(
                 TextButton(
                     onClick = {
                         showLogoutDialog = false
-                        Log.d("SettingsScreen", "🚪 Iniciando cierre de sesión")
-                        // 1. Limpiar el perfil de usuario en AppViewModel
-                        appViewModel.clearUserProfile()
-
-                        // 2. Cerrar sesión en Firebase
-                        AuthUI.getInstance()
-                            .signOut(context)
-                            .addOnCompleteListener {
-                                Log.d("SettingsScreen", "✅ Sesión cerrada en Firebase")
-                                onNavigateToAuth()
-                            }
+                        viewModel.performLogout(context, appViewModel)
                     }
                 ) {
                     Text("Cerrar sesión")

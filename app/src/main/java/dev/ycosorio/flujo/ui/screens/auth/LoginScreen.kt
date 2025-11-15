@@ -1,6 +1,5 @@
 package dev.ycosorio.flujo.ui.screens.auth
 
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -19,6 +18,7 @@ import com.firebase.ui.auth.FirebaseAuthUIActivityResultContract
 import dev.ycosorio.flujo.ui.theme.FlujoAppTheme
 import dev.ycosorio.flujo.R
 import dev.ycosorio.flujo.ui.AppViewModel
+import timber.log.Timber
 
 @Composable
 fun LoginScreen(
@@ -30,7 +30,7 @@ fun LoginScreen(
 
     // Resetear el estado al entrar a la pantalla de login
     LaunchedEffect(Unit) {
-        Log.d("LoginScreen", "🔄 Reseteando estado de autenticación")
+        Timber.d("🔄 Reseteando estado de autenticación")
         appViewModel.clearUserProfile()
     }
 
@@ -55,13 +55,13 @@ fun LoginScreen(
     val launcher = rememberLauncherForActivityResult(
         contract = FirebaseAuthUIActivityResultContract()
     ) { result ->
-        Log.d("LoginScreen", "Auth result code: ${result.resultCode}")
+        Timber.d("Auth result code: ${result.resultCode}")
         // El resultado de FirebaseUI puede tener errores de credenciales
         // pero eso no impide que la autenticación sea exitosa
         if (result.resultCode == android.app.Activity.RESULT_OK) {
-            Log.d("LoginScreen", "✅ Login exitoso")
+            Timber.d("✅ Login exitoso")
         } else {
-            Log.w("LoginScreen", "⚠️ Result code: ${result.resultCode}")
+            Timber.w("⚠️ Result code: ${result.resultCode}")
             // Aún así, verificamos si hay usuario autenticado
         }
     }
@@ -69,7 +69,7 @@ fun LoginScreen(
     // Navegar automáticamente cuando hay usuario
     LaunchedEffect(currentUser) {
         if (currentUser != null) {
-            Log.d("LoginScreen", "✅ Usuario detectado: ${currentUser?.email}")
+            Timber.d("✅ Usuario detectado: ${currentUser?.email}")
             onLoginSuccess()
         }
     }
@@ -103,7 +103,7 @@ fun LoginScreen(
                 // Botón de inicio de sesión
                 Button(
                     onClick = {
-                        Log.d("LoginScreen", "🚀 Iniciando flujo de login")
+                        Timber.d("🚀 Iniciando flujo de login")
                         launcher.launch(signInIntent)
                               },
                     modifier = Modifier

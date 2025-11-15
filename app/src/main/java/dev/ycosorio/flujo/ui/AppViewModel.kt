@@ -1,11 +1,9 @@
 package dev.ycosorio.flujo.ui
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.ycosorio.flujo.domain.model.AuthUser
-import dev.ycosorio.flujo.domain.model.Role
 import dev.ycosorio.flujo.domain.model.User
 import dev.ycosorio.flujo.domain.repository.AuthRepository
 import dev.ycosorio.flujo.domain.repository.UserRepository
@@ -15,7 +13,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.util.Date
+import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
@@ -37,7 +35,7 @@ class AppViewModel @Inject constructor(
      * Limpia el perfil de usuario actual (llamar al cerrar sesión)
      */
     fun clearUserProfile() {
-        Log.d("AppViewModel", "🧹 Limpiando perfil de usuario")
+        Timber.d("🧹 Limpiando perfil de usuario")
         _currentUserProfile.value = null
     }
 
@@ -51,25 +49,25 @@ class AppViewModel @Inject constructor(
         onUnauthorized: () -> Unit
     ) {
         viewModelScope.launch {
-            Log.d("AppViewModel", "🔍 Verificando usuario: ${authUser.email}")
+            Timber.d("🔍 Verificando usuario: ${authUser.email}")
 
             when (val result = userRepository.getUserByEmail(authUser.email ?: "")) {
                 is Resource.Success -> {
                     // ✅ Usuario existe en Firestore → Autorizado
                     result.data?.let { user ->
-                        Log.d("AppViewModel", "✅ Usuario autorizado: ${user.name}")
+                        Timber.d("✅ Usuario autorizado: ${user.name}")
                         _currentUserProfile.value = user // Cache del usuario
                         onAuthorized(user)
                     }
                 }
                 is Resource.Error -> {
-                    Log.e("AppViewModel", "❌ Error al verificar usuario: ${result.message}")
+                    Timber.e("❌ Error al verificar usuario: ${result.message}")
 
                     // ❌ Usuario NO existe en Firestore → No autorizado
                     onUnauthorized()
                 }
                 else -> {
-                    Log.w("AppViewModel", "⏳ Estado inesperado")
+                    Timber.w("⏳ Estado inesperado")
                 }
             }
         }

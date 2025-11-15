@@ -2,6 +2,9 @@ package dev.ycosorio.flujo.ui.screens.admin.inventory
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
+import com.google.firebase.firestore.Query
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.ycosorio.flujo.domain.model.MaterialRequest
 import dev.ycosorio.flujo.domain.model.RequestStatus
@@ -15,7 +18,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import dev.ycosorio.flujo.domain.model.WarehouseType
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
@@ -44,6 +49,9 @@ class MaterialRequestViewModel @Inject constructor(
     private val _orderBy = MutableStateFlow("requestDate")
     val orderBy = _orderBy.asStateFlow()
 
+    // Flow paginado para admin
+    private var _requestsPaged: Flow<PagingData<MaterialRequest>>? = null
+
     init {
         loadRequests()
         // Cargar solicitudes
@@ -63,13 +71,13 @@ class MaterialRequestViewModel @Inject constructor(
     }
 
     private fun loadRequests() {
-        android.util.Log.d("MaterialRequestVM", "🔄 loadRequests() llamado")
+        Timber.d("🔄 loadRequests() llamado")
         inventoryRepository.getMaterialRequests(
             orderBy = _orderBy.value,
             statusFilter = _statusFilter.value
             // La dirección por ahora es fija (DESCENDING), pero podría ser otro StateFlow
         ).onEach { result ->
-            android.util.Log.d("MaterialRequestVM", "📦 Resultado recibido: ${when(result) {
+            Timber.d("📦 Resultado recibido: ${when(result) {
                 is Resource.Loading -> "Loading"
                 is Resource.Success -> "Success con ${result.data?.size} items"
                 is Resource.Error -> "Error: ${result.message}"
@@ -102,7 +110,7 @@ class MaterialRequestViewModel @Inject constructor(
      */
     fun updateRequestStatus(requestId: String, newStatus: RequestStatus, adminNotes: String? = null) {
         viewModelScope.launch {
-            android.util.Log.d("MaterialRequestVM", "🔄 Actualizando estado: $requestId -> $newStatus")
+            Timber.d("🔄 Actualizando estado: $requestId -> $newStatus")
             inventoryRepository.updateRequestStatus(requestId, newStatus, adminNotes)
 
         }
@@ -136,6 +144,7 @@ class MaterialRequestViewModel @Inject constructor(
             }
         }
     }
+
 
     /**
      * Marca una solicitud como ENTREGADA y transfiere el stock automáticamente.
@@ -184,6 +193,37 @@ class MaterialRequestViewModel @Inject constructor(
                 _warehouseStock.value = result
             }.launchIn(viewModelScope)
         }
+    }
+
+    fun getMaterialRequestsPaged(
+        statusFilter: RequestStatus? = null
+    ): Flow<PagingData<MaterialRequest>> {
+        // Si cambia el filtro, crear nuevo flow
+        if (_requestsPaged == null) {
+            _requestsPaged = inventoryRepository.getMaterialRequestsPaged(
+                orderBy = "requestDate",
+                direction = Query.Direction.DESCENDING,
+                statusFilter = statusFilter
+            ).cachedIn(viewModelScope)
+        }
+        return _requestsPaged!!
+    }
+
+    // Función para refrescar cuando cambie el filtro
+    fun refreshWithFilter(statusFilter: RequestStatus?) {
+        _requestsPaged = inventoryRepository.getMaterialRequestsPaged(
+            orderBy = "requestDate",
+            direction = Query.Direction.DESCENDING,
+            statusFilter = statusFilter
+        ).cachedIn(viewModelScope)
+    }
+
+    /**
+     * Establece el filtro de estado para las solicitudes.
+     * @param status El estado a filtrar, o null para todos.
+     */
+    fun setStatusFilter(status: RequestStatus?) {
+        _statusFilter.value = status
     }
 
 }

@@ -15,7 +15,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 import kotlinx.coroutines.flow.onEach
 import androidx.lifecycle.viewModelScope
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
 import dev.ycosorio.flujo.domain.model.RequestStatus
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.launch
 
@@ -35,6 +38,9 @@ class WorkerRequestViewModel @Inject constructor(
 
     private val _myWarehouse = MutableStateFlow<Warehouse?>(null)
     val myWarehouse = _myWarehouse.asStateFlow()
+
+    // Flow paginado para trabajador
+    private var _workerRequestsPaged: Flow<PagingData<MaterialRequest>>? = null
 
     init {
         authRepository.currentUser.onEach { authUser ->
@@ -65,6 +71,14 @@ class WorkerRequestViewModel @Inject constructor(
                 }.launchIn(viewModelScope)
             }
         }.launchIn(viewModelScope)
+    }
+
+    fun getWorkerRequestsPaged(workerId: String): Flow<PagingData<MaterialRequest>> {
+        if (_workerRequestsPaged == null) {
+            _workerRequestsPaged = inventoryRepository.getRequestsForWorkerPaged(workerId)
+                .cachedIn(viewModelScope)
+        }
+        return _workerRequestsPaged!!
     }
 
     /**

@@ -1,7 +1,8 @@
 package dev.ycosorio.flujo.data.repository
 
-import android.util.Log
-import com.google.firebase.firestore.FieldValue
+import androidx.paging.PagingData
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import dev.ycosorio.flujo.domain.model.Message
@@ -12,11 +13,15 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
+import timber.log.Timber
 import javax.inject.Inject
 
 class MessageRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore
 ) : MessageRepository {
+
+    private val messagesCollection = firestore.collection(FirestoreConstants.MESSAGES_COLLECTION)
+
 
     override suspend fun sendMessage(message: Message): Resource<Unit> {
         return try {
@@ -46,7 +51,7 @@ class MessageRepositoryImpl @Inject constructor(
             .whereArrayContains("recipientIds", userId)
             .orderBy("timestamp", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
-                Log.d("MessagesRepositoryImpl", "🔍 Cargando mensajes recibidos para: $userId")
+                Timber.d("🔍 Cargando mensajes recibidos para: $userId")
                 if (error != null) {
                     trySend(Resource.Error(error.message ?: "Error al obtener mensajes"))
                     return@addSnapshotListener
@@ -124,5 +129,38 @@ class MessageRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Error al eliminar mensaje")
         }
+    }
+    override fun getReceivedMessagesPaged(userId: String): Flow<PagingData<Message>> {
+        return Pager(
+            config = PagingConfig(
+                pageSize = 20,              // Cargar 20 mensajes por página
+                prefetchDistance = 5,       // Empezar a cargar cuando quedan 5 items
+                enablePlaceholders = false  // No mostrar placeholders
+            ),
+            pagingSourceFactory = {
+                MessagesPagingSource(
+                    messagesCollection = messagesCollection,
+                    userId = userId,
+                    isReceived = true
+                )
+            }
+        ).flow
+    }
+
+    override fun getSentMessagesPaged(userId: String): Flow<PagingData<Message>> {
+        return Pager(
+            config = PagingConfig(
+                pageSize = 20,
+                prefetchDistance = 5,
+                enablePlaceholders = false
+            ),
+            pagingSourceFactory = {
+                MessagesPagingSource(
+                    messagesCollection = messagesCollection,
+                    userId = userId,
+                    isReceived = false
+                )
+            }
+        ).flow
     }
 }

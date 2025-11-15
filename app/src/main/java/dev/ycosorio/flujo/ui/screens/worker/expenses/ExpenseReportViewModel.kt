@@ -3,6 +3,8 @@ package dev.ycosorio.flujo.ui.screens.worker.expenses
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.ycosorio.flujo.domain.model.ExpenseItem
 import dev.ycosorio.flujo.domain.model.ExpenseReport
@@ -10,6 +12,7 @@ import dev.ycosorio.flujo.domain.model.ExpenseReportStatus
 import dev.ycosorio.flujo.domain.repository.AuthRepository
 import dev.ycosorio.flujo.domain.repository.ExpenseRepository
 import dev.ycosorio.flujo.utils.Resource
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -39,9 +42,18 @@ class ExpenseReportViewModel @Inject constructor(
     val uiState: StateFlow<ExpenseReportUiState> = _uiState.asStateFlow()
 
     private val currentUserId = authRepository.getCurrentUser()
+    private var _reportsPaged: Flow<PagingData<ExpenseReport>>? = null
 
     init {
         loadExpenseReports()
+    }
+
+    fun getExpenseReportsPaged(userId: String): Flow<PagingData<ExpenseReport>> {
+        if (_reportsPaged == null) {
+            _reportsPaged = expenseRepository.getExpenseReportsForWorkerPaged(userId)
+                .cachedIn(viewModelScope)
+        }
+        return _reportsPaged!!
     }
 
     /**

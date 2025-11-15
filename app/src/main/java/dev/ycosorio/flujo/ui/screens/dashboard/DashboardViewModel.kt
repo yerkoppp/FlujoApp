@@ -1,6 +1,5 @@
 package dev.ycosorio.flujo.ui.screens.dashboard
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -11,6 +10,7 @@ import dev.ycosorio.flujo.utils.Resource
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
@@ -26,11 +26,11 @@ class DashboardViewModel @Inject constructor(
         viewModelScope.launch {
             authRepository.currentUser.collect { authUser ->
                 if (authUser != null) {
-                    Log.d("DashboardViewModel", "🔍 Cargando usuario: ${authUser.email}")
+                    Timber.d("🔍 Cargando usuario: ${authUser.email}")
                     _userState.value = Resource.Loading()
                     _userState.value = userRepository.getUser(authUser.uid ?: "")
                 } else {
-                    Log.w("DashboardViewModel", "⚠️ No hay usuario autenticado")
+                    Timber.w("⚠️ No hay usuario autenticado")
                     _userState.value = Resource.Error("No hay usuario autenticado")
                 }
             }

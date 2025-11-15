@@ -3,6 +3,8 @@ package dev.ycosorio.flujo.ui.screens.admin.inventory
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -10,14 +12,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.navigation.NavController
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
 import dev.ycosorio.flujo.domain.model.Role
 import dev.ycosorio.flujo.ui.components.MaterialRequestItem
 import dev.ycosorio.flujo.domain.model.RequestStatus
 import dev.ycosorio.flujo.utils.Resource
+import dev.ycosorio.flujo.domain.model.ConsolidatedStock
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MaterialRequestScreen(
+    navController: NavController,
     viewModel: MaterialRequestViewModel = hiltViewModel()
 ) {
     val requestsState by viewModel.requestsState.collectAsState()
@@ -27,9 +35,23 @@ fun MaterialRequestScreen(
     val consolidatedStock by viewModel.consolidatedStock.collectAsState()
     val statusFilter by viewModel.statusFilter.collectAsState()
 
+    val requestsPaged = viewModel.getMaterialRequestsPaged(statusFilter).collectAsLazyPagingItems()
+
     var selectedTab by remember { mutableStateOf(0) }
     var selectedInventoryTab by remember { mutableStateOf(0) }
     var expandedWarehouse by remember { mutableStateOf(false) }
+
+    var expandedFilter by remember { mutableStateOf(false) }
+    val filterOptions = listOf(
+        null to "Todos",
+        RequestStatus.PENDIENTE to "Pendientes",
+        RequestStatus.APROBADO to "Aprobadas",
+        RequestStatus.RECHAZADO to "Rechazadas",
+        RequestStatus.ENTREGADO to "Entregadas",
+        RequestStatus.CANCELADO to "Canceladas"
+    )
+    val selectedLabel = filterOptions.find { it.first == statusFilter }?.second ?: "Todos"
+
 
     Scaffold(
         topBar = {
@@ -42,7 +64,7 @@ fun MaterialRequestScreen(
                 .padding(paddingValues)
         ) {
             // TabRow principal
-            TabRow(selectedTabIndex = selectedTab) {
+            PrimaryTabRow(selectedTabIndex = selectedTab) {
                 Tab(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
@@ -58,55 +80,150 @@ fun MaterialRequestScreen(
             // Contenido según pestaña
             when (selectedTab) {
                 0 -> {
-                    // Pestaña de Solicitudes
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        when (val state = requestsState) {  // <- USAR requestsState
-                            is Resource.Idle, is Resource.Loading -> CircularProgressIndicator()
-                            is Resource.Success -> {
-                                val requests = state.data
-                                if (requests.isNullOrEmpty()) {
-                                    Text("No hay solicitudes de materiales.")
-                                } else {
+                    // ✅ PESTAÑA DE SOLICITUDES - CON FILTRO Y PAGINACIÓN
+                    Column(modifier = Modifier.fillMaxSize()) {
+
+                        // ✅ RESTAURADO: Filtro dropdown
+                        ExposedDropdownMenuBox(
+                            expanded = expandedFilter,
+                            onExpandedChange = { expandedFilter = !expandedFilter },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = "Filtrar: $selectedLabel",
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Estado") },
+                                trailingIcon = {
+                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFilter)
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .menuAnchor()
+                            )
+
+                            ExposedDropdownMenu(
+                                expanded = expandedFilter,
+                                onDismissRequest = { expandedFilter = false }
+                            ) {
+                                filterOptions.forEach { (status, label) ->
+                                    DropdownMenuItem(
+                                        text = { Text(label) },
+                                        onClick = {
+                                            viewModel.onStatusFilterChanged(status)
+                                            viewModel.refreshWithFilter(status)
+                                            expandedFilter = false
+                                        },
+                                        leadingIcon = if (statusFilter == status) {
+                                            { Icon(Icons.Default.Check, contentDescription = null) }
+                                        } else null
+                                    )
+                                }
+                            }
+                        }
+
+                        // ✅ NUEVO: Lista paginada
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            when {
+                                requestsPaged.loadState.refresh is LoadState.Loading -> {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.align(Alignment.Center)
+                                    )
+                                }
+                                requestsPaged.loadState.refresh is LoadState.Error -> {
+                                    Column(
+                                        modifier = Modifier
+                                            .align(Alignment.Center)
+                                            .padding(16.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text(
+                                            "Error al cargar solicitudes",
+                                            style = MaterialTheme.typography.titleMedium
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Button(onClick = { requestsPaged.retry() }) {
+                                            Text("Reintentar")
+                                        }
+                                    }
+                                }
+                                requestsPaged.itemCount == 0 -> {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text("No hay solicitudes de materiales.")
+                                    }
+                                }
+                                else -> {
                                     LazyColumn(
                                         contentPadding = PaddingValues(16.dp),
                                         verticalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
                                         items(
-                                            items = requests,
-                                            key = { it.id }
-                                        ) { request ->
-                                            MaterialRequestItem(
-                                                role = Role.ADMINISTRADOR,
-                                                request = request,
-                                                onApprove = {
-                                                    viewModel.updateRequestStatus(
-                                                        request.id,
-                                                        RequestStatus.APROBADO
-                                                    )
-                                                },
-                                                onReject = {
-                                                    viewModel.updateRequestStatus(
-                                                        request.id,
-                                                        RequestStatus.RECHAZADO
-                                                    )
-                                                },
-                                                onDeliver = {
-                                                    // Buscar la request completa
+                                            count = requestsPaged.itemCount,
+                                            key = requestsPaged.itemKey { it.id }
+                                        ) { index ->
+                                            val request = requestsPaged[index]
+                                            if (request != null) {
+                                                MaterialRequestItem(
+                                                    role = Role.ADMINISTRADOR,
+                                                    request = request,
+                                                    onApprove = {
+                                                        viewModel.updateRequestStatus(
+                                                            request.id,
+                                                            RequestStatus.APROBADO
+                                                        )
+                                                    },
+                                                    onReject = {
+                                                        viewModel.updateRequestStatus(
+                                                            request.id,
+                                                            RequestStatus.RECHAZADO
+                                                        )
+                                                    },
+                                                    onDeliver = {
+                                                        viewModel.deliverMaterialRequest(request, request.adminNotes)
+                                                    } as () -> Unit,
+                                                    onCancel = {}
+                                                )
+                                            }
+                                        }
 
-                                                    requests.find { it.id == request.id }?.let { req ->
-                                                        viewModel.deliverMaterialRequest(req, req.adminNotes)
+                                        // Loading al cargar más
+                                        if (requestsPaged.loadState.append is LoadState.Loading) {
+                                            item {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(16.dp),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    CircularProgressIndicator()
+                                                }
+                                            }
+                                        }
+
+                                        // Error al cargar más
+                                        if (requestsPaged.loadState.append is LoadState.Error) {
+                                            item {
+                                                Column(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(16.dp),
+                                                    horizontalAlignment = Alignment.CenterHorizontally
+                                                ) {
+                                                    Text("Error al cargar más solicitudes")
+                                                    Button(onClick = { requestsPaged.retry() }) {
+                                                        Text("Reintentar")
                                                     }
-                                                } as () -> Unit,
-                                                onCancel = {}
-                                            )
+                                                }
+                                            }
                                         }
                                     }
                                 }
                             }
-                            is Resource.Error -> Text(state.message ?: "Error al cargar solicitudes")
                         }
                     }
                 }
@@ -114,7 +231,7 @@ fun MaterialRequestScreen(
                     // Pestaña de Inventario
                     Column(modifier = Modifier.fillMaxSize()) {
                         // Sub-tabs para inventario
-                        TabRow(selectedTabIndex = selectedInventoryTab) {
+                        SecondaryTabRow(selectedTabIndex = selectedInventoryTab) {
                             Tab(
                                 selected = selectedInventoryTab == 0,
                                 onClick = { selectedInventoryTab = 0 },
@@ -322,12 +439,16 @@ fun MaterialRequestScreen(
 
 @Composable
 private fun ConsolidatedStockCard(
-    consolidatedItem: dev.ycosorio.flujo.domain.model.ConsolidatedStock
+    consolidatedItem: ConsolidatedStock
 ) {
     var expanded by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+        ),
         onClick = { expanded = !expanded }
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -340,7 +461,8 @@ private fun ConsolidatedStockCard(
                     Text(
                         text = consolidatedItem.materialName,
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
                     )
                     Text(
                         text = "${consolidatedItem.warehouseBreakdown.size} bodega(s)",
@@ -350,7 +472,7 @@ private fun ConsolidatedStockCard(
                 }
                 Text(
                     text = "${consolidatedItem.totalQuantity} unidades",
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold
                 )

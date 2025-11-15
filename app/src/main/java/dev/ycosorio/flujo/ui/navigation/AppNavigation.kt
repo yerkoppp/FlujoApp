@@ -59,7 +59,11 @@ fun AppNavigation() {
 
     NavHost(
         navController = navController,
-        startDestination = "login"
+        if (currentAuthUser != null) {
+            Routes.AccessVerification.route
+        } else {
+            Routes.Login.route
+        }
     ) {
         composable(Routes.Login.route) {
             LoginScreen(
@@ -194,7 +198,7 @@ fun AppNavigation() {
             }
         }
 
-// Pantalla de Editar Usuario
+        // Pantalla de Editar Usuario
         composable(
             route = "admin/users/edit/{userId}",
             arguments = listOf(navArgument("userId") { type = NavType.StringType })

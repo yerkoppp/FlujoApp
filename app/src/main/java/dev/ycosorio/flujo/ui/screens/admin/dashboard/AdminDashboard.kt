@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.filled.Inventory
+import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material.icons.filled.NoCrash
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.PersonAddAlt1
@@ -29,7 +30,7 @@ fun AdminDashboard(
 
     val dashboardActions = listOf(
         DashboardAction(
-            title = "Usuarios",
+            title = "Trabajadores",
             icon = Icons.Default.PersonAddAlt1,
             onClick = onNavigateToUserManagement
         ),
@@ -49,9 +50,9 @@ fun AdminDashboard(
             onClick = { navController.navigate(Routes.WarehouseManagement.route) }
         ),
         DashboardAction(
-            title = "Notificaciones",
-            icon = Icons.Default.NotificationsActive,
-            onClick = { /* TODO: Navegar a pantalla de notificaciones */ }
+            title = "Rendiciones",
+            icon = Icons.Default.MonetizationOn,
+            onClick = { navController.navigate(Routes.ExpenseReportList.route) }
         ),
         DashboardAction(
             title = "Mensajes",
@@ -65,8 +66,8 @@ fun AdminDashboard(
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(2), // 2 columnas
-        verticalArrangement = Arrangement.spacedBy(20.dp),
-        horizontalArrangement = Arrangement.spacedBy(20.dp)
+        verticalArrangement = Arrangement.spacedBy(15.dp),
+        horizontalArrangement = Arrangement.spacedBy(15.dp)
     ) {
         items(dashboardActions) { action ->
             DashboardCard(action = action)

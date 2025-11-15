@@ -16,6 +16,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
+import com.google.firebase.auth.FirebaseAuth
 import dev.ycosorio.flujo.domain.model.Role
 import dev.ycosorio.flujo.ui.components.MaterialRequestItem
 import dev.ycosorio.flujo.utils.Resource
@@ -24,11 +29,18 @@ import dev.ycosorio.flujo.utils.Resource
 @Composable
 fun WorkerRequestScreen(
     viewModel: WorkerRequestViewModel,
+    navController: NavController,
     onAddRequestClicked: () -> Unit
 ) {
+
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+
     val myRequestsState by viewModel.myRequestsState.collectAsState()
     val myWarehouseStock by viewModel.myWarehouseStock.collectAsState()
     val myWarehouse by viewModel.myWarehouse.collectAsState()
+
+    val requestsPaged = viewModel.getWorkerRequestsPaged(currentUserId).collectAsLazyPagingItems()
+
     var selectedTab by remember { mutableStateOf(0) }
 
     Scaffold(
@@ -49,7 +61,7 @@ fun WorkerRequestScreen(
                 .padding(paddingValues)
         ) {
             // TabRow
-            TabRow(selectedTabIndex = selectedTab) {
+            PrimaryTabRow(selectedTabIndex = selectedTab) {
                 Tab(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
@@ -65,25 +77,49 @@ fun WorkerRequestScreen(
             // Contenido según pestaña
             when (selectedTab) {
                 0 -> {
-                    // Pestaña de Solicitudes
+                    // ✅ PESTAÑA DE SOLICITUDES - CON PAGINACIÓN
                     Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
+                        modifier = Modifier.fillMaxSize()
                     ) {
-                        when (val state = myRequestsState) {
-                            is Resource.Idle, is Resource.Loading -> CircularProgressIndicator()
-                            is Resource.Success -> {
-                                if (state.data.isNullOrEmpty()) {
+                        when {
+                            requestsPaged.loadState.refresh is LoadState.Loading -> {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.align(Alignment.Center)
+                                )
+                            }
+                            requestsPaged.loadState.refresh is LoadState.Error -> {
+                                Column(
+                                    modifier = Modifier
+                                        .align(Alignment.Center)
+                                        .padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text("Error al cargar solicitudes")
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Button(onClick = { requestsPaged.retry() }) {
+                                        Text("Reintentar")
+                                    }
+                                }
+                            }
+                            requestsPaged.itemCount == 0 -> {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
                                     Text("No has realizado ninguna solicitud.")
-                                } else {
-                                    LazyColumn(
-                                        contentPadding = PaddingValues(16.dp),
-                                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        items(
-                                            items = state.data,
-                                            key = { it.id }
-                                        ) { request ->
+                                }
+                            }
+                            else -> {
+                                LazyColumn(
+                                    contentPadding = PaddingValues(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    items(
+                                        count = requestsPaged.itemCount,
+                                        key = requestsPaged.itemKey { it.id }
+                                    ) { index ->
+                                        val request = requestsPaged[index]
+                                        if (request != null) {
                                             MaterialRequestItem(
                                                 role = Role.TRABAJADOR,
                                                 request = request,
@@ -96,9 +132,39 @@ fun WorkerRequestScreen(
                                             )
                                         }
                                     }
+
+                                    // Loading al cargar más
+                                    if (requestsPaged.loadState.append is LoadState.Loading) {
+                                        item {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(16.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                CircularProgressIndicator()
+                                            }
+                                        }
+                                    }
+
+                                    // Error al cargar más
+                                    if (requestsPaged.loadState.append is LoadState.Error) {
+                                        item {
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(16.dp),
+                                                horizontalAlignment = Alignment.CenterHorizontally
+                                            ) {
+                                                Text("Error al cargar más solicitudes")
+                                                Button(onClick = { requestsPaged.retry() }) {
+                                                    Text("Reintentar")
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
-                            is Resource.Error -> Text(text = state.message ?: "Error desconocido")
                         }
                     }
                 }

@@ -1,6 +1,5 @@
 package dev.ycosorio.flujo.ui.screens.main
 
-import android.util.Log
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -45,6 +44,7 @@ import dev.ycosorio.flujo.ui.screens.worker.dashboard.WorkerDashboard
 import dev.ycosorio.flujo.ui.screens.worker.inventory.WorkerRequestScreen
 import dev.ycosorio.flujo.ui.screens.worker.inventory.WorkerRequestViewModel
 import dev.ycosorio.flujo.utils.Resource
+import timber.log.Timber
 
 
 @Composable
@@ -65,7 +65,7 @@ fun MainScreen(
 
     // Cargar usuario actual
     LaunchedEffect(Unit) {
-        Log.d("MainScreen", "🔄 Cargando usuario actual")
+        Timber.d("🔄 Cargando usuario actual")
         dashboardViewModel.loadCurrentUser()
     }
 
@@ -116,7 +116,7 @@ fun MainScreen(
                 }
                 is Resource.Success -> {
                     state.data?.let { user ->
-                        Log.d("MainScreen", "✅ Usuario cargado: ${user.name}")
+                        Timber.d("✅ Usuario cargado: ${user.name}")
                         NavHost(
                             internalNavController,
                             startDestination = BottomNavItem.Dashboard.route
@@ -142,12 +142,15 @@ fun MainScreen(
                                 when (user.role) {
                                     Role.ADMINISTRADOR -> {
                                         val adminInventoryViewModel: MaterialRequestViewModel = hiltViewModel()
-                                        MaterialRequestScreen(viewModel = adminInventoryViewModel)
+                                        MaterialRequestScreen(viewModel = adminInventoryViewModel,
+                                            navController = externalNavController
+                                        )
                                     }
                                     Role.TRABAJADOR -> {
                                         val workerInventoryViewModel: WorkerRequestViewModel = hiltViewModel()
                                         WorkerRequestScreen(
                                             viewModel = workerInventoryViewModel,
+                                            navController = externalNavController,
                                             onAddRequestClicked = {
                                                 externalNavController.navigate(Routes.CreateRequest.route)
                                             }

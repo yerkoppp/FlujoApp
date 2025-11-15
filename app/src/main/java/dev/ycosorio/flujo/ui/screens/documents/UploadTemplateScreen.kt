@@ -16,8 +16,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import dev.ycosorio.flujo.utils.Resource
-import android.util.Log
+import timber.log.Timber
+import androidx.annotation.RequiresApi
 
+@RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UploadTemplateScreen(
@@ -35,7 +37,7 @@ fun UploadTemplateScreen(
         contract = ActivityResultContracts.GetContent(),
         onResult = { uri ->
             uri?.let {
-                Log.d("UploadTemplate", "📎 Archivo seleccionado: $it")
+                Timber.d("📎 Archivo seleccionado: $it")
                 selectedUri = it
             }
         }
@@ -46,10 +48,10 @@ fun UploadTemplateScreen(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted ->
             if (isGranted) {
-                Log.d("UploadTemplate", "✅ Permiso concedido")
+                Timber.d("✅ Permiso concedido")
                 filePickerLauncher.launch("application/pdf")
             } else {
-                Log.w("UploadTemplate", "❌ Permiso denegado")
+                Timber.w("❌ Permiso denegado")
             }
         }
     )
@@ -57,7 +59,7 @@ fun UploadTemplateScreen(
     // Efecto para volver atrás si la subida es exitosa
     LaunchedEffect(uploadState) {
         if (uploadState is Resource.Success) {
-            Log.d("UploadTemplate", "✅ Subida exitosa, regresando")
+            Timber.d("✅ Subida exitosa, regresando")
             viewModel.resetUploadState()
             onUploadSuccess()
         }
@@ -92,12 +94,14 @@ fun UploadTemplateScreen(
 
             Button(
                 onClick = {
-                    Log.d("UploadTemplate", "🔘 Botón presionado")
-                    // En Android 13+ necesitamos permiso
+                    Timber.d("🔘 Botón presionado")
+                    // En Android 13+ necesitamos permiso específico para documentos
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        permissionLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
+                        // READ_MEDIA_DOCUMENTS es para PDFs y otros documentos
+                        permissionLauncher.launch(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED)
                     } else {
-                        filePickerLauncher.launch("application/pdf")
+                        // Android 12 y anteriores usan READ_EXTERNAL_STORAGE
+                        permissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
                     }
                 },
                 modifier = Modifier.fillMaxWidth()
@@ -143,7 +147,7 @@ fun UploadTemplateScreen(
 
             Button(
                 onClick = {
-                    Log.d("UploadTemplate", "📤 Iniciando subida: $title")
+                    Timber.d("📤 Iniciando subida: $title")
                     viewModel.uploadTemplate(title, selectedUri)
                 },
                 enabled = uploadState !is Resource.Loading &&

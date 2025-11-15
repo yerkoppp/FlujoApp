@@ -54,7 +54,7 @@ private fun UnauthorizedContent(onSignOut: () -> Unit) {
     val context = LocalContext.current
     // Cerrar sesión automáticamente cuando se muestra esta pantalla
     LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(1000) // Pequeño delay para que se vea el mensaje
+        kotlinx.coroutines.delay(500) // Pequeño delay para que se vea el mensaje
         onSignOut()
         AuthUI.getInstance()
             .signOut(context)

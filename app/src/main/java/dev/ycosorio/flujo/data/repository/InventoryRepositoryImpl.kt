@@ -1,5 +1,8 @@
 package dev.ycosorio.flujo.data.repository
 
+import androidx.paging.PagingData
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
@@ -30,6 +33,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import java.util.Date
 import javax.inject.Inject
 
@@ -70,22 +74,20 @@ class InventoryRepositoryImpl @Inject constructor(
                 if (error is FirebaseFirestoreException &&
                     error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
                     trySend(Resource.Error("Sesión finalizada"))
-                    close()  // ✅ Cerrar sin error
                 } else {
                     trySend(Resource.Error(error.localizedMessage ?: "Error al escuchar las solicitudes."))
-                    close(error)
                 }
                 return@addSnapshotListener
             }
 
             if (snapshot != null) {
-                android.util.Log.d("InventoryRepo", "📦 Documentos recibidos: ${snapshot.size()}")
+                Timber.d("📦 Documentos recibidos: ${snapshot.size()}")
                 val requests = snapshot.documents.mapNotNull {
                     val request = it.toMaterialRequest()
-                    android.util.Log.d("InventoryRepo", "Documento ${it.id}: ${if (request != null) "✅ OK" else "❌ NULL"}")
+                    Timber.d("Documento ${it.id}: ${if (request != null) "✅ OK" else "❌ NULL"}")
                     request
                 }
-                android.util.Log.d("InventoryRepo", "✅ Solicitudes parseadas: ${requests.size}")
+                Timber.d("✅ Solicitudes parseadas: ${requests.size}")
                 trySend(Resource.Success(requests))
             }
         }
@@ -156,10 +158,10 @@ class InventoryRepositoryImpl @Inject constructor(
                 if (error is FirebaseFirestoreException &&
                     error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
                     trySend(Resource.Error("Sesión finalizada"))
-                    close()  // ✅ Cerrar sin error
+
                 } else {
                     trySend(Resource.Error(error.localizedMessage ?: "Error al obtener tus solicitudes."))
-                    close(error)
+
                 }
                 return@addSnapshotListener
             }
@@ -272,12 +274,20 @@ class InventoryRepositoryImpl @Inject constructor(
                 val toStockRef = warehousesCol.document(toWarehouseId)
                     .collection(STOCK_SUBCOLLECTION).document(material.id)
 
-                // 1. Obtener el stock de origen
+                // 1. Obtener el stock de origen y validar existencia
                 val fromStockDoc = transaction.get(fromStockRef)
-                val fromStockItem = fromStockDoc.toObject(StockItem::class.java)
 
-                if (fromStockItem == null || fromStockItem.quantity < quantityToTransfer) {
-                    throw Exception("Cantidad insuficiente en la bodega de origen. Disponible: ${fromStockItem?.quantity ?: 0}")
+                // Validar que el documento existe primero
+                if (!fromStockDoc.exists()) {
+                    throw Exception("El material '${material.name}' no existe en la bodega de origen")
+                }
+
+                val fromStockItem = fromStockDoc.toObject(StockItem::class.java)
+                    ?: throw Exception("Error al leer el stock del material '${material.name}'")
+
+                // Validar cantidad disponible
+                if (fromStockItem.quantity < quantityToTransfer) {
+                    throw Exception("Cantidad insuficiente de '${material.name}' en bodega de origen. Disponible: ${fromStockItem.quantity}, Solicitado: $quantityToTransfer")
                 }
 
                 // 2. Restar del origen
@@ -476,10 +486,9 @@ class InventoryRepositoryImpl @Inject constructor(
                 if (materialsError is FirebaseFirestoreException &&
                     materialsError.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
                     trySend(Resource.Error("Sesión finalizada"))
-                    close()
+
                 } else {
                     trySend(Resource.Error(materialsError.localizedMessage ?: "Error al cargar inventario"))
-                    close(materialsError)
                 }
                 return@addSnapshotListener
             }
@@ -606,5 +615,47 @@ class InventoryRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             null
         }
+    }
+
+    // Paginación para solicitudes de materiales
+
+    // Para vista de ADMINISTRADOR (todas las solicitudes)
+    override fun getMaterialRequestsPaged(
+        orderBy: String,
+        direction: Query.Direction,
+        statusFilter: RequestStatus?
+    ): Flow<PagingData<MaterialRequest>> {
+        return Pager(
+            config = PagingConfig(
+                pageSize = 20,
+                prefetchDistance = 5,
+                enablePlaceholders = false
+            ),
+            pagingSourceFactory = {
+                MaterialRequestPagingSource(
+                    requestsCollection = requestsCollection,
+                    workerId = null,  // null = todas las solicitudes
+                    statusFilter = statusFilter
+                )
+            }
+        ).flow
+    }
+
+    // Para vista de TRABAJADOR (solo sus solicitudes)
+    override fun getRequestsForWorkerPaged(workerId: String): Flow<PagingData<MaterialRequest>> {
+        return Pager(
+            config = PagingConfig(
+                pageSize = 20,
+                prefetchDistance = 5,
+                enablePlaceholders = false
+            ),
+            pagingSourceFactory = {
+                MaterialRequestPagingSource(
+                    requestsCollection = requestsCollection,
+                    workerId = workerId,
+                    statusFilter = null
+                )
+            }
+        ).flow
     }
 }

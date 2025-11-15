@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -38,6 +39,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
+import com.google.firebase.auth.FirebaseAuth
 import dev.ycosorio.flujo.domain.model.ExpenseReport
 import dev.ycosorio.flujo.domain.model.ExpenseReportStatus
 import java.text.NumberFormat
@@ -52,7 +57,9 @@ fun ExpenseReportListScreen(
     onReportClick: (String) -> Unit,
     viewModel: ExpenseReportViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+    //val uiState by viewModel.uiState.collectAsState()
+    val reportsPaged = viewModel.getExpenseReportsPaged(currentUserId).collectAsLazyPagingItems()
 
     Scaffold(
         topBar = {
@@ -78,10 +85,21 @@ fun ExpenseReportListScreen(
                 .padding(padding)
         ) {
             when {
-                uiState.isLoadingList -> {
+                reportsPaged.loadState.refresh is LoadState.Loading -> {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
-                uiState.reportsList.isEmpty() -> {
+                reportsPaged.loadState.refresh is LoadState.Error -> {
+                    Column(
+                        modifier = Modifier.align(Alignment.Center),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text("Error al cargar rendiciones")
+                        Button(onClick = { reportsPaged.retry() }) {
+                            Text("Reintentar")
+                        }
+                    }
+                }
+                reportsPaged.itemCount == 0 -> {
                     Column(
                         modifier = Modifier.align(Alignment.Center),
                         horizontalAlignment = Alignment.CenterHorizontally
@@ -104,29 +122,32 @@ fun ExpenseReportListScreen(
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(uiState.reportsList) { report ->
-                            ExpenseReportCard(
-                                report = report,
-                                onClick = { onReportClick(report.id) }
-                            )
+                        items(
+                            count = reportsPaged.itemCount,
+                            key = reportsPaged.itemKey { it.id }
+                        ) { index ->
+                            val report = reportsPaged[index]
+                            if (report != null) {
+                                ExpenseReportCard(
+                                    report = report,
+                                    onClick = { onReportClick(report.id) }
+                                )
+                            }
                         }
-                    }
-                }
-            }
 
-            // Mostrar error si hay
-            uiState.error?.let { error ->
-                Snackbar(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(16.dp),
-                    action = {
-                        TextButton(onClick = { viewModel.clearError() }) {
-                            Text("OK")
+                        if (reportsPaged.loadState.append is LoadState.Loading) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator()
+                                }
+                            }
                         }
                     }
-                ) {
-                    Text(error)
                 }
             }
         }

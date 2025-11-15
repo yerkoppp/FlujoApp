@@ -2,27 +2,27 @@
 # Actualizado: Octubre 2025
 
 [versions]
-# ========== BUILD & CORE ==========
+# ========== BUILD & CORE ==========#
 # Android Gradle Plugin y Kotlin
 agp = "8.12.3"
 kotlin = "2.2.20"
 ksp = "2.2.20-2.0.3"            # (debe coincidir con Kotlin)
 
-# ========== JETPACK COMPOSE ==========
-composeBom = "2025.10.01"
+# ========== JETPACK COMPOSE ==========#
+composeBom = "2025.11.00"
 activityCompose = "1.11.0"
 navigationCompose = "2.9.5"
 
-# ========== ARQUITECTURA & LIFECYCLE (MVVM) ==========
+# ========== ARQUITECTURA & LIFECYCLE (MVVM) ==========#
 coreKtx = "1.17.0"
 lifecycle = "2.9.4"
 viewModelCompose = "2.9.4"       # (debe coincidir con lifecycle)
 
 
-# ========== BASE DE DATOS LOCAL (ROOM) ==========
+# ========== BASE DE DATOS LOCAL (ROOM) ==========#
 room = "2.8.3"
 
-# ========== FIREBASE ==========
+# ========== FIREBASE ==========#
 firebaseBom = "34.5.0"
 googleServicesPlugin = "4.4.4"
 googleAuth = "21.4.0"
@@ -32,8 +32,14 @@ firebaseStorage = "21.0.2"
 firebaseUiAuth = "9.1.1"
 firebaseFunctions = "21.2.1"
 
-# ========== SEGURIDAD ==========
+# ========== SEGURIDAD ==========#
 securityCrypto = "1.1.0"
+
+# ========== Logging ==========#
+timber = "5.0.1"
+
+# ========== PAGING ==========#
+paging = "3.2.1"
 
 # ========== Testing ===========
 junit = "4.13.2"
@@ -58,7 +64,7 @@ material3 = "1.4.0"
 # ========== Persitencia de Preferencias ===========
 datastore = "1.1.7"
 
-# ========== PLUGINS ==========
+# ========== PLUGINS ==========#
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
@@ -67,7 +73,7 @@ google-services = { id = "com.google.gms.google-services", version.ref = "google
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 
-# ========== LIBRERÍAS ==========
+# ========== LIBRERÍAS ==========#
 [libraries]
 # ---------- Core de Android y Lifecycle ----------
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -93,6 +99,11 @@ androidx-room-runtime = { group = "androidx.room", name = "room-runtime", versio
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 
+# ---------- Paging ----------
+androidx-paging-runtime-ktx = { group = "androidx.paging", name = "paging-runtime-ktx", version.ref = "paging" }
+androidx-paging-compose = { group = "androidx.paging", name = "paging-compose", version.ref = "paging" }
+
+
 # ---------- Firebase ----------
 # BoM gestiona automáticamente las versiones compatibles
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
@@ -106,6 +117,9 @@ firebase-functions = { group = "com.google.firebase", name = "firebase-functions
 
 # ---------- Seguridad ----------
 androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
+
+# ---------- Logging ----------
+timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
 
 # ---------- Testing ------------
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -134,7 +148,7 @@ material3 = { group = "androidx.compose.material3", name = "material3", version.
 # ========== Persitencia de Preferencias ===========
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 
-# ========== BUNDLES (OPCIONAL) ==========
+# ========== BUNDLES (OPCIONAL) ==========#
 # Agrupa dependencias comunes para facilitar su inclusión
 [bundles]
 compose = [
@@ -148,6 +162,11 @@ compose = [
 room = [
     "androidx-room-runtime",
     "androidx-room-ktx"
+]
+
+paging = [
+    "androidx-paging-runtime-ktx",
+    "androidx-paging-compose"
 ]
 
 firebase = [

@@ -1,12 +1,16 @@
 package dev.ycosorio.flujo.data.repository
 
 import android.net.Uri
+import androidx.paging.PagingData
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.snapshots
 import com.google.firebase.storage.FirebaseStorage
 import dev.ycosorio.flujo.domain.model.ExpenseReport
 import dev.ycosorio.flujo.domain.model.ExpenseReportStatus
 import dev.ycosorio.flujo.domain.repository.ExpenseRepository
+import dev.ycosorio.flujo.utils.FirestoreConstants
 import dev.ycosorio.flujo.utils.Resource
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -22,7 +26,7 @@ class ExpenseRepositoryImpl @Inject constructor(
     private val storage: FirebaseStorage
 ) : ExpenseRepository {
 
-    private val expenseReportsCol = firestore.collection("expense_reports")
+    private val expenseReportsCol = firestore.collection(FirestoreConstants.EXPENSE_COLLECTION)
 
     override fun getExpenseReportsForWorker(workerId: String): Flow<Resource<List<ExpenseReport>>> =
         callbackFlow {
@@ -165,5 +169,21 @@ class ExpenseRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Error al eliminar rendición")
         }
+    }
+
+    override fun getExpenseReportsForWorkerPaged(userId: String): Flow<PagingData<ExpenseReport>> {
+        return Pager(
+            config = PagingConfig(
+                pageSize = 20,
+                prefetchDistance = 5,
+                enablePlaceholders = false
+            ),
+            pagingSourceFactory = {
+                ExpenseReportPagingSource(
+                    expenseReportsCollection = expenseReportsCol,
+                    userId = userId
+                )
+            }
+        ).flow
     }
 }
