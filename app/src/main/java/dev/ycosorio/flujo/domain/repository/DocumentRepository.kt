@@ -59,4 +59,10 @@ interface DocumentRepository {
      * Obtiene todos los documentos firmados por un trabajador específico.
      */
     fun getSignedDocumentsForWorker(workerId: String): Flow<Resource<List<DocumentAssignment>>>
+
+    /**
+     * Elimina una plantilla de documento y su archivo asociado en Storage.
+     * @param template La plantilla a eliminar.
+     */
+    suspend fun deleteTemplate(template: DocumentTemplate): Resource<Unit>
 }

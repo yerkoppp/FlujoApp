@@ -252,6 +252,43 @@ class DocumentRepositoryImpl @Inject constructor(
         }
         awaitClose { subscription.remove() }
     }
+
+    override suspend fun deleteTemplate(template: DocumentTemplate): Resource<Unit> {
+        return try {
+            Log.d("DocumentRepository", "🗑️ Eliminando plantilla: ${template.title}")
+
+            // 1. Verificar si hay asignaciones asociadas a esta plantilla
+            val assignmentsSnapshot = assignmentsCollection
+                .whereEqualTo("templateId", template.id)
+                .limit(1)
+                .get()
+                .await()
+
+            if (!assignmentsSnapshot.isEmpty) {
+                Log.w("DocumentRepository", "⚠️ No se puede eliminar: existen asignaciones asociadas")
+                return Resource.Error("No se puede eliminar esta plantilla porque tiene asignaciones asociadas.")
+            }
+
+            // 2. Eliminar el archivo de Storage
+            try {
+                val fileRef = storage.getReferenceFromUrl(template.fileUrl)
+                fileRef.delete().await()
+                Log.d("DocumentRepository", "✅ Archivo eliminado de Storage")
+            } catch (e: Exception) {
+                Log.w("DocumentRepository", "⚠️ No se pudo eliminar el archivo de Storage: ${e.message}")
+                // Continuamos incluso si falla la eliminación del archivo
+            }
+
+            // 3. Eliminar el documento de Firestore
+            templatesCollection.document(template.id).delete().await()
+            Log.d("DocumentRepository", "✅ Plantilla eliminada de Firestore")
+
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Log.e("DocumentRepository", "❌ Error al eliminar plantilla", e)
+            Resource.Error(e.localizedMessage ?: "Error al eliminar la plantilla.")
+        }
+    }
 }
 
 // --- FUNCIONES DE MAPEO ---

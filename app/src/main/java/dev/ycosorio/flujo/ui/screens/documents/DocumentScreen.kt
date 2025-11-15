@@ -1,14 +1,21 @@
 package dev.ycosorio.flujo.ui.screens.documents
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -116,90 +123,18 @@ private fun AdminDocumentScreen(
             when (selectedTab) {
                 0 -> {
                     // Pestaña de Plantillas
-                    when (val state = templatesState) {
-                        is Resource.Loading, is Resource.Idle -> CircularProgressIndicator()
-                        is Resource.Success -> {
-                            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                items(state.data ?: emptyList()) { template ->
-                                    Card(
-                                        onClick = {
-                                            navController.navigate(Routes.AssignDocument.createRoute(template.id))
-                                        },
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(16.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(template.title, modifier = Modifier.weight(1f))
-                                            Icon(Icons.Default.ChevronRight, contentDescription = "Asignar")
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        is Resource.Error -> Text(state.message ?: "Error")
-                    }
+                    TemplatesTab(
+                        templatesState = templatesState,
+                        viewModel = viewModel,
+                        navController = navController
+                    )
                 }
                 1 -> {
                     // Pestaña de Asignaciones
-                    when (val state = assignmentsState) {
-                        is Resource.Loading, is Resource.Idle -> CircularProgressIndicator()
-                        is Resource.Success -> {
-                            val assignments = state.data
-                            if (assignments.isNullOrEmpty()) {
-                                Text("No hay documentos asignados.")
-                            } else {
-                                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    items(assignments) { assignment ->
-                                        Card(
-                                            onClick = {
-                                            navController.navigate(Routes.DocumentDetail.createRoute(assignment.id))
-                                            },
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            Column(modifier = Modifier.padding(16.dp)) {
-                                                Text(
-                                                    assignment.documentTitle,
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                                Text(
-                                                    "Trabajador: ${assignment.workerName}",
-                                                    style = MaterialTheme.typography.bodyMedium
-                                                )
-                                                Text(
-                                                    "Asignado: ${assignment.assignedDate.toFormattedString()}",
-                                                    style = MaterialTheme.typography.bodySmall
-                                                )
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Text(
-                                                        "Estado: ${assignment.status.name}",
-                                                        style = MaterialTheme.typography.bodySmall,
-                                                        color = if (assignment.status == DocumentStatus.FIRMADO) {
-                                                            MaterialTheme.colorScheme.primary
-                                                        } else {
-                                                            MaterialTheme.colorScheme.onSurface
-                                                        }
-                                                    )
-                                                    if (assignment.status == DocumentStatus.FIRMADO && assignment.signedDate != null) {
-                                                        Text(
-                                                            "Firmado: ${assignment.signedDate.toFormattedString()}",
-                                                            style = MaterialTheme.typography.bodySmall
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        is Resource.Error -> Text(state.message ?: "Error al cargar asignaciones")
-                    }
+                    AssignmentsTab(
+                        assignmentsState = assignmentsState,
+                        navController = navController
+                    )
                 }
             }
         }
@@ -366,6 +301,391 @@ fun SignedDocumentItem(
                 )
             }
         }
+    }
+}
+
+// --- TAB DE ASIGNACIONES CON FILTROS ---
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AssignmentsTab(
+    assignmentsState: Resource<List<DocumentAssignment>>,
+    navController: NavHostController
+) {
+    var showFilterDialog by remember { mutableStateOf(false) }
+    var selectedStatus by remember { mutableStateOf<DocumentStatus?>(null) }
+    var selectedWorkerName by remember { mutableStateOf("") }
+    var selectedDateFilter by remember { mutableStateOf<DateFilter>(DateFilter.ALL) }
+
+    // Diálogo de filtros
+    if (showFilterDialog) {
+        AlertDialog(
+            onDismissRequest = { showFilterDialog = false },
+            title = { Text("Filtrar asignaciones") },
+            text = {
+                Column {
+                    Text("Estado:", style = MaterialTheme.typography.titleSmall)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        FilterChip(
+                            selected = selectedStatus == null,
+                            onClick = { selectedStatus = null },
+                            label = { Text("Todos") }
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        FilterChip(
+                            selected = selectedStatus == DocumentStatus.PENDIENTE,
+                            onClick = { selectedStatus = DocumentStatus.PENDIENTE },
+                            label = { Text("Pendientes") }
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        FilterChip(
+                            selected = selectedStatus == DocumentStatus.FIRMADO,
+                            onClick = { selectedStatus = DocumentStatus.FIRMADO },
+                            label = { Text("Firmados") }
+                        )
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+
+                    Text("Fecha:", style = MaterialTheme.typography.titleSmall)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        FilterChip(
+                            selected = selectedDateFilter == DateFilter.ALL,
+                            onClick = { selectedDateFilter = DateFilter.ALL },
+                            label = { Text("Todas") }
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        FilterChip(
+                            selected = selectedDateFilter == DateFilter.LAST_7_DAYS,
+                            onClick = { selectedDateFilter = DateFilter.LAST_7_DAYS },
+                            label = { Text("7 días") }
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        FilterChip(
+                            selected = selectedDateFilter == DateFilter.LAST_30_DAYS,
+                            onClick = { selectedDateFilter = DateFilter.LAST_30_DAYS },
+                            label = { Text("30 días") }
+                        )
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+
+                    Text("Trabajador:", style = MaterialTheme.typography.titleSmall)
+                    OutlinedTextField(
+                        value = selectedWorkerName,
+                        onValueChange = { selectedWorkerName = it },
+                        placeholder = { Text("Nombre del trabajador") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showFilterDialog = false }) {
+                    Text("Aplicar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    selectedStatus = null
+                    selectedWorkerName = ""
+                    selectedDateFilter = DateFilter.ALL
+                    showFilterDialog = false
+                }) {
+                    Text("Limpiar")
+                }
+            }
+        )
+    }
+
+    when (val state = assignmentsState) {
+        is Resource.Loading, is Resource.Idle -> CircularProgressIndicator()
+        is Resource.Success -> {
+            val allAssignments = state.data ?: emptyList()
+
+            // Aplicar filtros
+            val filteredAssignments = allAssignments.filter { assignment ->
+                val statusMatch = selectedStatus == null || assignment.status == selectedStatus
+                val workerMatch = selectedWorkerName.isBlank() ||
+                    assignment.workerName.contains(selectedWorkerName, ignoreCase = true)
+                val dateMatch = when (selectedDateFilter) {
+                    DateFilter.ALL -> true
+                    DateFilter.LAST_7_DAYS -> {
+                        val sevenDaysAgo = Calendar.getInstance().apply {
+                            add(Calendar.DAY_OF_YEAR, -7)
+                        }.time
+                        assignment.assignedDate.after(sevenDaysAgo)
+                    }
+                    DateFilter.LAST_30_DAYS -> {
+                        val thirtyDaysAgo = Calendar.getInstance().apply {
+                            add(Calendar.DAY_OF_YEAR, -30)
+                        }.time
+                        assignment.assignedDate.after(thirtyDaysAgo)
+                    }
+                }
+                statusMatch && workerMatch && dateMatch
+            }
+
+            Column {
+                // Botón de filtros y resumen
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "${filteredAssignments.size} de ${allAssignments.size} asignaciones",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    FilledTonalButton(
+                        onClick = { showFilterDialog = true }
+                    ) {
+                        Icon(Icons.Default.FilterList, contentDescription = "Filtrar")
+                        Spacer(Modifier.width(4.dp))
+                        Text("Filtros")
+                    }
+                }
+
+                // Chips de filtros activos
+                if (selectedStatus != null || selectedWorkerName.isNotBlank() || selectedDateFilter != DateFilter.ALL) {
+                    Row(
+                        modifier = Modifier.padding(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (selectedStatus != null) {
+                            AssistChip(
+                                onClick = { selectedStatus = null },
+                                label = { Text("Estado: ${selectedStatus?.name}") },
+                                trailingIcon = { Text("×") }
+                            )
+                        }
+                        if (selectedWorkerName.isNotBlank()) {
+                            AssistChip(
+                                onClick = { selectedWorkerName = "" },
+                                label = { Text("Trabajador: $selectedWorkerName") },
+                                trailingIcon = { Text("×") }
+                            )
+                        }
+                        if (selectedDateFilter != DateFilter.ALL) {
+                            AssistChip(
+                                onClick = { selectedDateFilter = DateFilter.ALL },
+                                label = { Text(selectedDateFilter.label) },
+                                trailingIcon = { Text("×") }
+                            )
+                        }
+                    }
+                }
+
+                if (filteredAssignments.isEmpty()) {
+                    Text("No hay asignaciones que coincidan con los filtros.")
+                } else {
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(filteredAssignments, key = { it.id }) { assignment ->
+                            Card(
+                                onClick = {
+                                    navController.navigate(Routes.DocumentDetail.createRoute(assignment.id))
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Text(
+                                        assignment.documentTitle,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        "Trabajador: ${assignment.workerName}",
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                    Text(
+                                        "Asignado: ${assignment.assignedDate.toFormattedString()}",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            "Estado: ${assignment.status.name}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = if (assignment.status == DocumentStatus.FIRMADO) {
+                                                MaterialTheme.colorScheme.primary
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurface
+                                            }
+                                        )
+                                        if (assignment.status == DocumentStatus.FIRMADO && assignment.signedDate != null) {
+                                            Text(
+                                                "Firmado: ${assignment.signedDate.toFormattedString()}",
+                                                style = MaterialTheme.typography.bodySmall
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        is Resource.Error -> Text(state.message ?: "Error al cargar asignaciones")
+    }
+}
+
+// Enum para filtros de fecha
+private enum class DateFilter(val label: String) {
+    ALL("Todas"),
+    LAST_7_DAYS("Últimos 7 días"),
+    LAST_30_DAYS("Últimos 30 días")
+}
+
+// --- TAB DE PLANTILLAS CON SWIPE Y ABRIR DOCUMENTO ---
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TemplatesTab(
+    templatesState: Resource<List<DocumentTemplate>>,
+    viewModel: DocumentViewModel,
+    navController: NavHostController
+) {
+    val context = LocalContext.current
+    val deleteState by viewModel.deleteState.collectAsState()
+    var templateToDelete by remember { mutableStateOf<DocumentTemplate?>(null) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    // Manejar resultado de eliminación
+    LaunchedEffect(deleteState) {
+        if (deleteState is Resource.Success) {
+            templateToDelete = null
+            showDeleteDialog = false
+            viewModel.resetDeleteState()
+        }
+    }
+
+    // Diálogo de confirmación
+    if (showDeleteDialog && templateToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Confirmar eliminación") },
+            text = { Text("¿Estás seguro de que deseas eliminar \"${templateToDelete?.title}\"? Esta acción no se puede deshacer.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        templateToDelete?.let { viewModel.deleteTemplate(it) }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Eliminar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    when (val state = templatesState) {
+        is Resource.Loading, is Resource.Idle -> CircularProgressIndicator()
+        is Resource.Success -> {
+            if (state.data.isNullOrEmpty()) {
+                Text("No hay plantillas de documentos.")
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(
+                        items = state.data,
+                        key = { it.id }
+                    ) { template ->
+                        val dismissState = rememberSwipeToDismissBoxState(
+                            confirmValueChange = { dismissValue ->
+                                if (dismissValue == SwipeToDismissBoxValue.EndToStart) {
+                                    templateToDelete = template
+                                    showDeleteDialog = true
+                                    false // No descartar automáticamente
+                                } else {
+                                    false
+                                }
+                            }
+                        )
+
+                        SwipeToDismissBox(
+                            state = dismissState,
+                            backgroundContent = {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 20.dp),
+                                    contentAlignment = Alignment.CenterEnd
+                                ) {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = "Eliminar",
+                                        tint = Color.White
+                                    )
+                                }
+                            },
+                            enableDismissFromStartToEnd = false,
+                            enableDismissFromEndToStart = true
+                        ) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            template.title,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                    // Botón para ver/abrir documento
+                                    IconButton(
+                                        onClick = {
+                                            val intent = Intent(Intent.ACTION_VIEW).apply {
+                                                setDataAndType(Uri.parse(template.fileUrl), "application/pdf")
+                                                flags = Intent.FLAG_ACTIVITY_NO_HISTORY
+                                            }
+                                            context.startActivity(Intent.createChooser(intent, "Abrir PDF"))
+                                        }
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Description,
+                                            contentDescription = "Ver documento",
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                    // Botón para asignar
+                                    IconButton(
+                                        onClick = {
+                                            navController.navigate(Routes.AssignDocument.createRoute(template.id))
+                                        }
+                                    ) {
+                                        Icon(
+                                            Icons.Default.ChevronRight,
+                                            contentDescription = "Asignar"
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Mostrar error si hay uno en deleteState
+            if (deleteState is Resource.Error) {
+                Snackbar(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text((deleteState as Resource.Error).message ?: "Error al eliminar")
+                }
+            }
+        }
+        is Resource.Error -> Text(state.message ?: "Error")
     }
 }
 
