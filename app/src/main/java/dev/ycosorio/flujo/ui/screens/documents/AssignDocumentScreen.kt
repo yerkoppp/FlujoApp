@@ -66,25 +66,62 @@ fun AssignDocumentScreen(
                     }
                 }
                 is Resource.Success -> {
-                    LazyColumn(
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(16.dp)
-                    ) {
-                        items(
-                            items = state.data ?: emptyList()
-                            ) { user ->
-                            WorkerCheckItem(
-                                user = user,
-                                isSelected = selectedWorkerIds.contains(user.uid),
-                                onCheckChanged = {
-                                    selectedWorkerIds = if (selectedWorkerIds.contains(user.uid)) {
-                                        selectedWorkerIds - user.uid
-                                    } else {
-                                        selectedWorkerIds + user.uid
-                                    }
-                                }
+                    val allWorkers = state.data ?: emptyList()
+                    val allSelected = allWorkers.isNotEmpty() && selectedWorkerIds.size == allWorkers.size
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        // Checkbox para seleccionar/deseleccionar todos
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp, 16.dp, 16.dp, 8.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer
                             )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Checkbox(
+                                    checked = allSelected,
+                                    onCheckedChange = { checked ->
+                                        selectedWorkerIds = if (checked) {
+                                            allWorkers.map { it.uid }.toSet()
+                                        } else {
+                                            emptySet()
+                                        }
+                                    }
+                                )
+                                Spacer(Modifier.width(16.dp))
+                                Text(
+                                    if (allSelected) "Deseleccionar todos" else "Seleccionar todos",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        LazyColumn(
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        ) {
+                            items(
+                                items = allWorkers
+                            ) { user ->
+                                WorkerCheckItem(
+                                    user = user,
+                                    isSelected = selectedWorkerIds.contains(user.uid),
+                                    onCheckChanged = {
+                                        selectedWorkerIds = if (selectedWorkerIds.contains(user.uid)) {
+                                            selectedWorkerIds - user.uid
+                                        } else {
+                                            selectedWorkerIds + user.uid
+                                        }
+                                    }
+                                )
+                            }
                         }
                     }
                 }

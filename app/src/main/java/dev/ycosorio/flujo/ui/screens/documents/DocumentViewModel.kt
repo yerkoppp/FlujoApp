@@ -56,6 +56,9 @@ class DocumentViewModel @Inject constructor(
     private val _uploadState = MutableStateFlow<Resource<Unit>>(Resource.Idle())
     val uploadState = _uploadState.asStateFlow()
 
+    private val _deleteState = MutableStateFlow<Resource<Unit>>(Resource.Idle())
+    val deleteState = _deleteState.asStateFlow()
+
 
 
     init {
@@ -153,5 +156,16 @@ class DocumentViewModel @Inject constructor(
 
     fun resetUploadState() {
         _uploadState.value = Resource.Idle()
+    }
+
+    fun deleteTemplate(template: DocumentTemplate) {
+        viewModelScope.launch {
+            _deleteState.value = Resource.Loading()
+            _deleteState.value = documentRepository.deleteTemplate(template)
+        }
+    }
+
+    fun resetDeleteState() {
+        _deleteState.value = Resource.Idle()
     }
 }
