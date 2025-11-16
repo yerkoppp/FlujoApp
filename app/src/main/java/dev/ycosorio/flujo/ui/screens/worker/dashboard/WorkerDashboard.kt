@@ -79,7 +79,7 @@ fun WorkerDashboard(
             TopAppBar(
                 title = { Text("Resumen del Trabajador") },
                 actions = {
-                    NotificationBadge(count = uiState.pendingDocuments.size) {
+                    NotificationBadge(count = uiState.messagesUnread.size) {
                         navController.navigate(Routes.Notifications.createRoute(user.uid))
                     }
                 },
@@ -277,7 +277,15 @@ private fun NotificationBadge(count: Int, onClick: () -> Unit) {
                     .background(Color.Red)
                     .align(Alignment.TopEnd)
             ) {
-                // Opcional: Mostrar el número si el círculo es lo suficientemente grande
+                // Mostrar el número si el círculo es lo suficientemente grande
+                if (count < 10) {
+                    Text(
+                        text = count.toString(),
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
             }
         }
     }
