@@ -3,6 +3,7 @@ package dev.ycosorio.flujo.data.repository
 import androidx.paging.PagingData
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
+import com.google.common.collect.Multimaps.index
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
@@ -326,95 +327,164 @@ class InventoryRepositoryImpl @Inject constructor(
         centralWarehouseId: String,
         adminNotes: String?
     ): Resource<Unit> {
+        android.util.Log.d("InventoryRepo", "═══════════════════════════════════")
+        android.util.Log.d("InventoryRepo", "📦 INICIANDO ENTREGA DE MATERIAL")
+        android.util.Log.d("InventoryRepo", "Request ID: $requestId")
+        android.util.Log.d("InventoryRepo", "Bodega Central ID: $centralWarehouseId")
+        android.util.Log.d("InventoryRepo", "═══════════════════════════════════")
+
         return try {
             // Usamos una transacción para garantizar atomicidad
             firestore.runTransaction { transaction ->
+                android.util.Log.d("InventoryRepo", "🔄 Iniciando transacción de Firestore")
+
                 // 1. Obtener la solicitud
                 val requestRef = requestsCollection.document(requestId)
                 val requestDoc = transaction.get(requestRef)
 
                 if (!requestDoc.exists()) {
+                    android.util.Log.e("InventoryRepo", "❌ La solicitud no existe: $requestId")
                     throw Exception("La solicitud no existe")
                 }
+
+                android.util.Log.d("InventoryRepo", "✅ Solicitud encontrada")
 
                 // Parseamos manualmente los campos necesarios
                 val status = requestDoc.getString("status")?.let { RequestStatus.valueOf(it) }
                 val warehouseId = requestDoc.getString("warehouseId")
 
+                android.util.Log.d("InventoryRepo", "Estado actual: $status")
+                android.util.Log.d("InventoryRepo", "Bodega destino: $warehouseId")
+
                 @Suppress("UNCHECKED_CAST")
                 val itemsList = requestDoc.get("items") as? List<Map<String, Any>> ?: emptyList()
+                android.util.Log.d("InventoryRepo", "Cantidad de items: ${itemsList.size}")
 
                 // Validaciones
                 if (status != RequestStatus.APROBADO) {
+                    android.util.Log.e("InventoryRepo", "❌ Estado incorrecto: $status (debe ser APROBADO)")
                     throw Exception("Solo se pueden entregar solicitudes APROBADAS. Estado actual: $status")
                 }
 
                 if (warehouseId == null) {
+                    android.util.Log.e("InventoryRepo", "❌ warehouseId es null")
                     throw Exception("warehouseId no encontrado en la solicitud")
                 }
 
                 if (itemsList.isEmpty()) {
+                    android.util.Log.e("InventoryRepo", "❌ La lista de items está vacía")
                     throw Exception("La solicitud no tiene materiales")
                 }
+                android.util.Log.d("InventoryRepo", "✅ Validaciones pasadas, procesando ${itemsList.size} items")
+
+                // 2. Leer TODOS los stocks (central y móvil) de TODOS los items PRIMERO
+                data class StockData(
+                    val materialId: String,
+                    val materialName: String,
+                    val quantity: Int,
+                    val centralStockDoc: com.google.firebase.firestore.DocumentSnapshot,
+                    val mobileStockDoc: com.google.firebase.firestore.DocumentSnapshot,
+                    val centralStockRef: com.google.firebase.firestore.DocumentReference,
+                    val mobileStockRef: com.google.firebase.firestore.DocumentReference
+                )
+
+                val stockDataList = mutableListOf<StockData>()
 
                 // 2. Procesar cada material de la solicitud
-                itemsList.forEach { itemMap ->
+                itemsList.forEachIndexed { index, itemMap ->
+                    android.util.Log.d("InventoryRepo", "───────────────────────────────────")
+                    android.util.Log.d("InventoryRepo", "📦 Procesando item ${index + 1}/${itemsList.size}")
+
                     val materialId = itemMap["materialId"] as? String
-                        ?: throw Exception("materialId faltante en item")
+                        ?: throw Exception("materialId faltante en item ${index + 1}")
                     val materialName = itemMap["materialName"] as? String
-                        ?: throw Exception("materialName faltante en item")
+                        ?: throw Exception("materialName faltante en item ${index + 1}")
                     val quantity = (itemMap["quantity"] as? Long)?.toInt()
-                        ?: throw Exception("quantity faltante en item")
+                        ?: throw Exception("quantity faltante en item ${index + 1}")
+
+                    android.util.Log.d("InventoryRepo", "Material: $materialName (ID: $materialId)")
+                    android.util.Log.d("InventoryRepo", "Cantidad solicitada: $quantity")
 
                     // 3. Verificar stock disponible en Bodega Central
                     val centralStockRef = warehousesCol.document(centralWarehouseId)
                         .collection(STOCK_SUBCOLLECTION)
                         .document(materialId)
 
-                    val centralStockDoc = transaction.get(centralStockRef)
-
-                    if (!centralStockDoc.exists()) {
-                        throw Exception("El material '$materialName' no existe en la Bodega Central")
-                    }
-
-                    val availableQuantity = centralStockDoc.getLong("quantity")?.toInt() ?: 0
-
-                    if (availableQuantity < quantity) {
-                        throw Exception("Stock insuficiente de '$materialName' en Bodega Central. Disponible: $availableQuantity, Solicitado: $quantity")
-                    }
-
-                    // 4. Restar stock de Bodega Central
-                    val newCentralQuantity = availableQuantity - quantity
-                    if (newCentralQuantity == 0) {
-                        // Si queda en 0, eliminamos el documento
-                        transaction.delete(centralStockRef)
-                    } else {
-                        transaction.update(centralStockRef, "quantity", newCentralQuantity)
-                    }
-
-                    // 5. Sumar stock a Bodega Móvil (destino)
                     val mobileStockRef = warehousesCol.document(warehouseId)
                         .collection(STOCK_SUBCOLLECTION)
                         .document(materialId)
 
+                    val centralStockDoc = transaction.get(centralStockRef)
                     val mobileStockDoc = transaction.get(mobileStockRef)
 
-                    if (mobileStockDoc.exists()) {
-                        // Si ya existe, sumamos
-                        val currentQuantity = mobileStockDoc.getLong("quantity")?.toInt() ?: 0
-                        val newMobileQuantity = currentQuantity + quantity
-                        transaction.update(mobileStockRef, "quantity", newMobileQuantity)
-                    } else {
-                        // Si no existe, creamos el StockItem
-                        val newStockItem = StockItem(
-                            id = materialId,
-                            materialId = materialId,
-                            materialName = materialName,
-                            quantity = quantity
-                        )
-                        transaction.set(mobileStockRef, newStockItem)
+                    if (!centralStockDoc.exists()) {
+                        android.util.Log.e("InventoryRepo", "❌ Material '$materialName' no existe en Bodega Central")
+                        throw Exception("El material '$materialName' no existe en la Bodega Central")
                     }
+
+                    val availableQuantity = centralStockDoc.getLong("quantity")?.toInt() ?: 0
+                    android.util.Log.d("InventoryRepo", "Stock disponible en Bodega Central: $availableQuantity")
+
+                    if (availableQuantity < quantity) {
+                        android.util.Log.e("InventoryRepo", "❌ Stock insuficiente: Disponible=$availableQuantity, Solicitado=$quantity")
+                        throw Exception("Stock insuficiente de '$materialName' en Bodega Central. Disponible: $availableQuantity, Solicitado: $quantity")
+                    }
+
+                    stockDataList.add(StockData(
+                        materialId = materialId,
+                        materialName = materialName,
+                        quantity = quantity,
+                        centralStockDoc = centralStockDoc,
+                        mobileStockDoc = mobileStockDoc,
+                        centralStockRef = centralStockRef,
+                        mobileStockRef = mobileStockRef
+                    ))
                 }
+                Timber.tag("InventoryRepo").d("✅ Todas las lecturas completadas")
+
+                stockDataList.forEachIndexed { index, stockData ->
+                Timber.tag("InventoryRepo").d("───────────────────────────────────")
+                    Timber.tag("InventoryRepo")
+                        .d("✍️ Escribiendo item ${index + 1}/${stockDataList.size}")
+                android.util.Log.d("InventoryRepo", "Material: ${stockData.materialName}")
+
+                val availableQuantity = stockData.centralStockDoc.getLong("quantity")?.toInt() ?: 0
+                val newCentralQuantity = availableQuantity - stockData.quantity
+
+                android.util.Log.d("InventoryRepo", "🔽 Restando de Bodega Central: $availableQuantity - ${stockData.quantity} = $newCentralQuantity")
+
+                // Actualizar stock central
+
+                android.util.Log.d("InventoryRepo", "🔽 Restando de Bodega Central: $availableQuantity - ${stockData.quantity} = $newCentralQuantity")
+                    if (newCentralQuantity == 0) {
+                        // Si queda en 0, eliminamos el documento
+                        android.util.Log.d("InventoryRepo", "🗑️ Stock quedó en 0, eliminando documento")
+                        transaction.delete(stockData.centralStockRef)
+                    } else {
+                        transaction.update(stockData.centralStockRef, "quantity", newCentralQuantity)
+                    }
+
+                // Actualizar stock móvil
+                if (stockData.mobileStockDoc.exists()) {
+                    val currentQuantity = stockData.mobileStockDoc.getLong("quantity")?.toInt() ?: 0
+                    val newMobileQuantity = currentQuantity + stockData.quantity
+                    android.util.Log.d("InventoryRepo", "🔼 Sumando a Bodega Móvil: $currentQuantity + ${stockData.quantity} = $newMobileQuantity")
+                    transaction.update(stockData.mobileStockRef, "quantity", newMobileQuantity)
+                } else {
+                    android.util.Log.d("InventoryRepo", "➕ Creando nuevo stock en Bodega Móvil: ${stockData.quantity} unidades")
+                    val newStockItem = StockItem(
+                        id = stockData.materialId,
+                        materialId = stockData.materialId,
+                        materialName = stockData.materialName,
+                        quantity = stockData.quantity
+                    )
+                    transaction.set(stockData.mobileStockRef, newStockItem)
+                }
+
+                android.util.Log.d("InventoryRepo", "✅ Item ${index + 1} escrito correctamente")
+            }
+                android.util.Log.d("InventoryRepo", "───────────────────────────────────")
+                android.util.Log.d("InventoryRepo", "🔄 Actualizando estado de solicitud a ENTREGADO")
 
                 // 6. Actualizar el estado de la solicitud a ENTREGADO
                 val updates = mutableMapOf<String, Any?>(
@@ -430,10 +500,17 @@ class InventoryRepositoryImpl @Inject constructor(
 
                 null // Requerido por runTransaction
             }.await()
-
+            android.util.Log.d("InventoryRepo", "═══════════════════════════════════")
+            android.util.Log.d("InventoryRepo", "✅ ENTREGA COMPLETADA EXITOSAMENTE")
+            android.util.Log.d("InventoryRepo", "═══════════════════════════════════")
             Resource.Success(Unit)
 
         } catch (e: Exception) {
+            android.util.Log.e("InventoryRepo", "═══════════════════════════════════")
+            android.util.Log.e("InventoryRepo", "❌ ERROR EN ENTREGA DE MATERIAL")
+            android.util.Log.e("InventoryRepo", "Mensaje: ${e.message}")
+            android.util.Log.e("InventoryRepo", "Stack trace:", e)
+            android.util.Log.e("InventoryRepo", "═══════════════════════════════════")
             Resource.Error(e.message ?: "Error al entregar el material")
         }
     }

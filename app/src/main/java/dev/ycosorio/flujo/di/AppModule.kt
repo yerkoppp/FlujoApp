@@ -25,10 +25,12 @@ import dev.ycosorio.flujo.data.preferences.UserPreferencesRepository
 import dev.ycosorio.flujo.data.repository.AuthRepositoryImpl
 import dev.ycosorio.flujo.data.repository.ExpenseRepositoryImpl
 import dev.ycosorio.flujo.data.repository.MessageRepositoryImpl
+import dev.ycosorio.flujo.data.repository.NotificationRepositoryImpl
 import dev.ycosorio.flujo.data.repository.VehicleRepositoryImpl
 import dev.ycosorio.flujo.domain.repository.AuthRepository
 import dev.ycosorio.flujo.domain.repository.ExpenseRepository
 import dev.ycosorio.flujo.domain.repository.MessageRepository
+import dev.ycosorio.flujo.domain.repository.NotificationRepository
 import dev.ycosorio.flujo.domain.repository.VehicleRepository
 
 @Module
@@ -115,7 +117,6 @@ object AppModule {
         return MessageRepositoryImpl(firestore, functions)
     }
 
-
     @Provides
     @Singleton
     fun provideExpenseRepository(
@@ -125,6 +126,9 @@ object AppModule {
         return ExpenseRepositoryImpl(firestore, storage)
     }
 
-
+    @Provides
+    @Singleton
+    fun provideNotificationRepository(firestore: FirebaseFirestore): NotificationRepository =
+        NotificationRepositoryImpl(firestore)
 
 }

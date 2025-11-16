@@ -80,10 +80,10 @@ fun WorkerDashboard(
                 title = { Text("Resumen del Trabajador") },
                 actions = {
                     NotificationBadge(count = uiState.pendingDocuments.size) {
-                        navController.navigate(Routes.Notifications.route)
+                        navController.navigate(Routes.Notifications.createRoute(user.uid))
                     }
                 },
-                modifier = Modifier.fillMaxHeight(0.1f)
+                modifier = Modifier.padding(top = 5.dp)
             )
         }
     ) { paddingValues ->
@@ -175,57 +175,7 @@ fun WorkerDashboard(
                         }
                     }
                 }
-                /*
-                                if (uiState.pendingDocuments.isEmpty()) {
-                                    item {
-                                        Text(
-                                            text = "No tienes documentos pendientes por firmar.",
-                                            style = MaterialTheme.typography.bodyMedium
-                                        )
-                                    }
-                                } else {
-                                    items(uiState.pendingDocuments, key = { it.id }) { document ->
-                                        DocumentPendingItem(
-                                            documentName = document.documentTitle,
-                                            onClick = {
-                                                // Navega a la pantalla de firma
-                                                navController.navigate(Routes.Signature.createRoute(document.id))
-                                            }
-                                        )
-                                    }
-                                }
 
-                                // --- 3. Estado de Solicitudes Recientes ---
-                                item {
-                                    Text(
-                                        text = "Solicitudes Recientes",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-
-                                if (uiState.recentRequests.isEmpty()) {
-                                    item {
-                                        Text(
-                                            text = "No has realizado solicitudes recientemente.",
-                                            style = MaterialTheme.typography.bodyMedium
-                                        )
-                                    }
-                                } else {
-                                    items(uiState.recentRequests, key = { it.id }) { request ->
-                                        // Reutilizamos tu Composable
-                                        MaterialRequestItem(
-                                            role = Role.TRABAJADOR, //
-                                            request = request,
-                                            onApprove = {}, // El trabajador no puede aprobar
-                                            onReject = {}  // El trabajador no puede rechazar
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }*/
                 // --- 4. Solicitudes Recientes (Máx. 2) ---
                 item {
                     Text(
@@ -235,7 +185,7 @@ fun WorkerDashboard(
                     )
                 }
 
-                // [CAMBIO LÓGICO]: Solo mostramos 2 solicitudes recientes
+                // Solo mostramos 2 solicitudes recientes
                 val displayedRequests = uiState.recentRequests.take(2)
                 if (displayedRequests.isEmpty()) {
                     item {
@@ -253,13 +203,11 @@ fun WorkerDashboard(
                             onReject = {}
                         )
                     }
-
-
                     if (uiState.recentRequests.size > 2) {
                         item {
                             ActionTextButton(
                                 text = "Ver historial completo de solicitudes",
-                                onClick = { Routes.MaterialRequests.route }
+                                onClick = { navController.navigate(Routes.WorkerRequests.route) }
                             )
                         }
                     }
@@ -278,9 +226,6 @@ private fun CompactQuickAction(
     Card(
         onClick = onClick,
         modifier = Modifier.size(72.dp), // Tamaño fijo y compacto
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer // Alto contraste
-        )
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),

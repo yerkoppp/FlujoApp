@@ -11,6 +11,7 @@ sealed class Routes(val route: String) {
 
     object UserManagement : Routes("admin/users")
     object AddUser : Routes("admin/users/add")
+    object AdminExpenseReports : Routes("admin/expenses")
     object UserDetail : Routes("admin/users/detail/{userId}") {
         fun createRoute(userId: String) = "admin/users/detail/$userId"
     }
@@ -50,6 +51,8 @@ sealed class Routes(val route: String) {
     object EditExpenseReport : Routes("worker/expenses/edit/{reportId}") {
         fun createRoute(reportId: String) = "worker/expenses/edit/$reportId"
     }
-    object Notifications : Routes("notifications")
+    object Notifications : Routes("notifications/{userId}") {
+        fun createRoute(userId: String) = "notifications/$userId"
+    }
 }
 

@@ -1,5 +1,6 @@
 package dev.ycosorio.flujo.ui.screens.worker.expenses
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,7 +17,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -28,21 +30,24 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.paging.LoadState
-import androidx.paging.compose.collectAsLazyPagingItems
-import androidx.paging.compose.itemKey
-import com.google.firebase.auth.FirebaseAuth
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.ycosorio.flujo.domain.model.ExpenseReport
 import dev.ycosorio.flujo.domain.model.ExpenseReportStatus
 import java.text.NumberFormat
@@ -57,9 +62,9 @@ fun ExpenseReportListScreen(
     onReportClick: (String) -> Unit,
     viewModel: ExpenseReportViewModel = hiltViewModel()
 ) {
-    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
-    //val uiState by viewModel.uiState.collectAsState()
-    val reportsPaged = viewModel.getExpenseReportsPaged(currentUserId).collectAsLazyPagingItems()
+    //val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    // reportsPaged = viewModel.getExpenseReportsPaged(currentUserId).collectAsLazyPagingItems()
 
     Scaffold(
         topBar = {
@@ -84,22 +89,21 @@ fun ExpenseReportListScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            uiState.error?.let { error ->
+                Snackbar(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(16.dp)
+                ) {
+                    Text(error)
+                }
+            }
+
             when {
-                reportsPaged.loadState.refresh is LoadState.Loading -> {
+                uiState.isLoadingList -> {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
-                reportsPaged.loadState.refresh is LoadState.Error -> {
-                    Column(
-                        modifier = Modifier.align(Alignment.Center),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text("Error al cargar rendiciones")
-                        Button(onClick = { reportsPaged.retry() }) {
-                            Text("Reintentar")
-                        }
-                    }
-                }
-                reportsPaged.itemCount == 0 -> {
+                uiState.reportsList.isEmpty() -> {
                     Column(
                         modifier = Modifier.align(Alignment.Center),
                         horizontalAlignment = Alignment.CenterHorizontally
@@ -123,34 +127,121 @@ fun ExpenseReportListScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(
-                            count = reportsPaged.itemCount,
-                            key = reportsPaged.itemKey { it.id }
-                        ) { index ->
-                            val report = reportsPaged[index]
-                            if (report != null) {
+                            items = uiState.reportsList,
+                            key = { it.id }
+                        ) { report ->
+                            // Solo permitir swipe en borradores
+                            if (report.status == ExpenseReportStatus.DRAFT) {
+                                SwipeToDismissReportItem(
+                                    report = report,
+                                    onReportClick = onReportClick,
+                                    onDelete = { viewModel.deleteReport(report.id) }
+                                )
+                            } else {
+                                // Rendiciones enviadas/aprobadas/rechazadas no se pueden eliminar
                                 ExpenseReportCard(
                                     report = report,
                                     onClick = { onReportClick(report.id) }
                                 )
                             }
                         }
-
-                        if (reportsPaged.loadState.append is LoadState.Loading) {
-                            item {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    CircularProgressIndicator()
-                                }
-                            }
-                        }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+fun SwipeBackground(
+    dismissDirection: SwipeToDismissBoxValue
+) {
+    val color = when (dismissDirection) {
+        SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.error
+        else -> Color.Transparent
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(color)
+            .padding(horizontal = 20.dp),
+        contentAlignment = Alignment.CenterEnd
+    ) {
+        if (dismissDirection == SwipeToDismissBoxValue.EndToStart) {
+            Icon(
+                imageVector = Icons.Default.Delete,
+                contentDescription = "Eliminar",
+                tint = Color.White
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SwipeToDismissReportItem(
+    report: ExpenseReport,
+    onReportClick: (String) -> Unit,
+    onDelete: () -> Unit
+) {
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { dismissValue ->
+            when (dismissValue) {
+                SwipeToDismissBoxValue.EndToStart -> {
+                    // Mostrar diálogo de confirmación
+                    showDeleteDialog = true
+                    false // No confirmar aún, esperar confirmación del usuario
+                }
+                else -> false
+            }
+        }
+    )
+
+    SwipeToDismissBox(
+        state = dismissState,
+        backgroundContent = { SwipeBackground(dismissState.dismissDirection) },
+        enableDismissFromStartToEnd = false, // Solo permitir swipe de derecha a izquierda
+        enableDismissFromEndToStart = true
+    ) {
+        ExpenseReportCard(
+            report = report,
+            onClick = { onReportClick(report.id) }
+        )
+    }
+
+    // Diálogo de confirmación
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showDeleteDialog = false
+                // Resetear el estado del swipe
+            },
+            icon = { Icon(Icons.Default.Delete, contentDescription = null) },
+            title = { Text("Eliminar rendición") },
+            text = { Text("¿Estás seguro de que deseas eliminar este borrador?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDelete()
+                        showDeleteDialog = false
+                    }
+                ) {
+                    Text("ELIMINAR")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                    }
+                ) {
+                    Text("CANCELAR")
+                }
+            }
+        )
     }
 }
 

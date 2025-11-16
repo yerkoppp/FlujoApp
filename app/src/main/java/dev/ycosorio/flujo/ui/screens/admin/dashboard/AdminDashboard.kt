@@ -52,7 +52,7 @@ fun AdminDashboard(
         DashboardAction(
             title = "Rendiciones",
             icon = Icons.Default.MonetizationOn,
-            onClick = { navController.navigate(Routes.ExpenseReportList.route) }
+            onClick = { navController.navigate(Routes.AdminExpenseReports.route) }
         ),
         DashboardAction(
             title = "Mensajes",
@@ -62,7 +62,7 @@ fun AdminDashboard(
         DashboardAction(
             title = "Notificaciones",
             icon = Icons.Default.NotificationsActive,
-            onClick = { navController.navigate(Routes.Notifications.route) }
+            onClick = { navController.navigate(Routes.Notifications.createRoute(user.uid)) }
         ),
         DashboardAction(
             title = "No sé",

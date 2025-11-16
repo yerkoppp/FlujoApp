@@ -25,6 +25,17 @@ class AppViewModel @Inject constructor(
     private val _currentUserProfile = MutableStateFlow<User?>(null)
     val currentUserProfile = _currentUserProfile.asStateFlow()
 
+    // Evento para abrir notificaciones
+    private val _shouldOpenNotifications = MutableStateFlow(false)
+    val shouldOpenNotifications = _shouldOpenNotifications.asStateFlow()
+
+    fun triggerOpenNotifications() {
+        _shouldOpenNotifications.value = true
+    }
+
+    fun resetNotificationsFlag() {
+        _shouldOpenNotifications.value = false
+    }
     val currentUser = authRepository.currentUser.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),

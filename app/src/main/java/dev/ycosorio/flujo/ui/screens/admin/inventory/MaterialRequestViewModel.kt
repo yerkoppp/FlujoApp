@@ -2,9 +2,6 @@ package dev.ycosorio.flujo.ui.screens.admin.inventory
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.paging.PagingData
-import androidx.paging.cachedIn
-import com.google.firebase.firestore.Query
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.ycosorio.flujo.domain.model.MaterialRequest
 import dev.ycosorio.flujo.domain.model.RequestStatus
@@ -12,13 +9,17 @@ import dev.ycosorio.flujo.domain.repository.InventoryRepository
 import dev.ycosorio.flujo.domain.model.ConsolidatedStock
 import dev.ycosorio.flujo.domain.model.StockItem
 import dev.ycosorio.flujo.domain.model.Warehouse
+import dev.ycosorio.flujo.domain.model.WarehouseType
 import dev.ycosorio.flujo.utils.Resource
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
-import dev.ycosorio.flujo.domain.model.WarehouseType
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
@@ -39,26 +40,28 @@ class MaterialRequestViewModel @Inject constructor(
 
     private val _warehouses = MutableStateFlow<Resource<List<Warehouse>>>(Resource.Idle())
     val warehouses = _warehouses.asStateFlow()
-    private val _requestsState = MutableStateFlow<Resource<List<MaterialRequest>>>(Resource.Loading())
-    val requestsState = _requestsState.asStateFlow()
 
-    // Estados para los filtros y el orden
-    private val _statusFilter = MutableStateFlow<RequestStatus?>(null) // null significa "todos"
-    val statusFilter = _statusFilter.asStateFlow()
+    // Estado del filtro
+    private val _statusFilter = MutableStateFlow<RequestStatus?>(null)
+    val statusFilter: StateFlow<RequestStatus?> = _statusFilter.asStateFlow()
 
-    private val _orderBy = MutableStateFlow("requestDate")
-    val orderBy = _orderBy.asStateFlow()
-
-    // Flow paginado para admin
-    private var _requestsPaged: Flow<PagingData<MaterialRequest>>? = null
+    // StateFlow reactivo de solicitudes (CON SnapshotListener automático)
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val requestsState: StateFlow<Resource<List<MaterialRequest>>> =
+        _statusFilter.flatMapLatest { status ->
+            android.util.Log.d("MaterialRequestVM", "🔄 Filtro cambiado a: $status")
+            inventoryRepository.getMaterialRequests(
+                orderBy = "requestDate",
+                direction = com.google.firebase.firestore.Query.Direction.DESCENDING,
+                statusFilter = status
+            )
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = Resource.Loading()
+        )
 
     init {
-        loadRequests()
-        // Cargar solicitudes
-        /*inventoryRepository.getAllRequests().onEach {
-            _allRequests.value = it
-        }.launchIn(viewModelScope)*/
-
         // Cargar bodegas
         inventoryRepository.getWarehouses().onEach {
             _warehouses.value = it
@@ -70,118 +73,57 @@ class MaterialRequestViewModel @Inject constructor(
         }.launchIn(viewModelScope)
     }
 
-    private fun loadRequests() {
-        Timber.d("🔄 loadRequests() llamado")
-        inventoryRepository.getMaterialRequests(
-            orderBy = _orderBy.value,
-            statusFilter = _statusFilter.value
-            // La dirección por ahora es fija (DESCENDING), pero podría ser otro StateFlow
-        ).onEach { result ->
-            Timber.d("📦 Resultado recibido: ${when(result) {
-                is Resource.Loading -> "Loading"
-                is Resource.Success -> "Success con ${result.data?.size} items"
-                is Resource.Error -> "Error: ${result.message}"
-                else -> "Otro"
-            }}")
-            _requestsState.value = result
-        }.launchIn(viewModelScope)
-    }
-
-    /**
-     * Actualiza el filtro de estado y vuelve a cargar la lista de solicitudes.
-     */
     fun onStatusFilterChanged(newStatus: RequestStatus?) {
         _statusFilter.value = newStatus
-        loadRequests()
     }
 
-    /**
-     * Actualiza el campo de ordenamiento y vuelve a cargar la lista.
-     */
-    fun onOrderByChanged(newOrderBy: String) {
-        _orderBy.value = newOrderBy
-        loadRequests()
-    }
-
-    /**
-     * Actualiza el estado de una solicitud específica.
-     * @param requestId El ID de la solicitud a modificar.
-     * @param newStatus El nuevo estado (APROBADO o RECHAZADO).
-     */
     fun updateRequestStatus(requestId: String, newStatus: RequestStatus, adminNotes: String? = null) {
         viewModelScope.launch {
-            Timber.d("🔄 Actualizando estado: $requestId -> $newStatus")
+            android.util.Log.d("MaterialRequestVM", "🔄 Actualizando estado: $requestId -> $newStatus")
             inventoryRepository.updateRequestStatus(requestId, newStatus, adminNotes)
-
+            // El SnapshotListener actualizará automáticamente
         }
     }
 
-    /**
-     * Actualiza el estado de una solicitud a ENTREGADO y transfiere el stock.
-     * @param request La solicitud completa (necesitamos varios campos).
-     */
-    fun markAsDelivered(request: MaterialRequest) {
-        viewModelScope.launch {
-            // 1. Cambiar estado a ENTREGADO
-            val result = inventoryRepository.updateRequestStatus(
-                requestId = request.id,
-                status = RequestStatus.ENTREGADO,
-                adminNotes = null // O puedes pedir notas al admin
-            )
-
-            if (result is Resource.Success) {
-                // 2. Transferir stock de Bodega Central → Bodega Móvil
-                // Necesitamos obtener el objeto Material completo
-                // (esto requiere una consulta adicional o pasarlo desde la UI)
-
-                // TODO: Implementar transferencia de stock
-                // inventoryRepository.transferStock(
-                //     fromWarehouseId = BODEGA_CENTRAL_ID,
-                //     toWarehouseId = request.warehouseId,
-                //     material = ...,
-                //     quantityToTransfer = request.quantity
-                // )
-            }
-        }
-    }
-
-
-    /**
-     * Marca una solicitud como ENTREGADA y transfiere el stock automáticamente.
-     * Esta operación valida que la solicitud esté APROBADA y que haya stock disponible.
-     */
     fun deliverMaterialRequest(request: MaterialRequest, adminNotes: String? = null) {
         viewModelScope.launch {
-            // Validación previa
             if (request.status != RequestStatus.APROBADO) {
-                // Podrías emitir un evento de error aquí
+                Timber.tag("MaterialRequestVM").e("❌ Estado incorrecto: ${request.status}")
                 return@launch
             }
 
-            // Necesitamos el ID de la Bodega Central
-            // Lo obtenemos consultando las bodegas
-            val warehousesResult = inventoryRepository.getWarehouses()
+            Timber.tag("MaterialRequestVM").d("📦 Iniciando entrega de: ${request.id}")
 
-            // Como es un Flow, necesitamos recoger el primer valor
-            warehousesResult.collect { result ->
-                if (result is Resource.Success) {
-                    val centralWarehouse = result.data?.find { it.type == WarehouseType.FIXED }
+            val warehousesState = _warehouses.value
 
-                    if (centralWarehouse == null) {
-                        // Error: No se encontró la bodega central
-                        return@collect
-                    }
+            if (warehousesState is Resource.Success) {
+                val centralWarehouse = warehousesState.data?.find { it.type == WarehouseType.FIXED }
 
-                    // Llamar a la función de entrega
-                    inventoryRepository.deliverMaterialRequest(
-                        requestId = request.id,
-                        centralWarehouseId = centralWarehouse.id,
-                        adminNotes = adminNotes
-                    )
-
-                    // La UI se actualizará automáticamente por el Flow
-                    return@collect // Salimos después del primer resultado
+                if (centralWarehouse == null) {
+                    Timber.tag("MaterialRequestVM").e("❌ No hay bodega central")
+                    return@launch
                 }
+
+                Timber.tag("MaterialRequestVM").d("✅ Bodega central: ${centralWarehouse.name}")
+
+                val result = inventoryRepository.deliverMaterialRequest(
+                    requestId = request.id,
+                    centralWarehouseId = centralWarehouse.id,
+                    adminNotes = adminNotes
+                )
+
+                when (result) {
+                    is Resource.Success -> {
+                        Timber.tag("MaterialRequestVM").d("✅ Entregado exitosamente")
+                        // El SnapshotListener actualizará automáticamente
+                    }
+                    is Resource.Error -> {
+                        Timber.tag("MaterialRequestVM").e("❌ Error: ${result.message}")
+                    }
+                    else -> {}
+                }
+            } else {
+                Timber.tag("MaterialRequestVM").e("❌ Bodegas no disponibles")
             }
         }
     }
@@ -194,36 +136,4 @@ class MaterialRequestViewModel @Inject constructor(
             }.launchIn(viewModelScope)
         }
     }
-
-    fun getMaterialRequestsPaged(
-        statusFilter: RequestStatus? = null
-    ): Flow<PagingData<MaterialRequest>> {
-        // Si cambia el filtro, crear nuevo flow
-        if (_requestsPaged == null) {
-            _requestsPaged = inventoryRepository.getMaterialRequestsPaged(
-                orderBy = "requestDate",
-                direction = Query.Direction.DESCENDING,
-                statusFilter = statusFilter
-            ).cachedIn(viewModelScope)
-        }
-        return _requestsPaged!!
-    }
-
-    // Función para refrescar cuando cambie el filtro
-    fun refreshWithFilter(statusFilter: RequestStatus?) {
-        _requestsPaged = inventoryRepository.getMaterialRequestsPaged(
-            orderBy = "requestDate",
-            direction = Query.Direction.DESCENDING,
-            statusFilter = statusFilter
-        ).cachedIn(viewModelScope)
-    }
-
-    /**
-     * Establece el filtro de estado para las solicitudes.
-     * @param status El estado a filtrar, o null para todos.
-     */
-    fun setStatusFilter(status: RequestStatus?) {
-        _statusFilter.value = status
-    }
-
 }

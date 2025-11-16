@@ -1,5 +1,6 @@
 package dev.ycosorio.flujo.ui.screens.documents
 
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -21,6 +22,7 @@ import androidx.compose.foundation.background
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
@@ -119,6 +121,14 @@ fun SignatureScreen(
                     Text("Entendido")
                 }
             }
+
+            val configuration = LocalConfiguration.current
+            val canvasHeight = if (configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                0.6f
+            } else {
+                0.7f
+            }
+
             // El lienzo para firmar
             SignatureCanvas(
                 paths = paths,
@@ -126,7 +136,7 @@ fun SignatureScreen(
                     paths.add(it)
                 },
                 modifier = Modifier
-                    .fillMaxSize()
+                    .fillMaxHeight(canvasHeight)
                     .background(Color.Gray) // Mantenemos el fondo gris
                     .capturable(controller = captureController) // <- El modificador v3.x
             )

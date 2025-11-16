@@ -2,8 +2,7 @@ package dev.ycosorio.flujo.ui.screens.messages
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.paging.PagingData
-import androidx.paging.cachedIn
+
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.ycosorio.flujo.domain.model.Message
 import dev.ycosorio.flujo.domain.model.Role
@@ -39,25 +38,6 @@ class MessagesViewModel @Inject constructor(
 
     private val _currentUser = MutableStateFlow<User?>(null)
     val currentUser: StateFlow<User?> = _currentUser.asStateFlow()
-
-    private var _receivedMessagesPaged: Flow<PagingData<Message>>? = null
-    private var _sentMessagesPaged: Flow<PagingData<Message>>? = null
-
-    fun getReceivedMessagesPaged(userId: String): Flow<PagingData<Message>> {
-        if (_receivedMessagesPaged == null) {
-            _receivedMessagesPaged = messageRepository.getReceivedMessagesPaged(userId)
-                .cachedIn(viewModelScope) // Cachear en el scope del ViewModel
-        }
-        return _receivedMessagesPaged!!
-    }
-
-    fun getSentMessagesPaged(userId: String): Flow<PagingData<Message>> {
-        if (_sentMessagesPaged == null) {
-            _sentMessagesPaged = messageRepository.getSentMessagesPaged(userId)
-                .cachedIn(viewModelScope)
-        }
-        return _sentMessagesPaged!!
-    }
 
     fun loadCurrentUser(userId: String) {
         viewModelScope.launch {

@@ -1,7 +1,6 @@
 package dev.ycosorio.flujo.ui.navigation
 
 import android.os.Build
-import dev.ycosorio.flujo.ui.screens.worker.inventory.CreateRequestViewModel
 import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Box
@@ -20,9 +19,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import dev.ycosorio.flujo.domain.model.AuthUser
 import dev.ycosorio.flujo.domain.model.Role
 import dev.ycosorio.flujo.ui.AppViewModel
+import dev.ycosorio.flujo.ui.screens.admin.expenses.AdminExpenseReportScreen
+import dev.ycosorio.flujo.ui.screens.admin.expenses.AdminExpenseReportViewModel
 import dev.ycosorio.flujo.ui.screens.admin.inventory.MaterialManagementScreen
 import dev.ycosorio.flujo.ui.screens.admin.users.EditUserScreen
 import dev.ycosorio.flujo.ui.screens.admin.users.EditUserViewModel
@@ -51,7 +51,11 @@ import dev.ycosorio.flujo.ui.screens.settings.SettingsScreen
 import dev.ycosorio.flujo.ui.screens.worker.expenses.CreateExpenseReportScreen
 import dev.ycosorio.flujo.ui.screens.worker.expenses.ExpenseReportListScreen
 import dev.ycosorio.flujo.ui.screens.worker.inventory.CreateRequestScreen
+import dev.ycosorio.flujo.ui.screens.worker.inventory.CreateRequestViewModel
+import dev.ycosorio.flujo.ui.screens.worker.inventory.WorkerRequestScreen
+import dev.ycosorio.flujo.ui.screens.worker.inventory.WorkerRequestViewModel
 import dev.ycosorio.flujo.utils.Resource
+import timber.log.Timber
 
 @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
 @Composable
@@ -60,6 +64,23 @@ fun AppNavigation() {
     val navController = rememberNavController()
     val appViewModel: AppViewModel = hiltViewModel()
     val currentAuthUser by appViewModel.currentUser.collectAsState()
+    val shouldOpenNotifications by appViewModel.shouldOpenNotifications.collectAsState()
+
+    LaunchedEffect(shouldOpenNotifications) {
+        Timber.tag("AppNavigation")
+            .d("🔔 LaunchedEffect: shouldOpenNotifications = $shouldOpenNotifications")
+        if (shouldOpenNotifications) {
+            val currentUser = appViewModel.currentUserProfile.value
+            Timber.tag("AppNavigation").d("👤 currentUser: ${currentUser?.name ?: "NULL"}")
+            if (currentUser != null) {
+                Timber.tag("AppNavigation").d("🚀 Navegando a notificaciones con userId: ${currentUser.uid}")
+                navController.navigate(Routes.Notifications.createRoute(currentUser.uid))
+                appViewModel.resetNotificationsFlag()  // ✅ Reset del flag
+            } else {
+                Timber.tag("AppNavigation").w("⚠️ No se puede navegar, currentUser es NULL")
+            }
+        }
+    }
 
     NavHost(
         navController = navController,
@@ -82,13 +103,13 @@ fun AppNavigation() {
             AccessVerificationScreen(
                 authUser = currentAuthUser,
                 onAccessGranted = {
-                    Log.d("AppNavigation", "✅ Navegando a Main")
+                    Timber.tag("AppNavigation").d("✅ Navegando a Main")
                     navController.navigate(Routes.Main.route) {
                         popUpTo(Routes.AccessVerification.route) { inclusive = true }
                     }
                 },
                 onAccessDenied = {
-                    Log.d("AppNavigation", "❌ Navegando a Login")
+                    Timber.tag("AppNavigation").d("❌ Navegando a Login")
                     // Limpiar el estado del usuario
                     appViewModel.clearUserProfile()
                     navController.navigate(Routes.Login.route) {
@@ -131,6 +152,17 @@ fun AppNavigation() {
                     navController.navigate(Routes.UserDetail.createRoute(user.uid))
                 }
             )
+        }
+        composable(Routes.AdminExpenseReports.route) {
+            val viewModel: AdminExpenseReportViewModel = hiltViewModel()
+            AdminExpenseReportScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onReportClick = {reportId ->
+                    navController.navigate(
+                        Routes.EditExpenseReport.createRoute(reportId))
+                },
+                viewModel = viewModel,
+                )
         }
         composable(Routes.VehicleManagement.route) {
             VehicleManagementScreen(navController = navController)
@@ -246,6 +278,16 @@ fun AppNavigation() {
                 }
             )
         }
+        composable(Routes.WorkerRequests.route) {
+            val viewModel: WorkerRequestViewModel = hiltViewModel()
+            WorkerRequestScreen(
+                viewModel = viewModel,
+                navController = navController,
+                onAddRequestClicked = {
+                    navController.navigate(Routes.CreateRequest.route)
+                }
+            )
+        }
         // Pantalla de Firma
         composable(
             route = Routes.Signature.route,
@@ -350,7 +392,8 @@ fun AppNavigation() {
                             user.role.name
                         )
                     )
-                }
+                },
+                onNavigateBack = { navController.popBackStack() }
             )
         }
         // Pantalla para componer un nuevo mensaje
@@ -411,8 +454,15 @@ fun AppNavigation() {
             )
         }
         // Pantalla de notificaciones
-        composable(Routes.Notifications.route) {
+        composable(
+            route = Routes.Notifications.route,
+            arguments = listOf(
+                navArgument("userId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId") ?: ""
             NotificationsScreen(
+                userId = userId,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

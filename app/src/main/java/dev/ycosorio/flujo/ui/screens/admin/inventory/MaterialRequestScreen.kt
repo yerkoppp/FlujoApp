@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
@@ -28,14 +29,14 @@ fun MaterialRequestScreen(
     navController: NavController,
     viewModel: MaterialRequestViewModel = hiltViewModel()
 ) {
-    val requestsState by viewModel.requestsState.collectAsState()
+    val requestsState by viewModel.requestsState.collectAsStateWithLifecycle()
     val warehouses by viewModel.warehouses.collectAsState()
     val selectedWarehouse by viewModel.selectedWarehouse.collectAsState()
     val warehouseStock by viewModel.warehouseStock.collectAsState()
     val consolidatedStock by viewModel.consolidatedStock.collectAsState()
     val statusFilter by viewModel.statusFilter.collectAsState()
 
-    val requestsPaged = viewModel.getMaterialRequestsPaged(statusFilter).collectAsLazyPagingItems()
+    //val requestsPaged = viewModel.requestsPaged.collectAsLazyPagingItems()
 
     var selectedTab by remember { mutableStateOf(0) }
     var selectedInventoryTab by remember { mutableStateOf(0) }
@@ -80,10 +81,9 @@ fun MaterialRequestScreen(
             // Contenido según pestaña
             when (selectedTab) {
                 0 -> {
-                    // ✅ PESTAÑA DE SOLICITUDES - CON FILTRO Y PAGINACIÓN
                     Column(modifier = Modifier.fillMaxSize()) {
 
-                        // ✅ RESTAURADO: Filtro dropdown
+                        // Filtro dropdown
                         ExposedDropdownMenuBox(
                             expanded = expandedFilter,
                             onExpandedChange = { expandedFilter = !expandedFilter },
@@ -113,7 +113,6 @@ fun MaterialRequestScreen(
                                         text = { Text(label) },
                                         onClick = {
                                             viewModel.onStatusFilterChanged(status)
-                                            viewModel.refreshWithFilter(status)
                                             expandedFilter = false
                                         },
                                         leadingIcon = if (statusFilter == status) {
@@ -126,13 +125,11 @@ fun MaterialRequestScreen(
 
                         // ✅ NUEVO: Lista paginada
                         Box(modifier = Modifier.fillMaxSize()) {
-                            when {
-                                requestsPaged.loadState.refresh is LoadState.Loading -> {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.align(Alignment.Center)
-                                    )
+                            when (val state = requestsState) {
+                                is Resource.Loading -> {
+                                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                                 }
-                                requestsPaged.loadState.refresh is LoadState.Error -> {
+                                is Resource.Error -> {
                                     Column(
                                         modifier = Modifier
                                             .align(Alignment.Center)
@@ -140,34 +137,30 @@ fun MaterialRequestScreen(
                                         horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
                                         Text(
-                                            "Error al cargar solicitudes",
-                                            style = MaterialTheme.typography.titleMedium
+                                            state.message ?: "Error al cargar solicitudes",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = MaterialTheme.colorScheme.error
                                         )
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Button(onClick = { requestsPaged.retry() }) {
-                                            Text("Reintentar")
+                                    }
+                                }
+                                is Resource.Success -> {
+                                    val requests = state.data ?: emptyList()
+                                    if (requests.isEmpty()) {
+                                        Box(
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text("No hay solicitudes de materiales.")
                                         }
-                                    }
-                                }
-                                requestsPaged.itemCount == 0 -> {
-                                    Box(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text("No hay solicitudes de materiales.")
-                                    }
-                                }
-                                else -> {
-                                    LazyColumn(
-                                        contentPadding = PaddingValues(16.dp),
-                                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        items(
-                                            count = requestsPaged.itemCount,
-                                            key = requestsPaged.itemKey { it.id }
-                                        ) { index ->
-                                            val request = requestsPaged[index]
-                                            if (request != null) {
+                                    } else {
+                                        LazyColumn(
+                                            contentPadding = PaddingValues(16.dp),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            items(
+                                                items = requests,
+                                                key = { it.id }
+                                            ) { request ->
                                                 MaterialRequestItem(
                                                     role = Role.ADMINISTRADOR,
                                                     request = request,
@@ -190,39 +183,9 @@ fun MaterialRequestScreen(
                                                 )
                                             }
                                         }
-
-                                        // Loading al cargar más
-                                        if (requestsPaged.loadState.append is LoadState.Loading) {
-                                            item {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(16.dp),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    CircularProgressIndicator()
-                                                }
-                                            }
-                                        }
-
-                                        // Error al cargar más
-                                        if (requestsPaged.loadState.append is LoadState.Error) {
-                                            item {
-                                                Column(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(16.dp),
-                                                    horizontalAlignment = Alignment.CenterHorizontally
-                                                ) {
-                                                    Text("Error al cargar más solicitudes")
-                                                    Button(onClick = { requestsPaged.retry() }) {
-                                                        Text("Reintentar")
-                                                    }
-                                                }
-                                            }
-                                        }
                                     }
                                 }
+                                else -> {}
                             }
                         }
                     }
@@ -446,9 +409,6 @@ private fun ConsolidatedStockCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(4.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer
-        ),
         onClick = { expanded = !expanded }
     ) {
         Column(modifier = Modifier.padding(16.dp)) {

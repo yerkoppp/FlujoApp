@@ -59,6 +59,8 @@ class ExpenseRepositoryImpl @Inject constructor(
             trySend(Resource.Loading())
 
             val listener = expenseReportsCol
+                .whereNotEqualTo("status", ExpenseReportStatus.DRAFT.name)
+                .orderBy("status")
                 .orderBy("createdDate", com.google.firebase.firestore.Query.Direction.DESCENDING)
                 .addSnapshotListener { snapshot, error ->
                     if (error != null) {

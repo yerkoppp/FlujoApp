@@ -1,55 +1,88 @@
 package dev.ycosorio.flujo.ui.screens.messages
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DividerDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.runtime.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Tab
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.navigation.NavHostController
-import androidx.paging.LoadState
-import androidx.paging.compose.collectAsLazyPagingItems
-import androidx.paging.compose.itemKey
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.ycosorio.flujo.domain.model.Message
-import dev.ycosorio.flujo.domain.model.Role
 import dev.ycosorio.flujo.domain.model.User
-import dev.ycosorio.flujo.ui.navigation.Routes
 import dev.ycosorio.flujo.utils.Resource
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MessagesScreen(
     userId: String,
     viewModel: MessagesViewModel = hiltViewModel(),
-    onNavigateToCompose: (User) -> Unit
+    onNavigateToCompose: (User) -> Unit,
+    onNavigateBack: () -> Unit,
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(userId) {
         viewModel.loadCurrentUser(userId)
-        //viewModel.loadReceivedMessages(userId)
-        //viewModel.loadSentMessages(userId)
+        viewModel.loadReceivedMessages(userId)
+        viewModel.loadSentMessages(userId)
     }
 
     val currentUser by viewModel.currentUser.collectAsState()
-    val receivedMessagesPaged = viewModel.getReceivedMessagesPaged(userId).collectAsLazyPagingItems()
-    val sentMessagesPaged = viewModel.getSentMessagesPaged(userId).collectAsLazyPagingItems()
+    val receivedMessages by viewModel.receivedMessages.collectAsStateWithLifecycle()
+    val sentMessages by viewModel.sentMessages.collectAsStateWithLifecycle()
 
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Mensajes") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Volver"
+                        )
+                    }
+                },
                 actions = {
                     // ✅ Solo mostrar botón si el usuario está cargado
                     IconButton(
@@ -88,119 +121,19 @@ fun MessagesScreen(
             }
 
             when (selectedTab) {
-                0 -> MessageListPaged(
-                    messages = receivedMessagesPaged,
+                0 -> MessageList(
+                    messages = receivedMessages,
                     currentUserId = userId,
                     isReceived = true,
                     onMarkAsRead = { messageId ->
                         viewModel.markAsRead(messageId, userId)
                     }
                 )
-                1 -> MessageListPaged(
-                    messages = sentMessagesPaged,
+                1 -> MessageList(
+                    messages = sentMessages,
                     currentUserId = userId,
                     isReceived = false
                 )
-            }
-        }
-    }
-}
-
-// ✅ NUEVO: Composable para lista paginada
-@Composable
-fun MessageListPaged(
-    messages: androidx.paging.compose.LazyPagingItems<Message>,
-    currentUserId: String,
-    isReceived: Boolean,
-    onMarkAsRead: ((String) -> Unit)? = null
-) {
-    Box(modifier = Modifier.fillMaxSize()) {
-        // Mostrar estado de carga inicial
-        if (messages.loadState.refresh is LoadState.Loading) {
-            CircularProgressIndicator(
-                modifier = Modifier.align(Alignment.Center)
-            )
-        }
-
-        // Mostrar error si ocurre
-        if (messages.loadState.refresh is LoadState.Error) {
-            Column(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    "Error al cargar mensajes",
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Button(onClick = { messages.retry() }) {
-                    Text("Reintentar")
-                }
-            }
-        }
-
-        // Mostrar lista vacía
-        if (messages.loadState.refresh is LoadState.NotLoading && messages.itemCount == 0) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("No hay mensajes")
-            }
-        }
-
-        // ✅ Lista paginada
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(
-                count = messages.itemCount,
-                key = messages.itemKey { it.id }
-            ) { index ->
-                val message = messages[index]
-                if (message != null) {
-                    MessageItem(
-                        message = message,
-                        currentUserId = currentUserId,
-                        isReceived = isReceived,
-                        onMarkAsRead = onMarkAsRead
-                    )
-                }
-            }
-
-            // Mostrar loading al cargar más items
-            if (messages.loadState.append is LoadState.Loading) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
-                }
-            }
-
-            // Mostrar error al cargar más
-            if (messages.loadState.append is LoadState.Error) {
-                item {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text("Error al cargar más mensajes")
-                        Button(onClick = { messages.retry() }) {
-                            Text("Reintentar")
-                        }
-                    }
-                }
             }
         }
     }

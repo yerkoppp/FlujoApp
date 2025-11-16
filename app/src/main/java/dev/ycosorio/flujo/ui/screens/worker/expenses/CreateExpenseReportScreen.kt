@@ -42,17 +42,32 @@ fun CreateExpenseReportScreen(
         viewModel.loadReport(reportId)
     }
 
+    LaunchedEffect(uiState.reportSubmittedSuccessfully) {
+        if (uiState.reportSubmittedSuccessfully) {
+            viewModel.resetSubmittedFlag()
+            onNavigateBack()
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (reportId == null) "Nueva Rendición" else "Editar Rendición") },
+                title = {
+                    Text(
+                        when {
+                            reportId == null -> "Nueva Rendición"
+                            uiState.currentReport?.status == ExpenseReportStatus.DRAFT -> "Editar Rendición"
+                            else -> "Ver Rendición"
+                        }
+                    )
+                        },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver")
                     }
                 },
                 actions = {
-                    if (uiState.currentReport != null) {
+                    if (uiState.currentReport?.status == ExpenseReportStatus.DRAFT) {
                         TextButton(onClick = { viewModel.submitReport() }) {
                             Text("ENVIAR")
                         }
@@ -309,8 +324,6 @@ fun AddExpenseDialog(
             cameraLauncher.launch(tempCameraUri!!)
         }
     }
-
-
 
     AlertDialog(
         onDismissRequest = onDismiss,

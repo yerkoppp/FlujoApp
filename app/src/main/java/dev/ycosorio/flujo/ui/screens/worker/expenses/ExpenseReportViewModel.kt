@@ -3,8 +3,6 @@ package dev.ycosorio.flujo.ui.screens.worker.expenses
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.paging.PagingData
-import androidx.paging.cachedIn
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.ycosorio.flujo.domain.model.ExpenseItem
 import dev.ycosorio.flujo.domain.model.ExpenseReport
@@ -29,7 +27,8 @@ data class ExpenseReportUiState(
     val isUploadingImage: Boolean = false,
     val uploadProgress: String? = null,
     val reportsList: List<ExpenseReport> = emptyList(),
-    val isLoadingList: Boolean = false
+    val isLoadingList: Boolean = false,
+    val reportSubmittedSuccessfully: Boolean = false
 )
 
 @HiltViewModel
@@ -42,18 +41,9 @@ class ExpenseReportViewModel @Inject constructor(
     val uiState: StateFlow<ExpenseReportUiState> = _uiState.asStateFlow()
 
     private val currentUserId = authRepository.getCurrentUser()
-    private var _reportsPaged: Flow<PagingData<ExpenseReport>>? = null
 
     init {
         loadExpenseReports()
-    }
-
-    fun getExpenseReportsPaged(userId: String): Flow<PagingData<ExpenseReport>> {
-        if (_reportsPaged == null) {
-            _reportsPaged = expenseRepository.getExpenseReportsForWorkerPaged(userId)
-                .cachedIn(viewModelScope)
-        }
-        return _reportsPaged!!
     }
 
     /**
@@ -320,7 +310,8 @@ class ExpenseReportViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             currentReport = null,
-                            isLoading = false
+                            isLoading = false,
+                            reportSubmittedSuccessfully = true
                         )
                     }
                 }
@@ -335,6 +326,10 @@ class ExpenseReportViewModel @Inject constructor(
                 else -> {}
             }
         }
+    }
+
+    fun resetSubmittedFlag() {
+        _uiState.update { it.copy(reportSubmittedSuccessfully = false) }
     }
 
     /**
