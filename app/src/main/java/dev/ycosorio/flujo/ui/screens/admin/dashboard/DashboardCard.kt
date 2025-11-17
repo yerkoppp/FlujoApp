@@ -1,6 +1,5 @@
-package dev.ycosorio.flujo.ui.screens.dashboard
+package dev.ycosorio.flujo.ui.screens.admin.dashboard
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -20,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -31,15 +31,33 @@ fun DashboardCard(action: DashboardAction) {
             .fillMaxWidth()
             .aspectRatio(1f),
         elevation = CardDefaults.cardElevation(4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     ) {
         Column(
             modifier = Modifier.fillMaxSize().padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Icon(action.icon, contentDescription = action.title, modifier = Modifier.size(48.dp))
+            Icon(action.icon,
+                contentDescription = action.title,
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(12.dp))
-            Text(action.title, style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = action.title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            if (!action.insight.isNullOrBlank()) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = action.insight,
+                    style = MaterialTheme.typography.bodySmall, // Un texto más pequeño
+                    color = MaterialTheme.colorScheme.onSurfaceVariant // Un color más sutil
+                )
+            }
         }
     }
 }
@@ -47,5 +65,6 @@ fun DashboardCard(action: DashboardAction) {
 data class DashboardAction(
     val title: String,
     val icon: ImageVector,
-    val onClick: () -> Unit
+    val onClick: () -> Unit,
+    val insight: String? = null
 )

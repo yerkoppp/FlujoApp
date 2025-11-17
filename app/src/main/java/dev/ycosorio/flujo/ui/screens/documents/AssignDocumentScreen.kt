@@ -77,7 +77,7 @@ fun AssignDocumentScreen(
                                 .fillMaxWidth()
                                 .padding(16.dp, 16.dp, 16.dp, 8.dp),
                             colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                                containerColor = MaterialTheme.colorScheme.surface
                             )
                         ) {
                             Row(

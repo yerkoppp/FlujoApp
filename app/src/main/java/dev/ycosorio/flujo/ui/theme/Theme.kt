@@ -40,8 +40,9 @@ private val LightColorScheme = lightColorScheme(
     background = FlujoBackgroundLight, // Fondo gris (EEEEEE)
     onBackground = FlujoTextDark,
 
-    surface = FlujoSurfaceLight, // Superficie blanca (FFFFFF)
+    surface = FlujoSurfaceBlue,
     onSurface = FlujoTextDark,
+
     surfaceVariant = FlujoSurfaceVariantLight, // Variante gris (E0E0E0)
     onSurfaceVariant = FlujoTextMedium,
 

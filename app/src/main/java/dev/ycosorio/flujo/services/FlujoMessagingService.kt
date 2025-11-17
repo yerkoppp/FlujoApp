@@ -76,7 +76,7 @@ class FlujoMessagingService : FirebaseMessagingService() {
         val notification = NotificationCompat.Builder(this, channelId)
             .setContentTitle(title)
             .setContentText(message)
-            .setSmallIcon(R.mipmap.ic_logo_round) // Cambia por tu icono
+            .setSmallIcon(R.drawable.small_icon) // Cambia por tu icono
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)

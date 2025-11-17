@@ -24,13 +24,22 @@ class MessageRepositoryImpl @Inject constructor(
 ) : MessageRepository {
 
     private val messagesCollection = firestore.collection(FirestoreConstants.MESSAGES_COLLECTION)
-
+    private val usersCollection = firestore.collection(FirestoreConstants.USERS_COLLECTION)
 
     override suspend fun sendMessage(message: Message): Resource<Unit> {
         return try {
+
+            // Obtener el nombre del remitente desde Firestore para asegurar que sea correcto
+            val senderDoc = usersCollection.document(message.senderId)
+                .get()
+                .await()
+
+            // Usar el nombre de Firestore. Usar "Nombre Desconocido" como fallback.
+            val correctSenderName = senderDoc.getString("name") ?: "Nombre Desconocido"
+
             val messageData = hashMapOf(
                 "senderId" to message.senderId,
-                "senderName" to message.senderName,
+                "senderName" to correctSenderName,
                 "recipientIds" to message.recipientIds,
                 "subject" to message.subject,
                 "content" to message.content,
@@ -43,8 +52,11 @@ class MessageRepositoryImpl @Inject constructor(
                 .add(messageData)
                 .await()
 
+            // Crear un objeto Message actualizado con el nombre correcto para la notificación
+            val updatedMessage = message.copy(senderName = correctSenderName)
+
             // Enviar notificación push a los destinatarios
-            sendPushNotification(message)
+            sendPushNotification(updatedMessage)
 
             Resource.Success(Unit)
         } catch (e: Exception) {
@@ -176,8 +188,18 @@ class MessageRepositoryImpl @Inject constructor(
      */
     private fun sendPushNotification(message: Message) {
         try {
+
+            // Filtra la lista de destinatarios para excluir al remitente
+            val recipientsToNotify = message.recipientIds.filter { it != message.senderId }
+
+            // Si no hay a quién notificar (ej: mensaje a sí mismo o lista vacía), no hacer nada
+            if (recipientsToNotify.isEmpty()) {
+                Timber.tag("MessageRepository").d("No hay destinatarios a quienes notificar (excluyendo al remitente).")
+                return
+            }
+
             val data = hashMapOf(
-                "userIds" to message.recipientIds,
+                "userIds" to recipientsToNotify,
                 "title" to "Nuevo mensaje de ${message.senderName}",
                 "body" to message.subject,
                 "data" to hashMapOf(

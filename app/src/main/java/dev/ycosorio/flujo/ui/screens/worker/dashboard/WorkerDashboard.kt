@@ -6,10 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,53 +14,48 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.material.icons.filled.WarningAmber
-import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Message
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AddComment
-import androidx.compose.material.icons.filled.Message
-import androidx.compose.material.icons.filled.Money
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.PostAdd
 import androidx.compose.material.icons.filled.RequestQuote
-import androidx.compose.material.icons.filled.Warehouse
+import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberTopAppBarState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import dev.ycosorio.flujo.domain.model.DocumentAssignment
+import dev.ycosorio.flujo.domain.model.MaterialRequest
 import dev.ycosorio.flujo.domain.model.Role
 import dev.ycosorio.flujo.domain.model.User
-import dev.ycosorio.flujo.ui.theme.Typography
 import dev.ycosorio.flujo.ui.components.MaterialRequestItem
 import dev.ycosorio.flujo.ui.navigation.Routes
-import dev.ycosorio.flujo.ui.screens.dashboard.DashboardAction
-import dev.ycosorio.flujo.ui.screens.dashboard.DashboardCard
+import dev.ycosorio.flujo.ui.screens.admin.dashboard.DashboardAction
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,16 +66,32 @@ fun WorkerDashboard(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection).fillMaxWidth(),
         topBar = {
             TopAppBar(
-                title = { Text("Resumen del Trabajador") },
+                title = {
+                    Text(
+                        "Bienvenido a Flujo",
+                        fontWeight = FontWeight.Bold // Un toque más de énfasis
+                    )
+                },
                 actions = {
-                    NotificationBadge(count = uiState.messagesUnread.size) {
+                    NotificationBadge(
+                        count = uiState.pendingDocuments.size,
+                        tint = MaterialTheme.colorScheme.primary
+                    ) {
                         navController.navigate(Routes.Notifications.createRoute(user.uid))
                     }
                 },
-                modifier = Modifier.padding(top = 5.dp)
+
+                colors = TopAppBarDefaults.topAppBarColors(
+                   containerColor = MaterialTheme.colorScheme.background,
+                   titleContentColor = MaterialTheme.colorScheme.primary,
+                   actionIconContentColor = MaterialTheme.colorScheme.primary
+                ),
+                scrollBehavior = scrollBehavior
             )
         }
     ) { paddingValues ->
@@ -102,228 +110,202 @@ fun WorkerDashboard(
                     .fillMaxSize()
                     .padding(paddingValues),
                 contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
-                item {
-                    WorkerGrid(navController = navController, user = user)
-                }
 
-                // --- 1. Tarjeta de Acción Rápida ---
+                // --- 1. ACCIONES REQUERIDAS (Lo más urgente) ---
                 item {
-                    Text(
-                        text = "Acciones Rápidas",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        CompactQuickAction(
-                            icon = Icons.Default.PostAdd,
-                            description = "Nueva Solicitud",
-                            onClick = { navController.navigate(Routes.CreateRequest.route) }
-                        )
-                        CompactQuickAction(
-                            icon = Icons.Default.RequestQuote,
-                            description = "Rendir Gastos",
-                            onClick = { navController.navigate(Routes.ExpenseReportList.route) }
-                        )
-                        CompactQuickAction(
-                            icon = Icons.Default.AddComment,
-                            description = "Enviar Mensaje",
-                            onClick = { navController.navigate(Routes.ComposeMessage.route) }
-                        )
-                        // Puedes añadir más si es necesario
-                    }
-                }
-                // --- 2. Tareas Pendientes (Documentos) ---
-                item {
-                    Text(
-                        text = "Tareas Pendientes (${uiState.pendingDocuments.size})", // Mostrar el conteo
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                    RequiredActionsSection(
+                        pendingDocuments = uiState.pendingDocuments,
+                        navController = navController
                     )
                 }
 
-                val displayedPending = uiState.pendingDocuments.take(2)
-                if (displayedPending.isEmpty()) {
-                    item {
-                        Text(
-                            text = "No tienes documentos pendientes por firmar.",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                } else {
-                    items(displayedPending, key = { it.id }) { document ->
-                        DocumentPendingItem(
-                            documentName = document.documentTitle,
-                            onClick = {
-                                navController.navigate(Routes.Signature.createRoute(document.id))
-                            }
-                        )
-                    }
-
-                    // Botón para ver más si hay pendientes ocultos
-                    if (uiState.pendingDocuments.size > 2) {
-                        item {
-                            ActionTextButton(
-                                text = "Ver todos los ${uiState.pendingDocuments.size} documentos pendientes",
-                                onClick = { navController.navigate(Routes.AssignDocument.route) }
-                            )
-                        }
-                    }
-                }
-
-                // --- 4. Solicitudes Recientes (Máx. 2) ---
+                // --- 2. ACCIONES FRECUENTES (Navegación consolidada) ---
                 item {
-                    Text(
-                        text = "Solicitudes Recientes",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                    FrequentActionsSection(
+                        user = user,
+                        navController = navController
                     )
                 }
 
-                // Solo mostramos 2 solicitudes recientes
-                val displayedRequests = uiState.recentRequests.take(2)
-                if (displayedRequests.isEmpty()) {
-                    item {
-                        Text(
-                            text = "No has realizado solicitudes recientemente.",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                } else {
-                    items(displayedRequests, key = { it.id }) { request ->
-                        MaterialRequestItem(
-                            role = Role.TRABAJADOR,
-                            request = request,
-                            onApprove = {},
-                            onReject = {}
-                        )
-                    }
-                    if (uiState.recentRequests.size > 2) {
-                        item {
-                            ActionTextButton(
-                                text = "Ver historial completo de solicitudes",
-                                onClick = { navController.navigate(Routes.WorkerRequests.route) }
-                            )
-                        }
-                    }
+                // --- 3. ESTADO: SOLICITUDES RECIENTES (Actividad) ---
+                item {
+                    RecentRequestsSection(
+                        recentRequests = uiState.recentRequests,
+                        navController = navController
+                    )
                 }
             }
         }
     }
 }
+
+// --- SECCIÓN 1: ACCIONES REQUERIDAS ---
+@Composable
+private fun RequiredActionsSection(
+    pendingDocuments: List<DocumentAssignment>,
+    navController: NavHostController
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = "Acciones Requeridas",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+
+        val displayedPending = pendingDocuments.take(2)
+
+        if (displayedPending.isEmpty()) {
+            // Tarjeta de "Todo bien". Refuerzo positivo.
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            ) {
+                Text(
+                    text = "¡Estás al día! No tienes tareas pendientes.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+        } else {
+            displayedPending.forEach { request ->
+                DocumentPendingItem(
+                    documentName = "Solicitud de material #${request.status}",
+                    onClick = {
+                        navController.navigate(Routes.DocumentDetail.createRoute(request.id))
+                    }
+                )
+            }
+
+            if (pendingDocuments.size > 2) {
+                ActionTextButton(
+                    text = "Ver todos los ${pendingDocuments.size} documentos pendientes",
+                    onClick = { navController.navigate(Routes.AssignDocument.route) }
+                )
+            }
+        }
+    }
+}
+
+// --- SECCIÓN 2: ACCIONES FRECUENTES ---
+@Composable
+private fun FrequentActionsSection(
+    user: User,
+    navController: NavHostController
+) {
+    val actions = listOf(
+        DashboardAction(
+            title = "Solicitud",
+            icon = Icons.Default.PostAdd,
+            onClick = { navController.navigate(Routes.CreateRequest.route) }
+        ),
+        DashboardAction(
+            title = "Rendir",
+            icon = Icons.Default.RequestQuote,
+            onClick = { navController.navigate(Routes.CreateExpenseReport.route) }
+        ),
+        DashboardAction(
+            title = "Mensajes",
+            icon = Icons.AutoMirrored.Filled.Message,
+            onClick = { navController.navigate(Routes.Messages.createRoute(user.uid)) }
+        )
+    )
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = "Acciones Frecuentes",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+        LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(horizontal = 2.dp)
+        ) {
+            items(actions, key = { it.title }) { action ->
+                ActionChip(
+                    action = action
+                )
+            }
+        }
+    }
+}
+
+// --- SECCIÓN 3: SOLICITUDES RECIENTES ---
+@Composable
+private fun RecentRequestsSection(
+    recentRequests: List<MaterialRequest>,
+    navController: NavHostController
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = "Solicitudes Recientes",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+
+        val displayedRequests = recentRequests.take(2)
+
+        if (displayedRequests.isEmpty()) {
+            Text(
+                text = "No has realizado solicitudes recientemente.",
+                style = MaterialTheme.typography.bodyMedium
+            )
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                displayedRequests.forEach { request ->
+                    MaterialRequestItem(
+                        role = Role.TRABAJADOR,
+                        request = request,
+                        onApprove = {},
+                        onReject = {}
+                    )
+                }
+            }
+
+            if (recentRequests.size > 2) {
+                Spacer(modifier = Modifier.height(8.dp))
+                ActionTextButton(
+                    text = "Ver historial completo de solicitudes",
+                    onClick = { navController.navigate(Routes.WorkerRequests.route) }
+                )
+            }
+        }
+    }
+}
+
+
+// --- COMPONENTES REUTILIZABLES ---
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CompactQuickAction(
-    icon: ImageVector,
-    description: String,
-    onClick: () -> Unit
+private fun ActionChip(
+    action: DashboardAction,
+    modifier: Modifier = Modifier
 ) {
     Card(
-        onClick = onClick,
-        modifier = Modifier.size(72.dp), // Tamaño fijo y compacto
+        onClick = action.onClick,
+        modifier = modifier.size(width = 96.dp, height = 96.dp) // Tamaño consistente
     ) {
         Column(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Icon(
-                imageVector = icon,
-                contentDescription = description,
-                tint = MaterialTheme.colorScheme.onTertiaryContainer,
-                modifier = Modifier.size(32.dp)
+                imageVector = action.icon,
+                contentDescription = action.title,
+                modifier = Modifier.size(36.dp),
+                tint = MaterialTheme.colorScheme.primary // Tinte primario para la acción
             )
-        }
-    }
-}
-
-// Botón de texto para "Ver más"
-@Composable
-private fun ActionTextButton(text: String, onClick: () -> Unit) {
-    Text(
-        text = text,
-        color = MaterialTheme.colorScheme.primary,
-        style = MaterialTheme.typography.bodyMedium,
-        fontWeight = FontWeight.SemiBold,
-        modifier = Modifier.fillMaxWidth().clickable { onClick() }.padding(vertical = 4.dp),
-        textAlign = TextAlign.Center
-    )
-}
-
-// Tarjeta de Notificación en el TopAppBar
-@Composable
-private fun NotificationBadge(count: Int, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier.clickable { onClick() }.padding(end = 16.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = Icons.Default.NotificationsActive,
-            contentDescription = "Notificaciones",
-            tint = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.size(28.dp)
-        )
-        if (count > 0) {
-            // Un pequeño círculo rojo para indicar pendientes
-            Box(
-                modifier = Modifier
-                    .size(12.dp)
-                    .clip(CircleShape)
-                    .background(Color.Red)
-                    .align(Alignment.TopEnd)
-            ) {
-                // Mostrar el número si el círculo es lo suficientemente grande
-                if (count < 10) {
-                    Text(
-                        text = count.toString(),
-                        color = Color.White,
-                        style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-            }
-        }
-    }
-}
-
-
-// --- Composables locales para el Dashboard ---
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun QuickActionCard(
-    title: String,
-    onClick: () -> Unit
-) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
-    ) {
-        Row (
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
+            Spacer(Modifier.height(8.dp))
             Text(
-                text = title,
-                style = Typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-            Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                text = action.title,
+                style = MaterialTheme.typography.labelMedium, // Texto más pequeño pero claro
+                textAlign = TextAlign.Center
             )
         }
     }
@@ -337,79 +319,74 @@ private fun DocumentPendingItem(
 ) {
     Card(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        )
     ) {
         ListItem(
-            headlineContent = { Text(documentName) },
+            headlineContent = {
+                Text(documentName, fontWeight = FontWeight.SemiBold)
+            },
             supportingContent = { Text("Pendiente de firma") },
             leadingContent = {
                 Icon(
                     imageVector = Icons.Default.WarningAmber,
                     contentDescription = "Pendiente",
-                    tint = MaterialTheme.colorScheme.secondary
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer
                 )
-            }
+            },
+            colors = ListItemDefaults.colors(
+                containerColor = Color.Transparent // El color lo da la Card
+            )
         )
     }
 }
 
 @Composable
-fun WorkerGrid(
-    navController: NavHostController,
-    user: User
-) {
-    val dashboardActions = listOf(
-        DashboardAction(
-            title = "Rendiciones",
-            icon = Icons.Default.Money,
-            onClick = { navController.navigate(Routes.ExpenseReportList.route) }
-        ),
-        DashboardAction(
-            title = "Mensajes",
-            icon = Icons.AutoMirrored.Filled.Message,
-            onClick = { navController.navigate(Routes.Messages.createRoute(user.uid)) }
-        ),
-        DashboardAction(
-            title = "Almacén", // Añadimos Almacén/Inventario como navegación
-            icon = Icons.Default.Warehouse,
-            onClick = { /* TODO: Navegar a Inventario si aplica */ }
-        )
+private fun ActionTextButton(text: String, onClick: () -> Unit) {
+    Text(
+        text = text,
+        color = MaterialTheme.colorScheme.primary,
+        style = MaterialTheme.typography.bodyMedium,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.fillMaxWidth().clickable { onClick() }.padding(vertical = 4.dp),
+        textAlign = TextAlign.Center
     )
+}
 
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+
+@Composable
+private fun NotificationBadge(
+    count: Int,
+    tint: Color,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier.clickable { onClick() }.padding(end = 16.dp),
+        contentAlignment = Alignment.Center
     ) {
-        dashboardActions.forEach { action ->
-            // Usamos el mismo DashboardCard, pero con un Modifier.weight(1f)
-            DashboardWorkerCard(
-                action = action,
-                modifier = Modifier.weight(1f)
+        Icon(
+            imageVector = Icons.Default.NotificationsActive,
+            contentDescription = "Notificaciones",
+            tint = tint,
+            modifier = Modifier.size(28.dp)
+        )
+        if (count > 0) {
+            Box(
+                modifier = Modifier
+                    .size(12.dp)
+                    .clip(CircleShape)
+                    .background(Color.Red)
+                    .align(Alignment.TopEnd)
             )
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun DashboardWorkerCard(
-    action: DashboardAction,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        onClick = action.onClick,
-        modifier = modifier
-            .aspectRatio(1f)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(action.icon, contentDescription = action.title, modifier = Modifier.size(36.dp))
-            Spacer(Modifier.height(12.dp))
-            Text(action.title, style = MaterialTheme.typography.titleMedium)
-        }
-    }
-}
-
+data class DashboardAction(
+    val title: String,
+    val icon: ImageVector,
+    val onClick: () -> Unit
+)

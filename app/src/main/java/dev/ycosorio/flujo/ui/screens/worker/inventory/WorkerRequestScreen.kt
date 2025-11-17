@@ -54,7 +54,7 @@ fun WorkerRequestScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Inventario") })
+            TopAppBar(title = { Text("Gestión de Inventario") })
         },
         floatingActionButton = {
             if (selectedTab == 0) {

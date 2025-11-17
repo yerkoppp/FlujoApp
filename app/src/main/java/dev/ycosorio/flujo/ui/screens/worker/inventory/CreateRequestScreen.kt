@@ -14,13 +14,18 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -29,6 +34,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -43,6 +49,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.ycosorio.flujo.domain.model.ExpenseReportStatus
 import dev.ycosorio.flujo.domain.model.Material
 import dev.ycosorio.flujo.domain.model.StockItem
 import dev.ycosorio.flujo.utils.Resource
@@ -53,7 +60,6 @@ fun CreateRequestScreen(
     // Inyectamos el ViewModel que es compartido por WorkerRequestScreen
     viewModel: CreateRequestViewModel = hiltViewModel(),
     onSuccess: () -> Unit
-
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val filteredMaterials by viewModel.filteredMaterials.collectAsStateWithLifecycle()
@@ -79,10 +85,22 @@ fun CreateRequestScreen(
             else -> Unit
         }
     }
-
-    // Usamos un Scaffold simple solo para el SnackbarHost
     Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        "Nueva Solicitud de Materiales",
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onSuccess) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver")
+                    }
+                }
+            )
+        }
     ) { paddingValues ->
         Box(
             modifier = Modifier
@@ -95,12 +113,6 @@ fun CreateRequestScreen(
                     .fillMaxSize()
                     .padding(16.dp)
             ) {
-                Text(
-                    text = "Nueva Solicitud de Material",
-                    style = MaterialTheme.typography.headlineSmall,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-
                 // --- SECCIÓN: MATERIALES SELECCIONADOS ---
                 val selectedMaterials by viewModel.selectedMaterials.collectAsStateWithLifecycle()
 
@@ -192,7 +204,7 @@ fun CreateRequestScreen(
                 } else if (
                     filteredMaterials.isEmpty() &&
                     uiState.searchQuery.isNotBlank()
-                    ) {
+                ) {
                     Text(
                         text = "No se encontraron materiales con ese nombre o no hay cantidad disponible.",
                         textAlign = TextAlign.Center,
@@ -248,7 +260,11 @@ private fun MaterialSearchResultItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
+            .clickable { onClick() },
+        elevation = CardDefaults.cardElevation(2.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     ) {
         ListItem(
             headlineContent = { Text(item.materialName) },

@@ -302,7 +302,13 @@ private fun StockListContent(
 
 @Composable
 private fun StockItemCard(stockItem: StockItem) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(2.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()

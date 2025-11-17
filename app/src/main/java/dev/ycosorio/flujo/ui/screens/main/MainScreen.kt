@@ -194,21 +194,9 @@ private fun RealDashboardContent(
 ) {
 
     Column(
-        modifier = Modifier.fillMaxWidth().padding(16.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = "¡Hola, ${user.name}!",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = "Bienvenido a Flujo",
-            style = MaterialTheme.typography.titleMedium
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
         // El contenido del dashboard cambia según el rol del usuario
         when (user.role) {
             Role.ADMINISTRADOR -> AdminDashboard(

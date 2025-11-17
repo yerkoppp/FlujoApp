@@ -62,9 +62,7 @@ fun ExpenseReportListScreen(
     onReportClick: (String) -> Unit,
     viewModel: ExpenseReportViewModel = hiltViewModel()
 ) {
-    //val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    // reportsPaged = viewModel.getExpenseReportsPaged(currentUserId).collectAsLazyPagingItems()
 
     Scaffold(
         topBar = {
@@ -257,7 +255,10 @@ fun ExpenseReportCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     ) {
         Column(
             modifier = Modifier.padding(16.dp)

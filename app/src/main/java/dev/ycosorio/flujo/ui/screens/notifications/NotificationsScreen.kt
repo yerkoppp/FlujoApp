@@ -160,7 +160,8 @@ private fun NotificationItem(
             } else {
                 MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
             }
-        )
+        ),
+        elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Row(
             modifier = Modifier
@@ -176,7 +177,7 @@ private fun NotificationItem(
                     text = notification.title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = if (notification.isRead) FontWeight.Normal else FontWeight.Bold,
-                    maxLines = 2,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
 

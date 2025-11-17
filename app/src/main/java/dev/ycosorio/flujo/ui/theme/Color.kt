@@ -18,6 +18,8 @@ val FlujoTerciaryBlueSkyLight = Color(0xB2E0F7FA)
 
 // ---  TEMA CLARO ---
 // Neutros para tema CLARO (Ajustados para más contraste)
+
+val FlujoSurfaceBlue = Color(0xFFE0F7FA) // Un cian muy claro, derivado de tu logo
 val FlujoBackgroundLight = Color(0xFFEEEEEE) // Fondo gris (antes F0F2F5)
 val FlujoSurfaceLight = Color(0xFFFFFFFF) // Superficie blanca (para las Cards)
 val FlujoSurfaceVariantLight = Color(0xFFE0E0E0) // Variante de superficie (gris más oscuro)
