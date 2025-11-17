@@ -144,13 +144,13 @@ Backend (Firebase)
 
 | Dashboard | Gestión de Trabajadores | Inventario |
 |:---------:|:-----------------------:|:----------:|
-| ![Admin Dashboard](assets/admin_dashboard.png) | ![Workers](assets/workers_add.png) | ![Inventory](assets/inventory_consolidated.png) |
+| ![Admin Dashboard](assets/admin_dashboard.png) | ![Workers](assets/workers_add.png) | ![Inventory](assets/inventary_consolidated.png) |
 
 ### Vista Trabajador
 
 | Dashboard | Solicitud de Material | Documentos |
 |:---------:|:---------------------:|:----------:|
-| ![Worker Dashboard](assets/worker_dashboard.png) | ![Request](assets/worker_inventory_material_request_list.png) | ![Documents](assets/worker_documents_pending.png) |
+| ![Worker Dashboard](assets/worker_dashboard.png) | ![Request](assets/worker_inventary_material_request_list.png) | ![Documents](assets/worker_documents_pending.png) |
 
 ### Gestión Documental
 
