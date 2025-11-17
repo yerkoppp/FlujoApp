@@ -1,5 +1,8 @@
 <div align="center">
 
+<p align="center">
+  <img src="app/src/main/res/drawable/icono.webp" alt="Logo de la App" width="150"/>
+</p>
 # 📱 FlujoApp
 
 ### Plataforma de Gestión Empresarial Mobile-First
@@ -141,13 +144,13 @@ Backend (Firebase)
 
 | Dashboard | Gestión de Trabajadores | Inventario |
 |:---------:|:-----------------------:|:----------:|
-| ![Admin Dashboard](assets/admin_dashboard.png) | ![Workers](assets/workers.png) | ![Inventory](assets/materials_inventory.png) |
+| ![Admin Dashboard](assets/admin_dashboard.png) | ![Workers](assets/workers_add.png) | ![Inventory](assets/inventory_consolidated.png) |
 
 ### Vista Trabajador
 
 | Dashboard | Solicitud de Material | Documentos |
 |:---------:|:---------------------:|:----------:|
-| ![Worker Dashboard](assets/worker_dashboard.png) | ![Request](assets/worker_inventory_material_request_create.png) | ![Documents](assets/worker_documents_pending.png) |
+| ![Worker Dashboard](assets/worker_dashboard.png) | ![Request](assets/worker_inventory_material_request_list.png) | ![Documents](assets/worker_documents_pending.png) |
 
 ### Gestión Documental
 
@@ -352,7 +355,7 @@ Este proyecto está bajo la Licencia MIT. Ver archivo `LICENSE` para más detall
 **Yerko Osorio**
 
 - GitHub: [@yerkoppp](https://github.com/yerkoppp)
-- Email: [ycosorio.dev@gmail.com]
+- Email: ycosorio.dev@gmail.com
 
 ---
 
