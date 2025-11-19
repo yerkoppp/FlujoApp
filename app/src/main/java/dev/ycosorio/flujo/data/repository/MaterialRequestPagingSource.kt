@@ -12,12 +12,25 @@ import dev.ycosorio.flujo.domain.model.RequestStatus
 import dev.ycosorio.flujo.domain.model.RequestItem
 import kotlinx.coroutines.tasks.await
 
+/**
+ * PagingSource para cargar solicitudes de materiales desde Firestore con paginación.
+ *
+ * @property requestsCollection La referencia a la colección de solicitudes de materiales en Firestore.
+ * @property workerId El ID del trabajador cuyas solicitudes se van a cargar (null para admin).
+ * @property statusFilter Filtro opcional por estado de la solicitud.
+ */
 class MaterialRequestPagingSource(
     private val requestsCollection: CollectionReference,
     private val workerId: String? = null,  // null = todas las solicitudes (admin)
     private val statusFilter: RequestStatus? = null
 ) : PagingSource<DocumentSnapshot, MaterialRequest>() {
 
+    /**
+     * Carga una página de solicitudes de materiales desde Firestore.
+     *
+     * @param params Los parámetros de carga que incluyen la clave de inicio y el tamaño de carga.
+     * @return El resultado de la carga que puede ser una página de datos o un error.
+     */
     override suspend fun load(params: LoadParams<DocumentSnapshot>): LoadResult<DocumentSnapshot, MaterialRequest> {
         return try {
             // Construir query base
@@ -62,6 +75,12 @@ class MaterialRequestPagingSource(
         }
     }
 
+    /**
+     * Obtiene la clave de actualización para la paginación.
+     *
+     * @param state El estado de paginación actual.
+     * @return La clave de actualización o null si no se puede determinar.
+     */
     override fun getRefreshKey(state: PagingState<DocumentSnapshot, MaterialRequest>): DocumentSnapshot? {
         return null
     }

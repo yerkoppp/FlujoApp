@@ -1,32 +1,29 @@
 package dev.ycosorio.flujo.data.repository
 
-import android.util.Log
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.DocumentSnapshot
-import com.google.firebase.firestore.FirebaseFirestoreException
-import dev.ycosorio.flujo.domain.model.User
-import dev.ycosorio.flujo.domain.model.Role
-import dev.ycosorio.flujo.utils.Resource
-import dev.ycosorio.flujo.domain.repository.UserRepository
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.flow.callbackFlow
-import javax.inject.Inject
 import androidx.collection.LruCache
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
+import dev.ycosorio.flujo.domain.model.Role
+import dev.ycosorio.flujo.domain.model.User
+import dev.ycosorio.flujo.domain.repository.UserRepository
+import dev.ycosorio.flujo.utils.Resource
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeout
 import timber.log.Timber
+import javax.inject.Inject
 
 /**
- * Implementación del UserRepository que se comunica con Firebase Firestore.
- * Esta clase contiene la lógica para leer y escribir datos de usuario en la nube,
- * implementando el contrato definido en la interfaz UserRepository.
+ * Implementación del repositorio de usuarios utilizando Firebase Firestore.
  *
- * @property firestore Instancia de FirebaseFirestore inyectada para la comunicación con la base de datos.
+ * @property firestore La instancia de FirebaseFirestore para interactuar con la base de datos.
  */
 class UserRepositoryImpl @Inject constructor(
-    private val firestore: FirebaseFirestore // Inyectaremos la instancia de Firestore aquí
+    private val firestore: FirebaseFirestore
 ) : UserRepository {
 
     /**
@@ -34,13 +31,16 @@ class UserRepositoryImpl @Inject constructor(
      */
     private val usersCollection = firestore.collection("users")
 
-    // Caché con límite de 50 usuarios usando LRU (Least Recently Used)
+    /** Caché LRU para almacenar usuarios por email y reducir llamadas a Firestore.
+     * Tamaño máximo de 50 entradas.
+     */
     private val emailCache = object : LruCache<String, User>(50) {
         override fun sizeOf(key: String, value: User): Int = 1
     }
+
     /**
      * Obtiene todos los usuarios con el rol de TRABAJADOR en tiempo real.
-     * @return Un Flow que emite la lista de trabajadores cada vez que hay un cambio en Firestore.
+     * @return Un Flow que emite la lista de trabajadores y se actualiza con los cambios.
      */
     override fun getAllWorkers(): Flow<List<User>> = callbackFlow {
         // Creamos una consulta a Firestore para obtener solo los usuarios con el rol de TRABAJADOR
@@ -67,15 +67,13 @@ class UserRepositoryImpl @Inject constructor(
             }
         }
 
-        // Este bloque se ejecuta cuando el flow ya no es necesario (ej: el usuario sale de la pantalla).
-        // Es crucial para detener el listener y evitar fugas de memoria.
         awaitClose { subscription.remove() }
     }
 
     /**
-     * Obtiene todos los usuarios que coinciden con un cargo específico en tiempo real.
-     * @param position El cargo a filtrar, ej: "Técnico de Campo".
-     * @return Un Flow que emite la lista de trabajadores filtrada y se actualiza con los cambios.
+     * Obtiene los usuarios con el rol de TRABAJADOR y una posición específica en tiempo real.
+     * @param position La posición laboral a filtrar (por ejemplo, "TÉCNICO", "SUPERVISOR").
+     * @return Un Flow que emite la lista de trabajadores con la posición dada y se actualiza con los cambios.
      */
     override fun getUsersByPosition(position: String): Flow<List<User>> = callbackFlow {
         // La consulta tiene DOS condiciones:
@@ -101,9 +99,9 @@ class UserRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Obtiene los datos de un usuario específico por su ID.
-     * @param uid El ID único del usuario a buscar (coincide con el ID del documento en Firestore).
-     * @return El objeto User si se encuentra, o null si no existe el documento.
+     * Obtiene un usuario por su UID.
+     * @param uid El ID único del usuario a obtener.
+     * @return Un Resource que contiene el usuario si se encuentra, o un error si ocurre algún problema.
      */
     override suspend fun getUser(uid: String): Resource<User> {
         return try {
@@ -134,8 +132,7 @@ class UserRepositoryImpl @Inject constructor(
 
     /**
      * Crea un nuevo documento de usuario en Firestore.
-     * El ID del documento será el UID del objeto User.
-     * @param user El objeto User con los datos del nuevo trabajador.
+     * @param user El objeto User que se va a crear.
      * @return Un Result que indica si la operación fue exitosa o si ocurrió un error.
      */
     override suspend fun createUser(user: User): Resource<Unit> {
@@ -160,7 +157,7 @@ class UserRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Actualiza un documento de usuario existente en Firestore.
+     * Actualiza un documento de usuario en Firestore.
      * @param user El objeto User con los datos actualizados.
      * @return Un Result que indica si la operación fue exitosa o si ocurrió un error.
      */
@@ -184,7 +181,7 @@ class UserRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Elimina un documento de usuario de Firestore.
+     * Elimina un documento de usuario en Firestore.
      * @param uid El ID único del usuario a eliminar.
      * @return Un Result que indica si la operación fue exitosa o si ocurrió un error.
      */
@@ -208,6 +205,11 @@ class UserRepositoryImpl @Inject constructor(
         }
     }
 
+    /**
+     * Obtiene un usuario por su correo electrónico.
+     * @param email El correo electrónico del usuario a buscar.
+     * @return Un Resource que contiene el usuario si se encuentra, o un error si ocurre algún problema.
+     */
     override suspend fun getUserByEmail(email: String): Resource<User> {
         return try {
             Timber.d("🔍 Buscando email: $email")
@@ -264,6 +266,11 @@ class UserRepositoryImpl @Inject constructor(
         }
     }
 
+    /**
+     * Obtiene un usuario por su UID en tiempo real.
+     * @param uid El ID único del usuario a obtener.
+     * @return Un Flow que emite el usuario y se actualiza con los cambios.
+     */
     override fun getUserById(uid: String): Flow<Resource<User>> = callbackFlow {
         val listener = usersCollection.document(uid)
             .addSnapshotListener { snapshot, error ->
@@ -283,6 +290,11 @@ class UserRepositoryImpl @Inject constructor(
         awaitClose { listener.remove() }
     }
 
+    /**
+     * Obtiene usuarios por su rol en tiempo real.
+     * @param role El rol de los usuarios a obtener.
+     * @return Un Flow que emite la lista de usuarios con el rol dado y se actualiza con los cambios.
+     */
     override fun getUsersByRole(role: Role): Flow<Resource<List<User>>> = callbackFlow {
         val listener = usersCollection
             .whereEqualTo("role", role.name)
@@ -299,6 +311,12 @@ class UserRepositoryImpl @Inject constructor(
         awaitClose { listener.remove() }
     }
 
+    /**
+     * Actualiza el token FCM de un usuario en Firestore.
+     * @param userId El ID único del usuario.
+     * @param token El nuevo token FCM a actualizar.
+     * @return Un Result que indica si la operación fue exitosa o si ocurrió un error.
+     */
     override suspend fun updateFCMToken(userId: String, token: String): Result<Unit> {
         return try {
             firestore.collection("users")
@@ -317,7 +335,7 @@ class UserRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Limpia la caché de usuarios (útil al cerrar sesión)
+     * Limpia la caché de usuarios almacenada en memoria.
      */
     fun clearCache() {
         Timber.d("🧹 Limpiando caché de usuarios")
@@ -325,10 +343,11 @@ class UserRepositoryImpl @Inject constructor(
     }
 
 }
+
 /**
  * Función de extensión privada para convertir un DocumentSnapshot de Firestore
- * en nuestro objeto de dominio User. Actúa como un traductor.
- * @return Un objeto User si la conversión es exitosa, o null si faltan datos.
+ * en nuestro objeto de dominio User.
+ * @return Un objeto User o null si ocurre un error durante la conversión.
  */
 private fun DocumentSnapshot.toUser(): User? {
     return try {
@@ -373,10 +392,11 @@ private fun DocumentSnapshot.toUser(): User? {
     }
 }
 
+
 /**
- * Función de extensión privada para convertir nuestro objeto de dominio User
- * en un Map que Firestore pueda entender y almacenar.
- * @return Un Map<String, Any> listo para ser guardado en Firestore.
+ * Función de extensión privada para convertir un objeto User
+ * en un Map<String, Any?> adecuado para almacenar en Firestore.
+ * @return Un mapa con los campos del usuario.
  */
 private fun User.toFirestoreMap(): Map<String, Any?> {
     return mapOf(

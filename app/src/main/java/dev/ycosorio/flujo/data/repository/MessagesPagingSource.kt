@@ -10,12 +10,25 @@ import dev.ycosorio.flujo.domain.model.Message
 import kotlinx.coroutines.tasks.await
 import timber.log.Timber
 
+/**
+ * PagingSource para cargar mensajes desde Firestore con paginación.
+ *
+ * @property messagesCollection La referencia a la colección de mensajes en Firestore.
+ * @property userId El ID del usuario cuyos mensajes se van a cargar.
+ * @property isReceived Indica si se cargan mensajes recibidos (true) o enviados (false).
+ */
 class MessagesPagingSource(
     private val messagesCollection: CollectionReference,
     private val userId: String,
     private val isReceived: Boolean
 ) : PagingSource<DocumentSnapshot, Message>() {
 
+    /**
+     * Carga una página de mensajes desde Firestore.
+     *
+     * @param params Los parámetros de carga que incluyen la clave de inicio y el tamaño de carga.
+     * @return El resultado de la carga que puede ser una página de datos o un error.
+     */
     override suspend fun load(params: LoadParams<DocumentSnapshot>): LoadResult<DocumentSnapshot, Message> {
         return try {
             // Construir la query según si son mensajes recibidos o enviados
@@ -58,12 +71,23 @@ class MessagesPagingSource(
         }
     }
 
+    /**
+     * Obtiene la clave de actualización para la paginación.
+     *
+     * @param state El estado de paginación actual.
+     * @return La clave de actualización o null si no se puede determinar.
+     */
     override fun getRefreshKey(state: PagingState<DocumentSnapshot, Message>): DocumentSnapshot? {
         // Retornar null para siempre empezar desde el principio al refrescar
         return null
     }
 
-    // Función helper para convertir DocumentSnapshot a Message
+    /**
+     * Convierte un DocumentSnapshot de Firestore en un objeto Message.
+     *
+     * @receiver DocumentSnapshot El documento de Firestore a convertir.
+     * @return Un objeto Message o null si ocurre un error durante la conversión.
+     */
     private fun DocumentSnapshot.toMessage(): Message? {
         return try {
             @Suppress("UNCHECKED_CAST")

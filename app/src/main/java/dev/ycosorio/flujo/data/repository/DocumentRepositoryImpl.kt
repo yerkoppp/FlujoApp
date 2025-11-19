@@ -21,14 +21,29 @@ import timber.log.Timber
 import java.util.Date
 import javax.inject.Inject
 
+/**
+ * Implementación del repositorio de documentos utilizando Firebase Firestore y Firebase Storage.
+ *
+ * @property firestore La instancia de FirebaseFirestore para gestionar la base de datos.
+ * @property storage La instancia de FirebaseStorage para gestionar el almacenamiento de archivos.
+ */
 class DocumentRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val storage: FirebaseStorage
 ) : DocumentRepository {
 
+    /** Colección de plantillas de documentos en Firestore. */
     private val templatesCollection = firestore.collection("document_templates")
+    /** Colección de asignaciones de documentos en Firestore. */
     private val assignmentsCollection = firestore.collection("document_assignments")
 
+    /**
+     * Sube una nueva plantilla de documento a Firebase Storage y guarda su metadata en Firestore.
+     *
+     * @param title El título de la plantilla.
+     * @param fileUri La URI del archivo PDF a subir.
+     * @return Un recurso que indica el éxito o error de la operación.
+     */
     override suspend fun uploadTemplate(title: String, fileUri: Uri): Resource<Unit> {
         return try {
             Timber.d("📤 Iniciando subida: $title")
@@ -67,6 +82,11 @@ class DocumentRepositoryImpl @Inject constructor(
         }
     }
 
+    /**
+     * Obtiene un flujo de plantillas de documentos desde Firestore.
+     *
+     * @return Un flujo que emite recursos con la lista de plantillas o errores.
+     */
     override fun getDocumentTemplates(): Flow<Resource<List<DocumentTemplate>>> = callbackFlow {
         val query = templatesCollection.orderBy("title")
 
@@ -89,6 +109,13 @@ class DocumentRepositoryImpl @Inject constructor(
         awaitClose { subscription.remove() }
     }
 
+    /**
+     * Asigna una plantilla de documento a una lista de trabajadores.
+     *
+     * @param template La plantilla de documento a asignar.
+     * @param workers La lista de trabajadores a los que se asignará el documento.
+     * @return Un recurso que indica el éxito o error de la operación.
+     */
     override suspend fun assignDocument(template: DocumentTemplate, workers: List<User>): Resource<Unit> {
         return try {
             val signedDocs = mutableListOf<String>()
@@ -136,6 +163,12 @@ class DocumentRepositoryImpl @Inject constructor(
         }
     }
 
+    /**
+     * Obtiene un flujo de asignaciones de documentos pendientes para un trabajador específico.
+     *
+     * @param workerId El ID del trabajador.
+     * @return Un flujo que emite recursos con la lista de asignaciones pendientes o errores.
+     */
     override fun getPendingAssignmentsForWorker(
         workerId: String
     ): Flow<Resource<List<DocumentAssignment>>> = callbackFlow {
@@ -163,6 +196,13 @@ class DocumentRepositoryImpl @Inject constructor(
         awaitClose { subscription.remove() }
     }
 
+    /**
+     * Marca un documento asignado como firmado, actualizando su estado en Firestore.
+     *
+     * @param assignmentId El ID de la asignación del documento.
+     * @param signatureUrl La URL de la firma digital.
+     * @return Un recurso que indica el éxito o error de la operación.
+     */
     override suspend fun markDocumentAsSigned(
         assignmentId: String, signatureUrl: String
     ): Resource<Unit> {
@@ -189,6 +229,11 @@ class DocumentRepositoryImpl @Inject constructor(
         }
     }
 
+    /**
+     * Obtiene un flujo de todas las asignaciones de documentos en Firestore.
+     *
+     * @return Un flujo que emite recursos con la lista de todas las asignaciones o errores.
+     */
     override fun getAllAssignments(): Flow<Resource<List<DocumentAssignment>>> = callbackFlow {
         val query = assignmentsCollection.orderBy("assignedDate", Query.Direction.DESCENDING)
 
@@ -209,6 +254,12 @@ class DocumentRepositoryImpl @Inject constructor(
         awaitClose { subscription.remove() }
     }
 
+    /**
+     * Obtiene un flujo de documentos asignados a un usuario específico.
+     *
+     * @param workerId El ID del trabajador.
+     * @return Un flujo que emite recursos con la lista de documentos asignados o errores.
+     */
     override fun getAssignedDocumentsForUser(workerId: String): Flow<Resource<List<DocumentAssignment>>> = callbackFlow {
         val query = assignmentsCollection.whereEqualTo("workerId", workerId)
 
@@ -230,6 +281,12 @@ class DocumentRepositoryImpl @Inject constructor(
         awaitClose { subscription.remove() }
     }
 
+    /**
+     * Obtiene un flujo de documentos firmados por un trabajador específico.
+     *
+     * @param workerId El ID del trabajador.
+     * @return Un flujo que emite recursos con la lista de documentos firmados o errores.
+     */
     override fun getSignedDocumentsForWorker(workerId: String): Flow<Resource<List<DocumentAssignment>>> = callbackFlow {
         val query = assignmentsCollection
             .whereEqualTo("workerId", workerId)
@@ -254,6 +311,12 @@ class DocumentRepositoryImpl @Inject constructor(
         awaitClose { subscription.remove() }
     }
 
+    /**
+     * Elimina una plantilla de documento si no tiene asignaciones asociadas.
+     *
+     * @param template La plantilla de documento a eliminar.
+     * @return Un recurso que indica el éxito o error de la operación.
+     */
     override suspend fun deleteTemplate(template: DocumentTemplate): Resource<Unit> {
         return try {
             Timber.d("🗑️ Eliminando plantilla: ${template.title}")
@@ -294,6 +357,7 @@ class DocumentRepositoryImpl @Inject constructor(
 
 // --- FUNCIONES DE MAPEO ---
 
+/** Convierte un DocumentSnapshot a un objeto DocumentTemplate. */
 private fun DocumentSnapshot.toDocumentTemplate(): DocumentTemplate? {
     return try {
         DocumentTemplate(
@@ -306,6 +370,8 @@ private fun DocumentSnapshot.toDocumentTemplate(): DocumentTemplate? {
     }
 }
 
+
+/** Convierte un DocumentSnapshot a un objeto DocumentAssignment. */
 private fun DocumentSnapshot.toDocumentAssignment(): DocumentAssignment? {
     return try {
         DocumentAssignment(
@@ -325,6 +391,7 @@ private fun DocumentSnapshot.toDocumentAssignment(): DocumentAssignment? {
     }
 }
 
+/** Convierte un objeto DocumentAssignment a un mapa para Firestore. */
 private fun DocumentAssignment.toFirestoreMap(): Map<String, Any?> {
     return mapOf(
         "id" to id,

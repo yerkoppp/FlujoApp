@@ -15,15 +15,24 @@ import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
 
-
+/**
+ * Implementación del repositorio de vehículos utilizando Firebase Firestore.
+ *
+ * @property firestore La instancia de FirebaseFirestore para gestionar los datos de vehículos.
+ */
 @Singleton
 class VehicleRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore
 ) : VehicleRepository {
 
+    /** Referencia a la colección de vehículos en Firestore. */
     private val vehiclesCollection = firestore.collection(VEHICLES_COLLECTION)
+    /** Referencia a la colección de usuarios en Firestore. */
     private val usersCollection = firestore.collection(USERS_COLLECTION)
 
+    /** Obtiene un flujo de la lista de vehículos.
+     *  @return Un flujo que emite un recurso con la lista de vehículos o un error en caso de fallo.
+     */
     override fun getVehicles(): Flow<Resource<List<Vehicle>>> {
         return vehiclesCollection.snapshots().map { snapshot ->
             try {
@@ -37,6 +46,11 @@ class VehicleRepositoryImpl @Inject constructor(
         }
     }
 
+    /** Crea un nuevo vehículo con la placa y descripción proporcionadas.
+     *  @param plate La placa del vehículo.
+     *  @param description La descripción del vehículo.
+     *  @return Un recurso que indica el éxito o error de la operación.
+     */
     override suspend fun createVehicle(plate: String, description: String): Resource<Unit> {
         return try {
             val newVehicleRef = vehiclesCollection.document()
@@ -54,6 +68,10 @@ class VehicleRepositoryImpl @Inject constructor(
         }
     }
 
+    /** Elimina un vehículo por su ID, desasignando a los usuarios asociados.
+     *  @param vehicleId El ID del vehículo a eliminar.
+     *  @return Un recurso que indica el éxito o error de la operación.
+     */
     override suspend fun deleteVehicle(vehicleId: String): Resource<Unit> {
         return try {
             // Transacción para asegurar que desasignamos a los usuarios antes de borrar
@@ -79,6 +97,11 @@ class VehicleRepositoryImpl @Inject constructor(
         }
     }
 
+    /** Asigna un usuario a un vehículo, respetando la regla de negocio de 1-6 usuarios por vehículo.
+     *  @param userId El ID del usuario a asignar.
+     *  @param vehicleId El ID del vehículo al que asignar el usuario.
+     *  @return Un recurso que indica el éxito o error de la operación.
+     */
     override suspend fun assignUserToVehicle(userId: String, vehicleId: String): Resource<Unit> {
         return try {
             firestore.runTransaction { transaction ->
@@ -108,6 +131,11 @@ class VehicleRepositoryImpl @Inject constructor(
         }
     }
 
+    /** Remueve un usuario de un vehículo.
+     *  @param userId El ID del usuario a remover.
+     *  @param vehicleId El ID del vehículo del cual remover al usuario.
+     *  @return Un recurso que indica el éxito o error de la operación.
+     */
     override suspend fun removeUserFromVehicle(userId: String, vehicleId: String): Resource<Unit> {
         return try {
             firestore.runTransaction { transaction ->
@@ -128,6 +156,11 @@ class VehicleRepositoryImpl @Inject constructor(
         }
     }
 
+    /** Asigna una bodega móvil a un vehículo, validando que la bodega no esté asignada a otro vehículo.
+     *  @param vehicleId El ID del vehículo al que asignar la bodega.
+     *  @param warehouseId El ID de la bodega a asignar.
+     *  @return Un recurso que indica el éxito o error de la operación.
+     */
     override suspend fun transferVehicleToWarehouse(vehicleId: String, warehouseId: String): Resource<Unit> {
         return try {
             // 1. Validar que la bodega existe y es MOBILE
@@ -171,6 +204,10 @@ class VehicleRepositoryImpl @Inject constructor(
         }
     }
 
+    /** Remueve la bodega asignada a un vehículo.
+     *  @param vehicleId El ID del vehículo del cual remover la bodega.
+     *  @return Un recurso que indica el éxito o error de la operación.
+     */
     override suspend fun removeWarehouseFromVehicle(vehicleId: String): Resource<Unit> {
         return try {
             vehiclesCollection.document(vehicleId)
@@ -182,7 +219,10 @@ class VehicleRepositoryImpl @Inject constructor(
         }
     }
 
-
+    /** Obtiene un vehículo por su ID.
+     *  @param vehicleId El ID del vehículo a obtener.
+     *  @return Un recurso que contiene el vehículo o un error en caso de fallo.
+     */
     override suspend fun getVehicle(vehicleId: String): Resource<Vehicle?> {
         return try {
             val vehicleDoc = vehiclesCollection.document(vehicleId).get().await()

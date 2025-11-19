@@ -12,10 +12,21 @@ import kotlinx.coroutines.tasks.await
 import timber.log.Timber
 import javax.inject.Inject
 
+/**
+ * Implementación del repositorio de notificaciones utilizando Firebase Firestore.
+ *
+ * @property firestore La instancia de FirebaseFirestore para gestionar las notificaciones.
+ */
 class NotificationRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore
 ) : NotificationRepository {
 
+    /**
+     * Obtiene un flujo de notificaciones para un usuario específico.
+     *
+     * @param userId El ID del usuario cuyas notificaciones se van a obtener.
+     * @return Un flujo que emite recursos que contienen listas de notificaciones o errores.
+     */
     override fun getUserNotifications(userId: String): Flow<Resource<List<Notification>>> = callbackFlow {
         val listener = firestore.collection("notifications")
             .whereEqualTo("userId", userId)
@@ -50,6 +61,12 @@ class NotificationRepositoryImpl @Inject constructor(
         awaitClose { listener.remove() }
     }
 
+    /**
+     * Marca una notificación como leída.
+     *
+     * @param notificationId El ID de la notificación a marcar como leída.
+     * @return Un recurso que indica el éxito o el error de la operación.
+     */
     override suspend fun markAsRead(notificationId: String): Resource<Unit> {
         return try {
             firestore.collection("notifications")
@@ -62,6 +79,12 @@ class NotificationRepositoryImpl @Inject constructor(
         }
     }
 
+    /**
+     * Elimina una notificación.
+     *
+     * @param notificationId El ID de la notificación a eliminar.
+     * @return Un recurso que indica el éxito o el error de la operación.
+     */
     override suspend fun deleteNotification(notificationId: String): Resource<Unit> {
         return try {
             firestore.collection("notifications")

@@ -47,13 +47,25 @@ class InventoryRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore
 ) : InventoryRepository {
 
+    /** CoroutineScope para operaciones asíncronas en segundo plano.
+     * Usamos Dispatchers.IO para operaciones de E/S.
+     */
     private val viewModelScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
+    /** Referencia a la colección de solicitudes de materiales en Firestore. */
     private val requestsCollection = firestore.collection(MATERIAL_REQUESTS_COLLECTION)
-
+    /** Referencia a la colección de bodegas en Firestore. */
     private val warehousesCol = firestore.collection(WAREHOUSES_COLLECTION)
+    /** Referencia a la colección de materiales en Firestore. */
     private val materialsCol = firestore.collection(MATERIALS_COLLECTION)
 
+    /**
+     * Obtiene las solicitudes de materiales con opciones de ordenamiento y filtrado.
+     *
+     * @param orderBy Campo por el cual ordenar los resultados.
+     * @param direction Dirección del ordenamiento (ASCENDENTE o DESCENDENTE).
+     * @param statusFilter Filtro opcional por estado de la solicitud.
+     * @return Flujo que emite recursos con la lista de solicitudes de materiales.
+     */
     override fun getMaterialRequests(
         orderBy: String,
         direction: Query.Direction,
@@ -96,6 +108,12 @@ class InventoryRepositoryImpl @Inject constructor(
         awaitClose { subscription.remove() }
     }
 
+    /**
+     * Crea una nueva solicitud de materiales en Firestore.
+     *
+     * @param request Objeto MaterialRequest que contiene los detalles de la solicitud.
+     * @return Recurso que indica el éxito o error de la operación.
+     */
     override suspend fun createMaterialRequest(request: MaterialRequest): Resource<Unit> {
         return try {
             // Usamos el ID del objeto request como el ID del nuevo documento en Firestore.
@@ -112,6 +130,10 @@ class InventoryRepositoryImpl @Inject constructor(
     /**
      * Actualiza el estado de una solicitud existente con notas del administrador.
      * Usado por el administrador para aprobar o rechazar.
+     * @param requestId ID de la solicitud a actualizar.
+     * @param status Nuevo estado de la solicitud.
+     * @param adminNotes Notas opcionales del administrador.
+     * @return Recurso que indica el éxito o error de la operación.
      */
     override suspend fun updateRequestStatus(
         requestId: String,
@@ -140,6 +162,9 @@ class InventoryRepositoryImpl @Inject constructor(
     }
     /**
      * Versión simplificada de updateRequestStatus sin notas del administrador.
+     * @param requestId ID de la solicitud a actualizar.
+     * @param newStatus Nuevo estado de la solicitud.
+     * @return Recurso que indica el éxito o error de la operación.
      */
     override suspend fun updateRequestStatus(requestId: String, newStatus: RequestStatus): Resource<Unit> {
         // Delegar a la versión existente que acepta adminNotes (sin notas por defecto)
@@ -148,6 +173,8 @@ class InventoryRepositoryImpl @Inject constructor(
 
     /**
      * Obtiene las solicitudes de materiales para un trabajador específico en tiempo real.
+     * @param workerId ID del trabajador cuyas solicitudes se van a obtener.
+     * @return Flujo que emite recursos con la lista de solicitudes del trabajador.
      */
     override fun getRequestsForWorker(workerId: String): Flow<Resource<List<MaterialRequest>>> = callbackFlow {
         val query = requestsCollection
@@ -176,6 +203,10 @@ class InventoryRepositoryImpl @Inject constructor(
         awaitClose { subscription.remove() }
     }
 
+    /**
+     * Obtiene la lista de todas las solicitudes de materiales en tiempo real.
+     * @return Flujo que emite recursos con la lista de todas las solicitudes de materiales.
+     */
     override fun getAllRequests(): Flow<Resource<List<MaterialRequest>>> {
         return requestsCollection.snapshots().map { snapshot ->
             try {
@@ -189,6 +220,7 @@ class InventoryRepositoryImpl @Inject constructor(
 
     /**
      * Obtiene la lista de todas las bodegas en tiempo real.
+     * @return Flujo que emite recursos con la lista de bodegas.
      */
     override fun getWarehouses(): Flow<Resource<List<Warehouse>>> {
         return warehousesCol.snapshots().map { snapshot ->
@@ -203,6 +235,9 @@ class InventoryRepositoryImpl @Inject constructor(
 
     /**
      * Crea una nueva bodega (fija o móvil).
+     * @param name Nombre de la bodega.
+     * @param type Tipo de bodega (fija o móvil).
+     * @return Recurso que indica el éxito o error de la operación.
      */
     override suspend fun createWarehouse(name: String, type: WarehouseType): Resource<Unit> {
         return try {
@@ -217,6 +252,10 @@ class InventoryRepositoryImpl @Inject constructor(
         }
     }
 
+    /**
+     * Obtiene la lista de todas las definiciones de materiales en tiempo real.
+     * @return Flujo que emite recursos con la lista de materiales.
+     */
     override fun getMaterials(): Flow<Resource<List<Material>>> {
         return materialsCol.snapshots().map { snapshot ->
             try {
@@ -228,6 +267,12 @@ class InventoryRepositoryImpl @Inject constructor(
         }
     }
 
+    /**
+     * Crea una nueva definición de material.
+     * @param name Nombre del material.
+     * @param description Descripción del material.
+     * @return Recurso que indica el éxito o error de la operación.
+     */
     override suspend fun createMaterialDefinition(name: String, description: String): Resource<Unit> {
         return try {
             val newMaterial = Material(
@@ -241,6 +286,11 @@ class InventoryRepositoryImpl @Inject constructor(
         }
     }
 
+    /**
+     * Obtiene el stock de una bodega específica en tiempo real.
+     * @param warehouseId ID de la bodega cuyo stock se va a obtener.
+     * @return Flujo que emite recursos con la lista de items en stock de la bodega.
+     */
     override fun getStockForWarehouse(warehouseId: String): Flow<Resource<List<StockItem>>> {
         // Consultamos la sub-colección "stock" dentro del documento de la bodega
         return warehousesCol.document(warehouseId)
@@ -256,6 +306,14 @@ class InventoryRepositoryImpl @Inject constructor(
             }
     }
 
+    /**
+     * Transfiere stock de un material entre dos bodegas.
+     * @param fromWarehouseId ID de la bodega de origen.
+     * @param toWarehouseId ID de la bodega de destino.
+     * @param material Material a transferir.
+     * @param quantityToTransfer Cantidad a transferir.
+     * @return Recurso que indica el éxito o error de la operación.
+     */
     override suspend fun transferStock(
         fromWarehouseId: String,
         toWarehouseId: String,
@@ -322,6 +380,14 @@ class InventoryRepositoryImpl @Inject constructor(
         }
     }
 
+    /**
+     * Entrega el material solicitado en una solicitud aprobada.
+     * Actualiza los stocks de la bodega central y la bodega móvil del trabajador.
+     * @param requestId ID de la solicitud a entregar.
+     * @param centralWarehouseId ID de la bodega central desde donde se entrega el material.
+     * @param adminNotes Notas opcionales del administrador sobre la entrega.
+     * @return Recurso que indica el éxito o error de la operación.
+     */
     override suspend fun deliverMaterialRequest(
         requestId: String,
         centralWarehouseId: String,
@@ -515,6 +581,13 @@ class InventoryRepositoryImpl @Inject constructor(
         }
     }
 
+    /**
+     * Agrega stock a una bodega específica.
+     * @param warehouseId ID de la bodega donde se agregará el stock.
+     * @param material Material al que se le agregará stock.
+     * @param quantity Cantidad a agregar.
+     * @return Recurso que indica el éxito o error de la operación.
+     */
     override suspend fun addStockToWarehouse(
         warehouseId: String,
         material: Material,
@@ -554,6 +627,10 @@ class InventoryRepositoryImpl @Inject constructor(
         }
     }
 
+    /**
+     * Obtiene el inventario consolidado de todos los materiales en todas las bodegas.
+     * @return Flujo que emite recursos con la lista de inventario consolidado.
+     */
     override fun getConsolidatedInventory(): Flow<Resource<List<ConsolidatedStock>>> = callbackFlow {
         val materialsQuery = firestore.collection("materials")
         val warehousesQuery = firestore.collection("warehouses")
@@ -636,6 +713,7 @@ class InventoryRepositoryImpl @Inject constructor(
     /**
      * Función de extensión privada para convertir un MaterialRequest en un Map
      * que Firestore pueda entender y almacenar.
+     * @return Mapa con los campos del MaterialRequest.
      */
     private fun MaterialRequest.toFirestoreMap(): Map<String, Any?> {
         return mapOf(
@@ -662,6 +740,7 @@ class InventoryRepositoryImpl @Inject constructor(
     /**
      * Función de extensión para convertir un DocumentSnapshot de Firestore
      * en nuestro objeto de dominio MaterialRequest.
+     * @return Objeto MaterialRequest o null si ocurre un error durante la conversión.
      */
     private fun DocumentSnapshot.toMaterialRequest(): MaterialRequest? {
         return try {
@@ -697,6 +776,15 @@ class InventoryRepositoryImpl @Inject constructor(
     // Paginación para solicitudes de materiales
 
     // Para vista de ADMINISTRADOR (todas las solicitudes)
+    /**
+     * Obtiene las solicitudes de materiales paginadas para el administrador.
+     * Permite ordenar y filtrar por estado.
+     *
+     * @param orderBy Campo por el cual ordenar.
+     * @param direction Dirección de ordenamiento (ASCENDENTE o DESCENDENTE).
+     * @param statusFilter Filtro opcional por estado de la solicitud.
+     * @return Flujo que emite datos paginados de MaterialRequest.
+     */
     override fun getMaterialRequestsPaged(
         orderBy: String,
         direction: Query.Direction,
@@ -719,6 +807,12 @@ class InventoryRepositoryImpl @Inject constructor(
     }
 
     // Para vista de TRABAJADOR (solo sus solicitudes)
+    /**
+     * Obtiene las solicitudes de materiales paginadas para un trabajador específico.
+     *
+     * @param workerId ID del trabajador cuyas solicitudes se van a obtener.
+     * @return Flujo que emite datos paginados de MaterialRequest.
+     */
     override fun getRequestsForWorkerPaged(workerId: String): Flow<PagingData<MaterialRequest>> {
         return Pager(
             config = PagingConfig(

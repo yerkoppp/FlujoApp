@@ -1,9 +1,8 @@
 package dev.ycosorio.flujo.data.repository
 
-import android.util.Log
-import androidx.paging.PagingData
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
+import androidx.paging.PagingData
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.functions.FirebaseFunctions
@@ -18,14 +17,26 @@ import kotlinx.coroutines.tasks.await
 import timber.log.Timber
 import javax.inject.Inject
 
+/**
+ * Implementación del repositorio de mensajes utilizando Firebase Firestore.
+ *
+ * @property firestore La instancia de FirebaseFirestore para gestionar los mensajes.
+ * @property functions La instancia de FirebaseFunctions para enviar notificaciones push.
+ */
 class MessageRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val functions: FirebaseFunctions
 ) : MessageRepository {
 
+    /** Referencias a las colecciones de Firestore */
     private val messagesCollection = firestore.collection(FirestoreConstants.MESSAGES_COLLECTION)
     private val usersCollection = firestore.collection(FirestoreConstants.USERS_COLLECTION)
 
+    /** Envía un mensaje a los destinatarios especificados
+     *
+     *  @param message El mensaje a enviar
+     *  @return Un recurso que indica el éxito o error de la operación
+     */
     override suspend fun sendMessage(message: Message): Resource<Unit> {
         return try {
 
@@ -64,6 +75,11 @@ class MessageRepositoryImpl @Inject constructor(
         }
     }
 
+    /** Obtiene los mensajes recibidos por un usuario específico
+     *
+     *  @param userId El ID del usuario cuyos mensajes se van a obtener
+     *  @return Un flujo que emite recursos con la lista de mensajes recibidos
+     */
     override fun getReceivedMessages(userId: String): Flow<Resource<List<Message>>> = callbackFlow {
         val listener = firestore.collection(FirestoreConstants.MESSAGES_COLLECTION)
             .whereArrayContains("recipientIds", userId)
@@ -95,6 +111,11 @@ class MessageRepositoryImpl @Inject constructor(
         awaitClose { listener.remove() }
     }
 
+    /** Obtiene los mensajes enviados por un usuario específico
+     *
+     *  @param userId El ID del usuario cuyos mensajes enviados se van a obtener
+     *  @return Un flujo que emite recursos con la lista de mensajes enviados
+     */
     override fun getSentMessages(userId: String): Flow<Resource<List<Message>>> = callbackFlow {
         val listener = firestore.collection(FirestoreConstants.MESSAGES_COLLECTION)
             .whereEqualTo("senderId", userId)
@@ -125,6 +146,12 @@ class MessageRepositoryImpl @Inject constructor(
         awaitClose { listener.remove() }
     }
 
+    /** Marca un mensaje como leído por un usuario específico
+     *
+     *  @param messageId El ID del mensaje a marcar como leído
+     *  @param userId El ID del usuario que ha leído el mensaje
+     *  @return Un recurso que indica el éxito o error de la operación
+     */
     override suspend fun markAsRead(messageId: String, userId: String): Resource<Unit> {
         return try {
             firestore.collection(FirestoreConstants.MESSAGES_COLLECTION)
@@ -137,6 +164,11 @@ class MessageRepositoryImpl @Inject constructor(
         }
     }
 
+    /** Elimina un mensaje específico
+     *
+     *  @param messageId El ID del mensaje a eliminar
+     *  @return Un recurso que indica el éxito o error de la operación
+     */
     override suspend fun deleteMessage(messageId: String): Resource<Unit> {
         return try {
             firestore.collection(FirestoreConstants.MESSAGES_COLLECTION)
@@ -149,6 +181,11 @@ class MessageRepositoryImpl @Inject constructor(
         }
     }
 
+    /** Obtiene los mensajes recibidos por un usuario específico con paginación
+     *
+     *  @param userId El ID del usuario cuyos mensajes se van a obtener
+     *  @return Un flujo que emite datos paginados de mensajes recibidos
+     */
     override fun getReceivedMessagesPaged(userId: String): Flow<PagingData<Message>> {
         return Pager(
             config = PagingConfig(
@@ -166,6 +203,11 @@ class MessageRepositoryImpl @Inject constructor(
         ).flow
     }
 
+    /** Obtiene los mensajes enviados por un usuario específico con paginación
+     *
+     *  @param userId El ID del usuario cuyos mensajes enviados se van a obtener
+     *  @return Un flujo que emite datos paginados de mensajes enviados
+     */
     override fun getSentMessagesPaged(userId: String): Flow<PagingData<Message>> {
         return Pager(
             config = PagingConfig(
@@ -185,6 +227,8 @@ class MessageRepositoryImpl @Inject constructor(
 
     /**
      * Envía una notificación push a los destinatarios del mensaje
+     *
+     * @param message El mensaje que se ha enviado
      */
     private fun sendPushNotification(message: Message) {
         try {

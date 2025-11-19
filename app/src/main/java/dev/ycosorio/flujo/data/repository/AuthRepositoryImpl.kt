@@ -12,10 +12,19 @@ import kotlinx.coroutines.tasks.await
 import timber.log.Timber
 import javax.inject.Inject
 
+/**
+ * Implementación del repositorio de autenticación utilizando Firebase Authentication.
+ *
+ * @property firebaseAuth La instancia de FirebaseAuth para gestionar la autenticación.
+ */
 class AuthRepositoryImpl @Inject constructor(
     private val firebaseAuth: FirebaseAuth
 ) : AuthRepository {
 
+    /**
+     * Flujo que emite el usuario autenticado actual o null si no hay ningún usuario autenticado.
+     * Cada vez que el estado de autenticación cambia, se emite el nuevo usuario.
+     */
     override val currentUser: Flow<AuthUser?> = callbackFlow {
         val authStateListener = FirebaseAuth.AuthStateListener { auth ->
             val user = auth.currentUser
@@ -30,6 +39,12 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
+    /**
+     * Inicia sesión con Google utilizando el token de ID proporcionado.
+     *
+     * @param idToken El token de ID de Google para autenticar al usuario.
+     * @return Un recurso que contiene el usuario autenticado o un error en caso de fallo.
+     */
     override suspend fun signInWithGoogle(idToken: String): Resource<AuthUser> {
         return try {
             val credential = GoogleAuthProvider.getCredential(idToken, null)
@@ -46,6 +61,11 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
+    /**
+     * Cierra la sesión del usuario actual.
+     *
+     * @return Un recurso que indica el éxito o el error de la operación.
+     */
     override suspend fun signOut(): Resource<Unit> {
         return try {
             firebaseAuth.signOut()
@@ -55,11 +75,22 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
+    /**
+     * Obtiene el usuario autenticado actual.
+     *
+     * @return El usuario autenticado o null si no hay ningún usuario autenticado.
+     */
     override fun getCurrentUser(): AuthUser? {
         return firebaseAuth.currentUser?.toAuthUser()
     }
 }
 
+/**
+ * Convierte un objeto FirebaseUser a un objeto AuthUser.
+ *
+ * @receiver FirebaseUser El usuario de Firebase a convertir.
+ * @return AuthUser El usuario convertido.
+ */
 private fun com.google.firebase.auth.FirebaseUser.toAuthUser(): AuthUser {
     return AuthUser(
         uid = uid,

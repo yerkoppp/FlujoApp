@@ -1,11 +1,10 @@
 package dev.ycosorio.flujo.data.repository
 
 import android.net.Uri
-import androidx.paging.PagingData
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
+import androidx.paging.PagingData
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.snapshots
 import com.google.firebase.storage.FirebaseStorage
 import dev.ycosorio.flujo.domain.model.ExpenseReport
 import dev.ycosorio.flujo.domain.model.ExpenseReportStatus
@@ -15,19 +14,26 @@ import dev.ycosorio.flujo.utils.Resource
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 import java.util.Date
 import java.util.UUID
 import javax.inject.Inject
 
+/**
+ * Implementación del repositorio de reportes de gastos utilizando Firebase Firestore y Firebase Storage.
+ *
+ * @property firestore La instancia de FirebaseFirestore para gestionar los datos de reportes de gastos.
+ * @property storage La instancia de FirebaseStorage para gestionar las imágenes asociadas a los reportes.
+ */
 class ExpenseRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val storage: FirebaseStorage
 ) : ExpenseRepository {
 
+    /** Referencia a la colección de reportes de gastos en Firestore. */
     private val expenseReportsCol = firestore.collection(FirestoreConstants.EXPENSE_COLLECTION)
 
+    /** Obtiene los reportes de gastos para un trabajador específico. */
     override fun getExpenseReportsForWorker(workerId: String): Flow<Resource<List<ExpenseReport>>> =
         callbackFlow {
             trySend(Resource.Loading())
@@ -54,6 +60,7 @@ class ExpenseRepositoryImpl @Inject constructor(
             awaitClose { listener.remove() }  // ✅ Cancelar el listener
         }
 
+    /** Obtiene todos los reportes de gastos que no están en estado Borrador. */
     override fun getAllExpenseReports(): Flow<Resource<List<ExpenseReport>>> =
         callbackFlow {
             trySend(Resource.Loading())
@@ -81,6 +88,7 @@ class ExpenseRepositoryImpl @Inject constructor(
             awaitClose { listener.remove() }
         }
 
+    /** Obtiene un reporte de gastos por su ID.*/
     override fun getExpenseReportById(reportId: String): Flow<Resource<ExpenseReport>> =
         callbackFlow {
             trySend(Resource.Loading())
@@ -107,6 +115,7 @@ class ExpenseRepositoryImpl @Inject constructor(
             awaitClose { listener.remove() }
         }
 
+    /** Guarda o actualiza un reporte de gastos en Firestore. */
     override suspend fun saveExpenseReport(report: ExpenseReport): Resource<String> {
         return try {
             val docRef = if (report.id.isEmpty()) {
@@ -123,6 +132,7 @@ class ExpenseRepositoryImpl @Inject constructor(
         }
     }
 
+    /** Sube una imagen asociada a un reporte de gastos a Firebase Storage. */
     override suspend fun uploadExpenseImage(workerId: String, imageUri: Uri): Resource<String> {
         return try {
             val fileName = "${UUID.randomUUID()}.jpg"
@@ -138,6 +148,7 @@ class ExpenseRepositoryImpl @Inject constructor(
         }
     }
 
+    /** Actualiza el estado de un reporte de gastos. */
     override suspend fun updateExpenseReportStatus(
         reportId: String,
         status: ExpenseReportStatus,
@@ -164,6 +175,7 @@ class ExpenseRepositoryImpl @Inject constructor(
         }
     }
 
+    /** Elimina un reporte de gastos por su ID. */
     override suspend fun deleteExpenseReport(reportId: String): Resource<Unit> {
         return try {
             expenseReportsCol.document(reportId).delete().await()
@@ -173,6 +185,7 @@ class ExpenseRepositoryImpl @Inject constructor(
         }
     }
 
+    /** Obtiene los reportes de gastos para un trabajador específico en formato paginado. */
     override fun getExpenseReportsForWorkerPaged(userId: String): Flow<PagingData<ExpenseReport>> {
         return Pager(
             config = PagingConfig(
