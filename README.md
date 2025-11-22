@@ -14,10 +14,12 @@
 [![Firebase](https://img.shields.io/badge/Firebase-Backend-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)](https://firebase.google.com/)
 [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 
-</div>
 ---
 
 **[🚀 Ver Sitio Web](https://yerkoppp.github.io/-FlujoApp-Website/)** • **[🎥 Ver Video](https://www.youtube.com/watch?v=EFjfT1XV9Q0)**
+
+
+</div>
 
 ---
 
